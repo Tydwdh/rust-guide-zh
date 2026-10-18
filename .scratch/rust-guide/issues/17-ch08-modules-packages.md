@@ -37,3 +37,12 @@ Blocked by: 06
   新术语（建议进 GLOSSARY）：模块（module）｜模块；可见性（visibility）｜可见性；命名空间（namespace）｜命名空间；重导出（re-export）｜重导出；依赖（dependency）｜依赖；工作区（workspace）｜工作区；特性（feature）｜建议 `features` 保留英文（Cargo `[features]` 表，第 30 章定）。
   邻章衔接：第 11 章（`tests/` 与 `#[cfg(test)] mod tests` 布局）与第 30 章（features / workspace）各留一句预告；第 12、18 章回指「祖先链全可见才对外可达」；第 33 章接 `extern crate` 与 edition。
   图示需求：「模块树 ↔ 文件树」现用 `text` 树 + 表格；若 08 票统一图示体系，这里值得一张「crate 边界 + 私有链断点（E0603 图景）」示意图。
+- 2026-10-18 审校修订（RwCh08 1×major+6×minor，RwCh09 追加 1 条）：
+  1. **补 E0616**（补上 ch05 `:595` 的跨章承诺）：在「可见性」小节 `inventory` 例子后新增 `rust,compile_fail` 块（直读私有字段 `item.cost`）+ 1.98 真实输出 `error[E0616]: field \`cost\` of struct \`Item\` is private`（含 `^^^^ private field`），并用 NOTE 收尾，点明「读字段 E0616 / 构造写字段 E0451」（E0451 亦本机实测：`field \`cost\` of struct \`Item\` is private`），并回指第 5 章那句话。该块用**逐字从章文件抽取**的代码复编译，行号/列/插入符与正文粘贴一致（`from_md2.rs:16:25`）。
+  2. 「跨 crate 优化」不准确 → 改为「私有项不属于对外接口，编译器可以放心地消除或内联它们；真正跨 crate 的优化要靠单态化与 LTO（第 29 章）」。
+  3. `Cargo.lock` 块补回第二行样板注释 `# It is not intended for manual editing.`。
+  4. `workspace` → **工作区（workspace）**；**features 决定保留英文**（正文已写「Cargo 术语，本书保留英文」）——请并表时记「保留英文」。
+  5. 报错现场小节标题「私有模块：E0603」→「**私有项：E0603**」（该节第二个例子是私有函数）。
+  6. `:589` 含混句 → 「如果文件已经放在 `src/config.rs`，它不会作为 `util` 的子模块被找到：要么挪到 `src/util/config.rs`，要么在 `main.rs` 里 `mod config;` 把它升成 crate 根的模块……」。
+  7. +RwCh09：shop 运行命令统一 Windows 口径 → `rustc --edition 2024 main.rs -o shop.exe` / `.\shop.exe`（注释给出 Linux/macOS 的 `-o shop` / `./shop`）。注意 `-o` 的名字 rustc **不会**补 `.exe`。
+  复跑：`mdbook test -c ch08-modules-packages.md` → **exit 0**（现 14 个 doctest：8 个 `compile_fail` + 6 个 `rust`，4 个 `ignore`）；正文中文 **3668** 字（不含代码块，仍在 3000–4000）。`snippets/ch08/` 仍只有 3 个 `.rs`，无产物。

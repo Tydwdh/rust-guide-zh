@@ -4,7 +4,7 @@
 
 到第 6 章为止，我们写的函数基本都假定一切顺利：解析一定成功、文件一定存在、用户输入一定合法。真实程序不是这样——失败是常态，不是例外。
 
-大多数语言把「函数可能失败」这件事留给文档和约定：调用者要么记得查文档，要么在运行时被异常或错误码打个措手不及。Rust 走了另一条路：**把失败写进类型**。一旦某个函数返回 `Result<T, E>`，类型系统就会逼着调用者处理那个 `Err`，想忘也忘不掉——代码根本编译不过。
+大多数语言把「函数可能失败」这件事留给文档和约定：调用者要么记得查文档，要么在运行时被异常或错误码打个措手不及。Rust 走了另一条路：**把失败写进类型**。一旦某个函数返回 `Result<T, E>`，调用者想「忘掉」它，编译器至少会用一个警告提醒（`unused_must_use`；`let _ =` 可以把警告消掉，显式表示「这个结果我确实不要」）；而要拿到 `Ok` 里的那个值，就必须先处理 `Err`。
 
 读完这一章，你能做到：
 
@@ -19,7 +19,8 @@
 
 先看三条路线：
 
-- **异常路线（Java、Python、C++）**：`try { ... } catch (IOException e) { ... }`。写起来省事，但函数签名里看不出它会失败。调用者必须读过文档或踩过坑，才知道要 catch 什么。
+- **异常路线（Python、C++，以及 Java 的非受检异常）**：`try { ... } catch (IOException e) { ... }`。写起来省事，但函数签名里看不出它会失败。调用者必须读过文档或踩过坑，才知道要 catch 什么。
+- **Java 的受检异常（checked exception）**：`throws IOException` 其实也把失败写进了签名，是这条路线里难得的例外；但实践中常被上层 `catch (Exception)` 一把兜住，这份约束也就打了折扣。
 - **错误码路线（C）**：`int ret = read_file(...); if (ret < 0) { ... }`。签名里同样没有失败信息，而且返回值要同时承担「结果」和「状态」两个职责，函数一复杂就得额外传指针出去。
 - **Rust 路线**：失败就是一个普通的值，类型是 `Result<T, E>`：
 
@@ -32,7 +33,7 @@ enum Result<T, E> {
 # fn main() {}
 ```
 
-`Result` 不是什么编译器魔法，就是标准库里一个普通的枚举（第 5 章讲过枚举怎么建模状态）。它的全部威力集中在一点：**类型写在签名里**。谁调用 `parse_port`，谁就拿到一个 `Result`；要么显式处理 `Err`，要么就用下文的 `?` 声明「我把失败交给调用者」。两条路都在类型系统里，绕不过去。
+`Result` 不是什么编译器魔法，就是标准库里一个普通的枚举（第 5 章讲过枚举怎么建模状态）。它的全部威力集中在一点：**类型写在签名里**。谁调用 `parse_port`，谁就拿到一个 `Result`；要么显式处理 `Err`，要么就用下文的 `?` 声明「我把失败交给调用者」。两条路都得在代码里显式写出来——不处理 `Result`，就拿不到里面那个 `u16`。
 
 由此得到本书反复用的选择标准：
 
@@ -77,9 +78,9 @@ called `Option::unwrap()` on a `None` value
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 ```
 
-三行各有用途：第一行是**位置**（哪个线程、哪个文件、哪一列），第二行是**原因**，第三行是**下一步线索**。这类 panic 默认以状态码 101 退出（实测；正常返回是 0）。
+三行各有用途：第一行是**位置**（哪个线程、哪个文件、哪一列；括号里的线程号每次运行都不相同，不影响读法），第二行是**原因**，第三行是**下一步线索**。这类 panic 默认以状态码 101 退出（实测；正常返回是 0）。
 
-按提示打开回溯（backtrace），把上面那份程序存成 `src/main.rs` 后用 `RUST_BACKTRACE=1` 重跑，得到（只保留前几帧，函数名里的 `config_tool` 是 crate 名）：
+按提示打开回溯（backtrace），把上面那份程序存成 `src/main.rs` 后用 `RUST_BACKTRACE=1` 重跑，得到（只保留前几帧；帧号与函数名照抄，`config_tool` 是 crate 名。真实输出里每个标准库帧下面还有一行 `at …` 源码位置——比如 `core::option::unwrap_failed` 指向 `library/core/src/option.rs:2251`——这里统一省去）：
 
 ```text
 thread 'main' (11952) panicked at src/main.rs:3:21:
@@ -89,7 +90,6 @@ stack backtrace:
    1: core::panicking::panic_fmt
    2: core::panicking::panic
    3: core::option::unwrap_failed
-             at /rustc/88d9e12ae178fab0fb5cc050a94da85685d449ea/library\core\src\option.rs:2251
    4: config_tool::main
    5: config_tool::main
    6: std::rt::lang_start::<()>
@@ -254,7 +254,7 @@ impl Error for ConfigError {
 
 三个要点的顺序不能乱：
 
-1. `#[derive(Debug)]`——`Error` 的 supertrait 要求 `Debug + Display`（std 里的声明是 `pub trait Error: Debug + Display`），少任何一个，`impl Error` 都过不了编译；
+1. `#[derive(Debug)]`——`Error` 的父 trait（supertrait）要求 `Debug + Display`（std 里的声明是 `pub trait Error: Debug + Display`），少任何一个，`impl Error` 都过不了编译；
 2. `impl Display`——面向人的一句话；
 3. `impl Error`——让类型能进 `Box<dyn Error>`、能被 `?` 转换、能参与错误链。
 
@@ -472,11 +472,11 @@ note: required by a bound in `std::error::Error`
    |                          ^^^^^^^ required by this bound in `Error`
 ```
 
-**定位路径**：`note` 一行把根因写死——`Error` 的 supertrait 是 `Debug + Display`。上面这版已经有 `#[derive(Debug)]`，所以只缺 `Display`；如果连 `Debug` 也没写，同一段代码会一次报两个 E0277。**修法**：补 `impl Display`，让 `fmt` 输出一句面向用户的话（7.5 节）；`source()` 是可选方法，有底层错误时才实现。
+**定位路径**：`note` 一行把根因写死——`Error` 的父 trait 是 `Debug + Display`。上面这版已经有 `#[derive(Debug)]`，所以只缺 `Display`；如果连 `Debug` 也没写，同一段代码会一次报两个 E0277。**修法**：补 `impl Display`，让 `fmt` 输出一句面向用户的话（7.5 节）；`source()` 是可选方法，有底层错误时才实现。
 
 ## 小结
 
-- Rust 把失败放进类型：预期内的失败返回 `Result<T, E>`，坏状态用 `panic` 停下，调用者想忽略都难。
+- Rust 把失败放进类型：预期内的失败返回 `Result<T, E>`，坏状态用 `panic` 停下。调用者要么显式处理 `Err`，要么用 `?` 声明转交；想拿 `Ok` 里的值，就必须先写下处理路径（整个忽略掉会有 `unused_must_use` 警告）。
 - `unwrap`/`expect` 是把可恢复失败升级为 panic 的声明；示例、原型、测试里合理，生产与库代码里要慎重。`expect` 的消息写「为什么这里不会失败」。
 - `?` = `Ok` 取值、`Err` 提前 `return`，并经 `From` 自动转换错误类型；因此所在函数必须返回能承接失败的类型（`Result`/`Option`）。`main` 也可以返回 `Result<(), Box<dyn Error>>`，失败时打印 Debug 并非 0 退出。
 - `Option` 到 `Result` 用 `ok_or`/`ok_or_else`；`?` 在 `Option` 上也可用，但两端类型要对得上。
@@ -498,7 +498,7 @@ fn main() {
 }
 ```
 
-2. 已有 `fn find_user(id: u32) -> Option<User>`。现在要写 `fn load_user(id: u32) -> Result<User, MyError>`，把「找不到用户」表示为自定义错误 `MyError::NotFound`。不改 `find_user` 的前提下，用最少代码怎么写？
+2. 已有 `fn find_user(id: u32) -> Option<User>`。现在要写 `fn load_user(id: u32) -> Result<User, MyError>`，把「找不到用户」表示为自定义错误 `MyError::NotFound(u32)`（带上查的 `id`）。不改 `find_user` 的前提下，用最少代码怎么写？
 
 3. 预测输出：把 `Result::<i32, String>::Err("boom".into())` 用 `.map_err(|e| format!("上层：{e}"))` 处理之后，再用 `{:#?}` 打印，会是什么样？`{:#?}` 和 `{}` 分别在什么场合用？
 
@@ -516,7 +516,7 @@ fn main() {
 
    失败被就地吞掉，调用者永远拿不到原因——所以只在「读不到就用默认值」这种确实可接受时这么做。
 
-2. 用 `ok_or`：`find_user(id).ok_or(MyError::NotFound)`。如果错误需要带上 `id` 之类的信息（构造要花点力气），用 `ok_or_else(|| MyError::NotFound(id))`。
+2. 错误要携带 `id`，构造不是零成本，所以用 `ok_or_else`：`find_user(id).ok_or_else(|| MyError::NotFound(id))`。如果错误变体不带数据（`MyError::NotFound` 这种常量），`ok_or(MyError::NotFound)` 更简洁——这正是 7.4 节那条「需要构造就用 `ok_or_else`」规则的由来。
 
 3. 输出是
 

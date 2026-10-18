@@ -2,7 +2,7 @@
 
 本书是中文 Rust 指南：正文简体中文，术语首现写「中文（English）」，之后按本表执行。本表既是写作一致性依据，也是将来书末术语附录的来源；新增或改动术语时先查社区《Rust 语言术语中英文对照表》（CC0）并采纳主流用法，分歧记在这里（依据：`research/01-zh-rust-resources.md` §3）。
 
-## Language
+## 语言与运行时
 
 **所有权（ownership）**：
 值与其存储的归属关系：谁拥有、何时转移、何时释放。
@@ -80,10 +80,346 @@ _Avoid_: 无开销抽象
 crate = 编译单元；包 = 一个或多个 crate 的发布单位（`Cargo.toml`）。
 _Avoid_: 箱子；「库」仅指 library crate
 
+## 类型与建模
+
+**绑定（binding）**：
+用 `let` 给值起的名字。
+_Avoid_: 变量声明（Rust 语境下不精确）
+
+**可变绑定（mutable binding）**：
+`let mut` 起的、允许重新赋值的绑定。
+_Avoid_: 可变变量
+
+**遮蔽（shadowing）**：
+同名新绑定遮蔽旧绑定（旧值仍在，只是名字不再可达）。
+_Avoid_: 覆盖（那是 trait 实现的说法）
+
+**结构体（struct）**：
+命名字段的复合类型。
+_Avoid_: 记录、record
+
+**元组结构体（tuple struct）**：
+按位置访问字段的结构体（`struct Point(i32, i32);`）。
+_Avoid_: 位置结构体
+
+**单元结构体（unit struct）**：
+没有字段的结构体（`struct Marker;`）。
+_Avoid_: 空结构体
+
+**枚举（enum）**：
+取值为若干「变体」之一的类型。
+_Avoid_: 枚举类型（重言）
+
+**变体（variant）**：
+枚举的一个可选形态，可各自携带不同的数据。
+_Avoid_: 成员、枚举项
+
+**字段（field）**：
+结构体变体里带名字的数据槽。
+_Avoid_: 属性（attribute 才是「属性」）
+
+**方法（method）**：
+带 `self` 接收者的函数（`fn f(&self)`）。
+_Avoid_: 成员函数（C++ 说法）
+
+**关联函数（associated function）**：
+不带 `self` 的 `impl` 函数（如 `Vec::new`）。
+_Avoid_: 静态方法（Java 说法）
+
+**解构（destructuring）**：
+用模式把值拆成各部分（`let Point { x, y } = p;`）。
+_Avoid_: 拆包（那是元组/参数展开的说法）
+
+**代数数据类型（ADT, algebraic data type）**：
+「且」（结构体）与「或」（枚举）组合出的类型。
+_Avoid_: 代数类型（省略「数据」）
+
+**穷尽性（exhaustiveness）**：
+`match` 必须覆盖全部可能取值，编译器负责检查。
+_Avoid_: 完备性
+
+**匹配守卫（match guard）**：
+`match` 分支上附加的 `if` 条件。
+_Avoid_: 守卫（单用太泛）
+
+**或模式（or-pattern）**：
+用 `|` 组合的多个模式（`Some(1) | Some(2)`）。
+_Avoid_: 选择模式
+
+**部分移动（partial move）**：
+只移走结构体/枚举中部分字段，其余仍可访问。
+_Avoid_: 局部移动
+
+**匹配人体工程学（match ergonomics）**：
+让 `match`/`let` 在引用上自动安排绑定模式的规则。
+_Avoid_: 匹配人体工学（错字）
+
+**derive（`#[derive]`）**：
+让编译器生成 trait 实现的属性。**保留英文**。
+_Avoid_: 派生（中译歧义，全书用 derive）
+
+**单元类型（unit type）**：
+写作 `()`，唯一值也是它。
+_Avoid_: 空类型、void（对照其他语言时才提）
+
+**尾表达式（tail expression）**：
+块末尾不带 `;` 的表达式，其值即块的值。
+_Avoid_: 返回表达式
+
+**类型标注与推断（annotation / inference）**：
+显式写出的类型（`let x: u32`）与编译器补出的类型。
+_Avoid_: 类型声明（只看字面）
+
+**整数溢出（integer overflow）**：
+超出类型范围的计算；debug 检查并 panic，release 环绕（wrapping）。
+_Avoid_: 溢出（不加限定）
+
+## 所有权与借用
+
+**移动（move）**：
+所有权从一处转移到另一处，原绑定失效。
+_Avoid_: 转移（可用但不统一，全书用「移动」）
+
+**克隆（clone）**：
+`Clone` 的显式复制（深浅由实现决定）。`Copy` 是隐式的按位复制，**保留英文**。
+_Avoid_: 拷贝（与 `Copy` 混用）
+
+**析构（drop）**：
+值离开作用域时的清理。`Drop` 是相应的 trait，**保留英文**。
+_Avoid_: 销毁、释放（释放指针另说）
+
+**动态大小类型（DST, dynamically sized type）**：
+大小在编译期未知、只能经由指针使用的类型（`str`、`[T]`、`dyn Trait`）。
+_Avoid_: 不定长类型（社区另一说法，全书统一 DST）
+
+**胖指针（fat pointer）**：
+除地址外还带元数据的指针（`&str`/`&[T]` 带长度，`&dyn T` 带 vtable）。
+_Avoid_: 宽指针
+
+**瘦指针（thin pointer）**：
+只含地址的指针（`&u32`、`&String`）。
+_Avoid_: 细指针
+
+**解引用强转（deref coercion）**：
+`&String` → `&str` 这类自动强转（经 `Deref` 链）。
+_Avoid_: 解引用强制转换（同义；全书统一用「强转」）
+
+**借用区间（borrow region）**：
+借用实际生效的代码区间（NLL 下由最后一次使用决定）。
+_Avoid_: 生命周期区间（两个概念不混用）
+
+**别名规则（aliasing rules）**：
+同一时刻：共享借用可以有多个，可变借用只能有一个。
+_Avoid_: 借用规则（那还包含作用域等更多内容）
+
+**悬垂引用（dangling reference）**：
+指向已被释放数据的引用；安全 Rust 编译期即拒。
+_Avoid_: 野指针（那是裸指针语境）
+
+**重复释放（double free）**：
+同一块内存被释放两次；Rust 用所有权与 `Drop` 在安全代码里排除。
+_Avoid_: 二次释放
+
+## 集合与字符串
+
+**集合（collection）**：
+标准库的序列/映射容器（`Vec`/`String`/`HashMap`…）。
+_Avoid_: 容器（C++ 说法，正文不用）
+
+**元素（element）**：
+集合/序列里的单个值。
+_Avoid_: 项、成员
+
+**容量（capacity）**：
+已分配存储能容纳的元素数（`len ≤ capacity`）。
+_Avoid_: 大小（那是 length）
+
+**重新分配（reallocation）**：
+容量不足时申请更大块并搬移元素。
+_Avoid_: 扩容（口语可用，正式叙述用「重新分配」）
+
+**哈希映射（hash map）**：
+`HashMap` 的中文名；正文通常直接写类型名 `HashMap`。
+_Avoid_: 字典、映射表
+
+**entry API**：
+`HashMap::entry` 那套「一次查找、就地插入或修改」的接口。**保留英文**。
+_Avoid_: 条目 API
+
+**Unicode 标量值（Unicode scalar value）**：
+一个码点（不含代理对区间的 `u32`），Rust 的 `char` 即此。
+_Avoid_: 码点（严格说两者不同；只在语言对照时用）
+
+**字素簇（grapheme cluster）**：
+用户感知的一个「字符」（可能由多个标量值组成，如 `é`）。
+_Avoid_: 字形
+
+## 错误处理
+
+**诊断（diagnostic）**：
+编译器输出的一条 error/warning 报文。
+_Avoid_: 错误信息（过泛）
+
+**错误码（error code）**：
+`E0308` 这类编号，可在错误索引里查。
+_Avoid_: 编号（单用）
+
+**最小复现（minimal reproduction）**：
+能触发同一问题的最少代码。
+_Avoid_: 最小例子（可用，正式叙述用「最小复现」）
+
+**连带错误（cascading errors）**：
+由同一根因引出的后续错误。
+_Avoid_: 级联错误（可用但不统一）
+
+**span**：
+报错里由 `^^^^` 标出的源码范围。**保留英文**。
+_Avoid_: 跨度
+
+**lint**：
+编译器的静态检查项（`#[warn(...)]` 控制）。**保留英文**。
+_Avoid_: 检查项（过泛）
+
+**展开（unwind）**：
+panic 时沿调用栈回退并运行析构；与「宏展开」区分。
+_Avoid_: 解绑（灌篮？不，那是别的词）
+
+**错误链（error chain）**：
+`Error::source()` 串起来的原因序列。
+_Avoid_: 错误栈
+
+**错误传播（error propagation）**：
+用 `?` 把错误交还给调用者。
+_Avoid_: 错误透传（可用但不统一）
+
+**父 trait（supertrait）**：
+`trait A: B` 里的 B（A 的实现者必须同时实现 B）。
+_Avoid_: 超 trait（直译生硬）
+
+## 模块与工程
+
+**模块（module）**：
+crate 内的命名空间单元（`mod`）。
+_Avoid_: 包（与 package 冲突）
+
+**可见性（visibility）**：
+项能否被别的模块/包访问（`pub` 系列）。
+_Avoid_: 访问权限
+
+**命名空间（namespace）**：
+名字的可见作用域。
+_Avoid_: 名字空间
+
+**重导出（re-export）**：
+用 `pub use` 把别处的项搬进自己的对外接口。
+_Avoid_: 转发导出
+
+**依赖（dependency）**：
+`[dependencies]` 里声明的外部 crate。
+_Avoid_: 库（单一 crate 时可用）
+
+**工作区（workspace）**：
+多个包共享一个 `Cargo.lock` 与 target 目录的顶层布局。
+_Avoid_: 工作空间（较旧译法）
+
+**features**：
+Cargo 的条件编译开关。**保留英文**。
+_Avoid_: 特性（与 trait 旧译冲突）
+
+**profile（构建配置）**：
+cargo 的编译档位（`dev`/`release`），控制优化与调试信息。
+_Avoid_: 配置文件（`config` 是另一回事）
+
+**文档注释（doc comment）**：
+`///`（给下一项）与 `//!`（给所在模块）的注释，进 rustdoc。
+_Avoid_: 文档串
+
+**退出码（exit code）**：
+进程返回给 shell 的整数；本书 CLI 约定 `2` 表示用法错误。
+_Avoid_: 返回码
+
+**二进制目标（bin target）**：
+产出可执行文件的 crate 目标（`src/main.rs`）。
+_Avoid_: 可执行文件（谈 Cargo 语境时）
+
+## 泛型与 trait
+
+**单态化（monomorphization）**：
+编译期为每个具体类型生成一份泛型代码的实例（零成本抽象的来源）。
+_Avoid_: 单态（不完整）
+
+**trait 约束（trait bound）**：
+限制泛型参数必须实现的 trait（`T: Trait` / `where`）。
+_Avoid_: trait 边界、限定
+
+**孤儿规则（orphan rule）**：
+实现 trait 时，trait 与类型至少有一个属于本 crate。
+_Avoid_: 孤立规则
+
+**newtype**：
+单字段包装类型（`struct Meters(u32);`），用于绕过孤儿规则或加语义。**保留英文**。
+_Avoid_: 新类型
+
+**不透明类型（opaque type）**：
+只暴露 trait 而不暴露具体类型的返回类型（`impl Trait`）。
+_Avoid_: 隐藏类型
+
+**RPIT（return-position impl Trait）**：
+返回位置的 `impl Trait`。**保留英文缩写**。
+_Avoid_: 返回 trait（不准确）
+
+## 迭代器与闭包
+
+**适配器（adapter）**：
+把迭代器变成另一个迭代器的组合子（`map`/`filter`/`take`…）。
+_Avoid_: 中间操作（Java Stream 说法）
+
+**消费者（consumer）**：
+驱动迭代到底并产出结果的组合子（`collect`/`sum`/`fold`…）。
+_Avoid_: 终止操作（同上）
+
+**惰性求值（lazy evaluation）**：
+不调用消费者就什么都不发生。
+_Avoid_: 延迟计算
+
+**拉/推模型（pull / push）**：
+数据由消费者主动取（迭代器 = 拉），还是生产者推给消费者（回调/观察者 = 推）。
+_Avoid_: 拉取/推送（口语可用，正式叙述用「拉/推」）
+
+## 测试
+
+**单元测试（unit test）**：
+贴着代码写的测试（`#[cfg(test)] mod tests`）。
+_Avoid_: 模块测试
+
+**集成测试（integration test）**：
+`tests/` 目录下、用公开 API 测整个 crate 的测试。
+_Avoid_: 外部测试
+
+**端到端测试（end-to-end test）**：
+把程序当黑盒、跑完整流程的测试（CLI 常用）。
+_Avoid_: 全链路测试
+
+**断言（assertion）**：
+`assert!`/`assert_eq!` 等检查，失败即 panic。
+_Avoid_: 校验（歧义）
+
+**测试运行器（test runner）**：
+执行测试并汇总结果的工具（libtest / `cargo test`）。
+_Avoid_: 测试器
+
+**测试框架（test harness）**：
+`#[test]` 背后的收集与调度机制。
+_Avoid_: 测试脚手架
+
+**文档测试（doctest）**：
+文档代码块被当作测试编译运行（`cargo test` 的 Doc-tests 段）。
+_Avoid_: 文档用例
+
 ---
 
 ## 维护规则
 
-- 新术语先进本表再进正文；写作中发现新术语，**在同一张写作票里**补进本表。
+- 新术语先进本表再进正文；写作中发现新术语，**在同一张写作票里**补进本表（并行批次期间由写作者回报、协调者统一并表，见 `WRITING.md` §8）。
 - 与社区术语表冲突时以「主流实际用法」为准（01 findings §3 已列三方分歧），分歧本身记进本表。
 - 将来书末附录由本表派生（去掉写作向的 `_Avoid_` 备注或保留，届时定）。

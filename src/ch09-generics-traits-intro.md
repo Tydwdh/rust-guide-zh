@@ -23,7 +23,7 @@
 
 ### 泛型在编译期就被替换掉
 
-多数语言的多态发生在运行时：一张函数指针表，一次虚调用。Rust 的泛型走另一条路——**单态化（monomorphization）**：编译器在你使用泛型的地方，把类型参数替换成具体类型，为每组具体类型生成一份专门的代码。程序跑起来时，机器码里根本没有「泛型函数」这种东西。
+Java 的接口调用、C++ 的虚函数这类运行时多态，走的是函数指针表加一次间接调用。Rust 的泛型走另一条路——**单态化（monomorphization）**：编译器在你使用泛型的地方，把类型参数替换成具体类型，为每组具体类型生成一份专门的代码。程序跑起来时，机器码里根本没有「泛型函数」这种东西。
 
 口说无凭，看编译产物。写一个最小的泛型函数，用三种类型各调一次：
 
@@ -51,14 +51,14 @@ define internal void @_RINvCsrVwfFJZ6TP_4show4showdEB2_(double %0) …
 define internal void @_RINvCsrVwfFJZ6TP_4show4showmEB2_(i32 %0) …
 ```
 
-同一份源码，三个 `show`（以 Rust 1.98 实测）。`Re`、`d`、`m` 是编译器对类型实参的编码，分别对应三个调用点的 `&str`、`f64`、`u32`；`@` 后面那一长串是编译器给这次实例化起的名字（含环境哈希），不必读懂，看参数类型就行：`&str` 是「指针 + 长度」两件套，`f64` 是 `double`，`u32` 落在 `i32` 参数上（整数按机器字传递）。
+同一份源码，三个 `show`（以 Rust 1.98 实测）。`Re`、`d`、`m` 是编译器对类型实参的编码，分别对应三个调用点的 `&str`、`f64`、`u32`；`@` 后面那一长串是编译器给这次实例化起的名字（含环境哈希），不必读懂，看参数类型就行：`&str` 是「指针 + 长度」两件套，`f64` 是 `double`，`u32` 显示成 `i32`（LLVM 的整数类型不区分有无符号）。
 
 > [!TIP]
 > 这里加 `-C opt-level=0`，是因为开了优化之后这三个函数很可能被内联进 `main`、从产物里整个消失——那本身也是「零成本」的一部分。想看实例数量，就用不优化的构建。
 
-这就是**零成本抽象（zero-cost abstraction）**的含义：你写泛型，拿到的运行时代码与手写三份一样——没有类型标签、没有查表、没有额外跳转。代价不在运行时，而在产物体积：每一组具体类型都要生成一份代码，用到的类型越多，二进制越大。
+这就是**零成本抽象（zero-cost abstraction）**的含义：你写泛型，拿到的运行时代码与手写三份一样——没有类型标签、没有查表、没有额外跳转。代价不在运行时，而在别处：每一组具体类型都要生成一份代码，用到的类型越多，二进制越大，编译时间与指令缓存（I-cache）的压力也跟着涨。
 
-对比另一条路：`Box<dyn Trait>` 把「具体类型」藏到运行时，只有一份代码，但每次调用都要经 vtable 间接跳转、顺着指针追一次数据。泛型是「多份代码、零间接」，trait 对象是「一份代码、一次间接」。这是个真取舍，第 13 章展开。
+对比另一条路：`Box<dyn Trait>` 把「具体类型」藏到运行时，只有一份代码，但每次调用都要经虚函数表（vtable）间接跳转、顺着指针追一次数据。泛型是「多份代码、零间接」，trait 对象是「一份代码、一次间接」。这是个真取舍，第 13 章展开。
 
 > [!WARNING]
 > 别把单态化当成运行时多态：机器码里没有「这次调用用的是哪个类型」这种隐含信息，也不能在运行时按类型分支。类型参数在编译期就被填实了。（`std::any::TypeId` 是显式请求类型标识的另一条路，需要 `T: 'static`。）
@@ -77,12 +77,12 @@ trait 就是这种要求的具名表达：名字下面列出方法签名，实�
 
 ### 语言对照角
 
-前言承诺过：「泛型、编译期检查——第 9、10 章现场建立，配 C++/Java/Python 的对照」。这里先把泛型与 trait 这两处跨语言差异最大的概念对照掉，每个语言只用几句。
+前言承诺过，泛型与编译期检查会配 C++/Java/Python 的对照（第 9、10 章现场建立）。这里先把泛型与 trait 这两处跨语言差异最大的概念对照掉，每个语言只用几句。
 
 **泛型：类型参数在哪里被处理？**
 
 - **C++ 模板**：与 Rust 最接近——同样在编译期实例化；但模板参数没有随语言自带的契约，约束靠 C++20 concepts，否则错误会在模板深处炸开。
-- **Java 泛型**：类型参数在运行时被擦除（erasure），`List<int>` 这种写法不存在、泛型数组不能创建；Rust 单态化之后，类型实参在机器码里真实存在。
+- **Java 泛型**：类型参数在运行时被擦除（erasure），`List<int>` 这种写法不存在、泛型数组不能创建；Rust 单态化则给每个具体类型分别生成一份代码。
 - **Python**：不做静态参数化，鸭子类型——有没有这个方法，运行到那一行才知道。Rust 把这类检查全部前移到编译期。
 
 **契约：能力写在哪里？**
@@ -117,48 +117,39 @@ fn largest<T: PartialOrd>(list: &[T]) -> &T {
 
 ### 泛型结构体与方法
 
-```rust
+```rust,ignore
 struct Pair<T> {
     first: T,
     second: T,
 }
 
 impl<T> Pair<T> {
-    fn new(first: T, second: T) -> Self {
-        Self { first, second }
-    }
+    fn new(first: T, second: T) -> Self { /* … */ }
 }
 
 impl<T: PartialOrd + std::fmt::Display> Pair<T> {
-    fn larger(&self) -> &T {
-        if self.first >= self.second { &self.first } else { &self.second }
-    }
+    fn larger(&self) -> &T { /* … */ }
 }
 ```
+
+（两个方法的完整实现见「动手看看」的 `snippets/ch09/pair.rs`。）
 
 `impl<T> Pair<T>` 里的 `<T>` 不是重复——它声明「这段实现对任意 `T` 有效」。同一个类型可以有多段 `impl`，各自要求不同的边界：第一段只要能把两个值装进去，第二段才需要 `T` 能比较、能打印。方法只在满足对应 `impl` 边界时存在，这是第 5 章「方法定义在 `impl` 块里」的自然延伸，也是后面「按能力分层组织 API」的雏形。
 
 ### 定义 trait 与实现 trait
 
-```rust
+```rust,ignore
 trait Summary {
-    // 只有签名：实现者必须提供
-    fn author(&self) -> String;
+    fn author(&self) -> String;               // 只有签名：实现者必须提供
 
-    // 带默认实现：实现者可以覆盖，也可以不写
-    fn summarize(&self) -> String {
+    fn summarize(&self) -> String {           // 有默认实现：可以不写
         format!("（{} 的内容摘要待补充）", self.author())
     }
 }
 
-struct Comment {
-    user: String,
-}
-
 impl Summary for Comment {
-    fn author(&self) -> String {
-        self.user.clone()
-    }
+    fn author(&self) -> String { self.user.clone() }
+    // summarize 省略 → 用默认实现
 }
 ```
 
@@ -168,16 +159,18 @@ trait 里还可以有关联类型、常量、关联函数等成员，本章只�
 
 ### 边界怎么写
 
-三种写法，用途相同：
+同一条要求有三种写法。多个边界用 `+` 串起来：
 
 ```rust
-// 多个边界用 + 串起来
 fn show_twice<T: std::fmt::Display + Clone>(v: T) {
     println!("第一次：{v}");
     println!("第二次：{}", v.clone());
 }
+```
 
-// 边界多、参数长时用 where，读起来像一份要求清单
+边界多、参数长时用 `where`，读起来像一份要求清单：
+
+```rust
 fn describe<T>(values: &[T]) -> String
 where
     T: std::fmt::Display + PartialOrd,
@@ -190,8 +183,11 @@ where
     }
     format!("共 {} 个，最大的是 {}", values.len(), max)
 }
+```
 
-// 参数位置的 impl Trait
+参数位置用 `impl Trait`，写法最短：
+
+```rust
 fn print_it(x: &impl std::fmt::Display) {
     println!("{x}");
 }
@@ -223,6 +219,7 @@ error[E0369]: binary operation `>` cannot be applied to type `&T`
   |
 4 |         if item > largest {
   |            ---- ^ -------
+...
 help: consider restricting type parameter `T` with trait `PartialOrd`
   |
 1 | fn largest<T: std::cmp::PartialOrd>(list: &[T]) -> &T {
@@ -247,10 +244,11 @@ fn main() {
 
 ```text
 error[E0107]: function takes 0 generic arguments but 1 generic argument was supplied
- --> e0107.rs:8:5
+ --> e0107.rs:6:5
   |
-8 |     print_it::<i32>(&1);
-  |     ^^^^^^^------- help: remove the unnecessary generics
+6 |     print_it::<i32>(&1);
+  |     ^^^^^^^^------- help: remove the unnecessary generics
+...
   = note: `impl Trait` cannot be explicitly specified as a generic argument
 ```
 
@@ -275,14 +273,14 @@ fn version_label() -> impl std::fmt::Display {
 | --- | --- | --- | --- |
 | `Debug` | `{:?}`、`{:#?}` | 能 | 调试打印、测试断言、`dbg!` |
 | `Display` | `{}` | **不能** | 面向用户的输出、`to_string()` |
-| `Clone` | `.clone()` | 能 | 显式深拷贝 |
-| `Copy` | 赋值/传参即复制（转移不失效） | 能（字段都 `Copy` 且无 `Drop`） | 小整数型数据 |
+| `Clone` | `.clone()` | 能 | 显式复制（深浅由实现决定） |
+| `Copy` | 赋值/传参即复制（转移不失效） | 能（字段都 `Copy`、无 `Drop`，还要连 `Clone` 一起 derive） | 小整数型数据 |
 | `PartialEq` | `==`、`!=` | 能 | 比较、`assert_eq!` |
 | `PartialOrd` | `<`、`>`、排序 | 能（按字段声明顺序逐字段比较） | 排序、取最大 |
 | `From` | `T::from(x)` | 不能 | 类型转换的入口 |
 | `Into` | `x.into()`，由 `From` 自动获得 | 不能 | 接受「能转成 X」的参数 |
 
-`derive` 你在第 5 章已经见过：它让编译器按字段逐个生成实现，生成的正是一段 `impl`——`#[derive(Debug)]` 展开出来就是 `impl Debug for Version { … }`。能做到的事都很机械：每个字段都能 `Debug`，整个结构体就能 `Debug`；`PartialEq`、`PartialOrd` 同理。`Copy`/`Clone` 第 4 章讲移动时见过：`Copy` 意味着赋值不再转移所有权，所以它要求所有字段都 `Copy`（这也是「大数组别随便 `derive Copy`」的原因）。
+`derive` 你在第 5 章已经见过：它让编译器按字段逐个生成实现，生成的正是一段 `impl`——`#[derive(Debug)]` 展开出来就是 `impl Debug for Version { … }`。能做到的事都很机械：每个字段都能 `Debug`，整个结构体就能 `Debug`；`PartialEq`、`PartialOrd` 同理。`Copy`/`Clone` 第 4 章讲移动时见过：`Copy` 意味着赋值不再转移所有权，所以它要求所有字段都 `Copy`（这也是「大数组别随便 `derive Copy`」的原因）。另外 `Copy` 是 `Clone` 的子 trait（`pub trait Copy: Clone`）：只写 `#[derive(Copy)]` 会报 E0277，两个要一起 derive。
 
 `Display` 必须手写——第 5 章预告过这一点，原因就在这里：「怎么显示」是人的决定，不是字段的机械组合。所以「实现 trait」不总是打一行 `derive` 就算完；自己写 `impl` 与 `derive` 生成的 `impl`，在语言里地位完全相同。
 
@@ -290,31 +288,7 @@ fn version_label() -> impl std::fmt::Display {
 
 ### 孤儿规则
 
-trait 实现有个硬性限制：**只有当 trait 或类型至少有一个定义在你当前 crate 里时，才能写这个 `impl`**。给外部类型实现外部 trait 会被拒绝：
-
-```rust,compile_fail
-use std::fmt;
-
-impl fmt::Display for Vec<i32> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self)
-    }
-}
-
-fn main() {}
-```
-
-```text
-error[E0117]: only traits defined in the current crate can be implemented for types defined outside of the crate
- --> e0117.rs:3:1
-  |
-3 | impl fmt::Display for Vec<i32> {
-  | ^^^^^^^^^^^^^^^^^^^^^^--------
-  |                       |
-  |                       `Vec` is not defined in the current crate
-  = note: define and implement a trait or new type instead
-
-```
+trait 实现有个硬性限制：**只有当 trait 或类型至少有一个定义在你当前 crate 里时，才能写这个 `impl`**。给外部类型实现外部 trait 会被拒绝（最小复现与真实报错见本章「报错现场」的第三例）。
 
 这条规则叫**孤儿规则**。理由很实际：`Display` 和 `Vec` 分属标准库与你的 crate，而下游另一个 crate 可能也想给 `Vec<i32>` 实现 `Display`。两个实现同时存在，`println!("{}", v)` 该调用哪个？编译器无法裁决，于是干脆从源头禁止——只有一个「本地」位置时才允许。
 
@@ -331,11 +305,12 @@ impl std::fmt::Display for WordList { /* … */ }
 以下六段是完整程序。在仓库里跑：
 
 ```console
-$ rustc --edition 2024 snippets/ch09/largest.rs -o largest
-$ ./largest
+$ rustc --edition 2024 snippets/ch09/largest.rs
+$ ./largest         # Linux / macOS
+$ .\largest.exe     # Windows
 ```
 
-（Windows 下可执行文件带 `.exe`，用 `.\largest.exe`。）
+不写 `-o` 时，rustc 按源文件名命名产物、并自动补上平台后缀（Windows 上是 `.exe`）；一旦写了 `-o 名字`，名字就原样使用、不会再补后缀——在 Windows 上 `-o largest` 得到的是名为 `largest` 的文件，`.\largest.exe` 会报找不到。
 
 **1. 一个函数服务三种类型**（`snippets/ch09/largest.rs`）：
 
@@ -450,15 +425,15 @@ error[E0277]: `Point` doesn't implement `std::fmt::Display`
    |     required by a bound introduced by this call
    |
 help: the trait `std::fmt::Display` is not implemented for `Point`
- --> e0277.rs:1:1
-  |
-1 | struct Point {
-  | ^^^^^^^^^^^^
+  --> e0277.rs:1:1
+   |
+ 1 | struct Point {
+   | ^^^^^^^^^^^^
 note: required by a bound in `show`
- --> e0277.rs:6:12
-  |
-6 | fn show<T: std::fmt::Display>(v: T) {
-  |            ^^^^^^^^^^^^^^^^^ required by this bound in `show`
+  --> e0277.rs:6:12
+   |
+ 6 | fn show<T: std::fmt::Display>(v: T) {
+   |            ^^^^^^^^^^^^^^^^^ required by this bound in `show`
 ```
 
 读法：第一行说**谁**不满足**什么**（`Point` 缺 `Display`）；`-->` 指向**调用点**（因为类型是这里确定下来的）；`help` 给出缺失的具体 trait；最后的 `note` 回指**边界声明的位置**。四行合起来就是一条完整链路：调用点 → 缺的能力 → 边界。修法二选一：给 `Point` 实现 `Display`（手写 `impl`），或者换一个实现了它的类型——`Debug` 有 `derive` 可用，`Display` 没有。
@@ -496,7 +471,10 @@ error[E0599]: no method named `summarize` found for struct `Article` in the curr
    |
  3 |         fn summarize(&self) -> String;
    |            --------- the method is available for `Article` here
-   |
+...
+ 6 |     pub struct Article {
+   |     ------------------ method `summarize` not found for this struct
+...
 21 |     println!("{}", a.summarize());
    |                      ^^^^^^^^^ method not found in `Article`
    |
@@ -530,6 +508,9 @@ error[E0117]: only traits defined in the current crate can be implemented for ty
   | ^^^^^^^^^^^^^^^^^^^^^^--------
   |                       |
   |                       `Vec` is not defined in the current crate
+  |
+  = note: impl doesn't have any local type before any uncovered type parameters
+  = note: for more information see https://doc.rust-lang.org/reference/items/implementations.html#orphan-rules
   = note: define and implement a trait or new type instead
 ```
 
@@ -610,4 +591,4 @@ b::<u8>(1);
 - 孤儿规则（Reference，实现一节）：<https://doc.rust-lang.org/reference/items/implementations.html#orphan-rules>
 - `std::fmt` 的 `Debug` 与 `Display`：<https://doc.rust-lang.org/std/fmt/index.html>
 - `std::convert` 的 `From` 与 `Into`：<https://doc.rust-lang.org/std/convert/index.html>
-- 错误索引：E0277、E0369、E0599、E0117：<https://doc.rust-lang.org/error_codes/E0277.html>
+- 错误索引（E0277、E0369、E0599、E0117 各有专页）：<https://doc.rust-lang.org/error_codes/index.html>

@@ -30,3 +30,11 @@ Blocked by: 06
 - 新术语（GLOSSARY 目前没有，请协调者统一并表；我未改 GLOSSARY）：① 展开（unwind）——表里只有 panic，建议按「panic 的展开（unwind）：沿调用栈清理并退出」补一条（与「宏展开」区分）；② 错误链（error chain）——`source()` 串起来的因果链；③ 错误传播（error propagation）——可挂在「问号运算符（`?` operator）」名下。另外 `Result`/`Option`/`unwrap`/`expect`/`ok_or`/`source` 是代码原名，我按惯例保留原文、未立条目，请定。
 - 邻章衔接：第 5 章（枚举与模式匹配，是本章前提）、第 9 章（「panic 是契约的一部分」+ 写进 API 文档，文中一句引子）、第 12 章（coherence → `From` 为什么不能乱写）、第 13 章（`dyn` 与 `Box<dyn Error>`）、第 18 章（API 级错误设计、`source()` 链工程化，本章两处明写「第 18 章展开」）、第 40 章（`panic = "abort"` 策略）。
 - 图示需求（本批按约定用 text/表格，未用 mermaid）：① 7.3 想要一张 `?` 语义流程图（现为 text 伪代码 + `match` 展开）；② 7.5 想要一张错误链 / `source()` 指向图（现为 text 树）；③ 7.1 想要一张「unwind 沿栈清理 vs abort 直接终止」对比图。
+- 2026-10-18 复核修订（reviewer RwCh07 findings：1 blocker + 4 minor，全部采纳并修完）：
+  1. **blocker**（首段 / 为什么这样设计末句 / 小结三条）：「忽略 `Result` 就编译不过」不成立 → 改为：忽略时编译器默认给出 `unused_must_use` 警告，`let _ =` 可显式丢弃；**要拿到 `Ok` 里的值就必须先处理 `Err`**。三处说法同步改准（不再说「绕不过去 / 想忽略都难」）。
+  2. 「异常路线」限定为 Python、C++ 与 Java 的**非**受检异常；另起一条「Java 的受检异常（checked exception）」承认 `throws` 把失败写进了签名，但常被上层 `catch (Exception)` 架空。
+  3. `supertrait` 首现改为「父 trait（supertrait）」，其后（现场四、延伸阅读）用「父 trait」。
+  4. 回溯节选口径统一：0–6 帧一律只留「帧号: 符号」，删掉原输出中标准库帧的 `at /rustc/<hash>/…` 行，并在正文注明（举例 `core::option::unwrap_failed` → `library/core/src/option.rs:2251`，此处统一省去）；7.1 panic 首行补注「括号里的线程号每次运行都不相同」。
+  5. 练习 2 与答案统一：题干改 `MyError::NotFound(u32)`，答案改 `ok_or_else(|| MyError::NotFound(id))`，并点明它与 7.4「需要构造就用 `ok_or_else`」规则的对应。
+  - 复跑自验：`mdbook test -c ch07-error-handling.md` → **exit 0**（doctest 数与构成同前）。
+  - 另注（非 findings）：本轮期间同一文件被并行写手改过——`## 延伸阅读` 6 个链接的 `/1.98.0/` 版本锚被去掉（改为不带版本的 stable 链接），其余内容与本稿一致。我未回退（不覆盖他人改动），请协调者确认全批链接是否统一去版本锚。

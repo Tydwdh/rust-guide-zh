@@ -25,7 +25,7 @@
 
 ### 闭包 = 函数 + 捕获的环境
 
-`fn` 只能看到参数。闭包额外看到调用点周围的局部变量，于是语言必须先回答：闭包**怎么拿到**这些变量？答案从便宜到贵有三档：共享借用、可变借用、直接拿走所有权。这三档对应三个 trait —— `Fn`、`FnMut`、`FnOnce` —— 它们描述的不是「闭包是什么」，而是「调用者需要什么权限才能调用它」。（C++ / Java / Python 的捕获规则，以及它们的迭代器与流的惰性，见章末「语言对照角」。）
+`fn` 只能看到参数。闭包额外看到调用点周围的局部变量，于是语言必须先回答：闭包**怎么拿到**这些变量？答案有三档，按闭包对变量的权限从弱到强：共享借用、可变借用、直接拿走所有权。这三档对应三个 trait —— `Fn`、`FnMut`、`FnOnce` —— 它们描述的不是「闭包是什么」，而是「调用者需要什么权限才能调用它」。（C++ / Java / Python 的捕获规则，以及它们的迭代器与流的惰性，见章末「语言对照角」。）
 
 ### 零成本从哪来
 
@@ -124,7 +124,7 @@ pub trait Fn<Args>: FnMut<Args> { fn call(&self, args: Args) -> Self::Output; }
 
 这就是「为什么是三个」的答案：**最小权限**。需求方只要求自己真正需要的能力，供给方保留的能力越多（能改、能消耗），能通过边界的闭包就越多。一个 `FnMut` 边界加上一次调用，就等于 `FnOnce`；一个 `Fn` 边界加上两次调用，就是在说「这段代码不修改也不消耗环境」。
 
-三个 trait 的调用方法 `call` / `call_mut` / `call_once` 在 stable 上不能直接调用（`error[E0658]: use of unstable library feature 'fn_traits'`）；日常一律写调用语法 `f(x)`，编译器替你选对是哪一个。
+三个 trait 的调用方法 `call` / `call_mut` / `call_once` 在 stable 上不能直接调用（`` error[E0658]: use of unstable library feature `fn_traits` ``）；日常一律写调用语法 `f(x)`，编译器替你选对是哪一个。
 
 谁实现哪个 trait，由闭包体决定，而不是由你想怎么调决定。同一件事可以写出三种闭包：
 
@@ -222,7 +222,7 @@ fn main() {
 1 2 3
 ```
 
-`n` 是 `make_counter` 的局部变量，函数一返回它的借用就该失效；`move` 让闭包把它搬进自己的环境，于是闭包活多久都安全。去掉 `move` 会怎样：
+`n` 是 `make_counter` 的局部变量，函数一返回它的借用就该失效；`move` 让闭包把它搬进自己的环境，闭包活多久都安全。去掉 `move`（以 Rust 1.98 为例）：
 
 ```rust,compile_fail
 fn make_counter() -> impl FnMut() -> u32 {
@@ -248,7 +248,7 @@ help: to force the closure to take ownership of `n` (and any other referenced va
   |     ++++
 ```
 
-反过来说，借用能活够久时就不必搬。参数里的借用可以直接带走（返回 `impl Iterator` 的规则见第 14 章）：
+反过来，借用能活够久时不必搬：参数里的借用可以直接带走（返回 `impl Iterator` 见第 14 章）。
 
 ```rust
 fn positives(v: &[i32]) -> impl Iterator<Item = i32> + '_ {
@@ -278,7 +278,7 @@ pub trait Iterator {
 }
 ```
 
-想让自己写的东西被 `for` 遍历，就实现 `next`（自定义迭代器与返回 `impl Iterator` 的细节见第 14 章）。`for` 本身是语法糖：
+想让自己写的东西被 `for` 遍历，就实现 `next` —— 这里涉及的关联类型见第 12 章，在函数签名里返回 `impl Iterator` 见第 14 章。`for` 本身是语法糖：
 
 ```rust
 fn main() {
@@ -332,7 +332,7 @@ fn main() {
 - **适配器（adapter）**：接收一个迭代器，返回**另一个迭代器**。它不取元素，只是把上游包起来。`map`、`filter`、`take`、`skip`、`chain`、`zip`、`enumerate`、`flat_map`、`rev`、`copied`、`cloned`、`filter_map`、`step_by` 都是。
 - **消费者（consumer）**：真的取出元素，返回一个值（或产生副作用）。`collect`、`sum`、`product`、`count`、`fold`、`reduce`、`any`、`all`、`find`、`position`、`for_each`、`min`、`max`、`last` 都是。
 
-关键在惰性：**适配器什么都不做**，直到有人调用消费者或 `next()`。所以「一条链」是一份待执行的计划，不是数据。看名字就能判断：返回迭代器的都在「接管道」，返回值的都在「放水」。
+关键在惰性：**适配器什么都不做**，直到有人调用消费者或 `next()`。所以「一条链」是一份待执行的计划，不是数据。
 
 ```rust
 fn main() {
@@ -384,7 +384,7 @@ sum 21 / fold 720
 any(>5) true / all(>0) true / find(even) Some(2)
 ```
 
-两个容易踩的点：
+容易踩的点：
 
 - `Vec` 本身没有 `map`（`v.map(...)` 报 E0599），要先 `v.iter()` 或 `into_iter()` 拿到迭代器。
 - `v.iter()` 的元素是 `&i32`，`filter` / `find` 的闭包又收到 `&&i32`，直接做算术会报 E0369。三种处理：手工解引用（`|x| **x % 2 == 0`）、模式匹配掉一层（`|&x| x % 2 == 0`）、或先 `copied()` / `cloned()`；本章示例多用第三种。另外 `zip` 以较短的迭代器为准，`flat_map` 是「先 `map` 再摊平一层」。
@@ -460,9 +460,25 @@ fn main() {
 
 ```text
 warning: unused `Map` that must be used
-   = note: iterators are lazy and do nothing unless consumed
+ --> src/main.rs:3:5
+  |
+3 |     v.iter().map(|x| println!("{x}"));
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: iterators are lazy and do nothing unless consumed
+  ...
 warning: `Iterator::map` call that discard the iterator's values
+ --> src/main.rs:3:14
+  |
+3 |     v.iter().map(|x| println!("{x}"));
+  |              ^^^^-------------------^
+  |              this function returns `()`, which is likely not what you wanted
+  ...
 help: you might have meant to use `Iterator::for_each`
+  |
+3 |     v.iter().for_each(|x| println!("{x}"));
+  |             ~~~~~~~~
+  |
 ```
 
 ### 2. 一条链是「每个元素流过全程」
@@ -501,7 +517,7 @@ fn main() {
 
 ### 3. 组合实战：日志过滤，两种写法对照
 
-需求：给一段日志，数出 `ERROR` 行的条数，并列出它们的时间戳。先手写循环，再用迭代器链改写，两边共用同一个解析函数，程序最后用 `assert_eq!` 钉住结果一致。完整程序在 `snippets/ch10/log_stats.rs`：
+需求：给一段日志，数出 `ERROR` 行的条数，并列出它们的时间戳。先手写循环，再用迭代器链改写，两边共用同一个解析函数，末尾用 `assert_eq!` 钉住结果一致。完整程序在 `snippets/ch10/log_stats.rs`：
 
 ```rust
 {{#rustdoc_include ../snippets/ch10/log_stats.rs}}
@@ -510,8 +526,8 @@ fn main() {
 在仓库根目录跑：
 
 ```console
-rustc --edition 2024 snippets/ch10/log_stats.rs -o log_stats
-./log_stats
+$ rustc --edition 2024 snippets/ch10/log_stats.rs -o log_stats
+$ ./log_stats
 ```
 
 输出：
@@ -528,7 +544,7 @@ ERROR 2 条，时间：09:02:03、09:02:04
 
 两个别吹过头的地方：
 
-- 链本身不引入开销，链里的操作会有：`collect` 会真的分配；`Box<dyn Iterator>` 引入间接调用（第 13 章）；闭包捕获 `Box` / `Rc` 时分配照样发生。
+- 链本身不引入开销，链里的操作会有：`collect` 会真的分配；`Box<dyn Iterator>` 引入间接调用（第 13 章）；闭包要**持有** `Box` / `Rc` 时，创建它们的那一次分配照样发生（捕获本身不分配）。
 - 想确认某条链和手写循环一样快，别猜：`--release` 编译后用基准工具量（第 29 章会给方法：criterion、`std::hint::black_box`、看汇编）。
 
 ### 5. 什么时候用链、什么时候用循环
@@ -541,7 +557,7 @@ ERROR 2 条，时间：09:02:03、09:02:04
 
 ## 报错现场
 
-下面三条都是真实编译结果，以 Rust 1.98 为例（只保留关键行，路径已略去）；`rust,compile_fail` 标记的代码块正是「必须编译失败」的最小复现。
+下面几条都是真实编译结果，以 Rust 1.98 为例（只保留关键行，路径已略去）；`rust,compile_fail` 的代码块正是「必须编译失败」的最小复现。
 
 ### 1. 闭包捕获与借用冲突：E0502 / E0499
 
@@ -633,7 +649,27 @@ fn main() {
 }
 ```
 
-同一个错误也出现在元素类型上：`….map(str::parse).collect::<Vec<_>>()` 里 `str::parse` 的返回类型没定，报的仍是 E0283，`help` 提示 `map(str::parse::</* Type */>)`；修法是写 `parse::<i32>()`，或标注 `Vec<i32>` 让元素类型被反推出来。
+同一个错误也会出现在**元素类型**上：`str::parse` 的返回类型取决于上下文，直接当函数传就没有任何线索。
+
+```rust,compile_fail
+fn main() {
+    let text = "1 2 3";
+    let nums = text.split(' ').map(str::parse).collect::<Vec<_>>();
+    println!("{nums:?}");
+}
+```
+
+```text
+error[E0283]: type annotations needed
+  |
+3 |     let nums = text.split(' ').map(str::parse).collect::<Vec<_>>();
+  |                                    ^^^^^^^^^^ cannot infer type of the type parameter `F` declared on the method `parse`
+  |
+  = note: the type must implement `FromStr`
+help: consider specifying a concrete type for the type parameter `F`
+```
+
+修法是给 `parse` 指定目标类型：写成 `map(str::parse::<i32>)`（元素于是变成 `Result<i32, ParseIntError>`，按上一段的写法再收成 `Result<Vec<i32>, _>`），或者 `map(|t| t.parse::<i32>())`。
 
 ### 3. `FnOnce` 闭包被调用两次：E0382
 
@@ -653,9 +689,9 @@ fn main() {
 ```text
 error[E0382]: use of moved value: `g`
   |
-6 |     println!("{}", call_once(g));
+8 |     println!("{}", call_once(g));
   |                              - value moved here
-7 |     println!("{}", call_once(g));
+9 |     println!("{}", call_once(g));
   |                              ^ value used here after move
   |
 note: closure cannot be moved more than once as it is not `Copy` due to moving the variable `s` out of its environment
@@ -667,7 +703,16 @@ note: closure cannot be moved more than once as it is not `Copy` due to moving t
 - 确实只调用一次，就别写第二次。
 
 > [!NOTE]
-> 「能重复调用」与「把捕获值搬出去」不可能同时满足：给 `F: FnMut` 的位置传 `|| drop(s)` 会报 E0507（`cannot move out of 's', a captured variable in an 'FnMut' closure`），提示里直接写着 `Fn` 和 `FnMut` 闭包要求捕获值能被多次消耗。
+> 「能重复调用」与「把捕获值搬出去」不可能同时满足：给 `F: FnMut` 的位置传 `|| drop(s)` 会报 E0507（`` cannot move out of `s`, a captured variable in an `FnMut` closure ``），提示里直接写着 `Fn` 和 `FnMut` 闭包要求捕获值能被多次消耗。
+
+## 小结
+
+- 闭包 = 匿名函数 + 捕获的环境。捕获方式（共享借用 / 可变借用 / 搬走）由闭包体的用法推断；`move` 只强制第三档，不改变能调用几次。
+- `Fn` / `FnMut` / `FnOnce` 描述「调用者需要什么权限才能调用」；关系是 `Fn: FnMut: FnOnce`，所以边界写 `Fn` 最紧、接收面最小，写 `FnOnce` 最宽。
+- 参数位置写 `impl Fn(T) -> U` 就是「泛型 + 单态化」；`fn(T) -> U` 是不带环境的具体版本，只在需要同一类型存放时才用。
+- 迭代器只需要实现一个 `next`；`for` 是 `IntoIterator` + `while let` 的语法糖。
+- 适配器返回新迭代器、不取元素（惰性），消费者返回一个值；不消费就什么都不发生。`collect` 的目标类型由上下文决定，`Result` / `Option` 的收集会短路。
+- 迭代器链是零成本抽象，也是可读性工具；控制流一复杂，就退回显式循环。
 
 ## 语言对照角
 
@@ -682,17 +727,8 @@ note: closure cannot be moved more than once as it is not `Copy` due to moving t
 
 - **C++**：惰性、可组合的视图（`std::views::filter` / `transform`）是 C++20 才有的，形态最接近 Rust 适配器；此前的主流写法是 `<algorithm>` 配输出迭代器（`std::transform(begin, end, out)`），每步都要指定输出位置。视图同样不拥有数据，悬垂的坑还在。
 - **Java**：流的模型与 Rust 迭代器几乎一致 —— `filter` / `map` 只搭流水线，`collect` / `sum` / `forEach` 才驱动执行；流是一次性的（复用抛 `IllegalStateException`），对象流还有装箱开销，靠 `IntStream` 等特化类型规避。
-- **Python**：Python 3 的 `map` / `filter` / 生成器表达式是惰性的，`itertools` 有 `chain` / `takewhile` 这类组合子；列表推导则直接建出列表。
+- **Python**：Python 3 的 `map` / `filter` / 生成器表达式是惰性的，`itertools` 提供 `chain` / `takewhile`；列表推导则直接建出列表。
 - **Rust**：和 Java 流一样惰性、一样一次性（被 `collect` 吃掉后不能复用），但数据源可以反复借用（`&v` 每次都能 `.iter()`）。适配器是泛型结构体，单态化后没有虚调用和装箱 —— 惰性不带来运行时代价。
-
-## 小结
-
-- 闭包 = 匿名函数 + 捕获的环境。捕获方式（共享借用 / 可变借用 / 搬走）由闭包体的用法推断；`move` 只强制第三档，不改变能调用几次。
-- `Fn` / `FnMut` / `FnOnce` 描述「调用者需要什么权限才能调用」；关系是 `Fn: FnMut: FnOnce`，所以边界写 `Fn` 最紧、接收面最小，写 `FnOnce` 最宽。
-- 参数位置写 `impl Fn(T) -> U` 就是「泛型 + 单态化」；`fn(T) -> U` 是不带环境的具体版本，只在需要同一类型存放时才用。
-- 迭代器只需要实现一个 `next`；`for` 是 `IntoIterator` + `while let` 的语法糖。
-- 适配器返回新迭代器、不取元素（惰性），消费者返回一个值；不消费就什么都不发生。`collect` 的目标类型由上下文决定，`Result` / `Option` 的收集会短路。
-- 迭代器链是零成本抽象，也是可读性工具；控制流一复杂，就退回显式循环。
 
 ## 练习
 
@@ -753,7 +789,7 @@ fn main() {
 
 **1.** 能编译，打印 `偶数 2 个`。`tally` 的闭包体改了 `count`，所以是 `FnMut`；`for_each` 要 `F: FnMut(Self::Item)`，传 `&mut tally` 也合法（标准库为 `&mut F` 实现了 `FnMut`）。事后读 `count` 也合法：`tally` 最后一次使用就在那一行，NLL 在那里结束了它的可变借用。
 
-改成 `tally`（按值传）同样能编译：闭包所有权交给 `for_each`，借用在调用结束时就结束。区别是之后不能再用 `tally`（已被移动），而且编译器会提醒 `let mut tally` 里的 `mut` 多余。
+改成 `tally`（按值传）同样能编译：所有权交给 `for_each`，借用在调用结束时结束；区别是之后不能再用 `tally`，且编译器会提醒 `mut` 多余。
 
 **2.** 等价写法：
 
@@ -771,7 +807,7 @@ fn main() {
 
 `len()` 返回的是字节数：UTF-8 下一个汉字占 3 字节，`"中文书"` 的 `len()` 是 9，而 `chars().count()` 是 3。要「字符数」就必须逐字符数（第 6 章）。这里的链会得到 5（只有 `"guide"` 的 5 个字符超过 4）。
 
-**3.** 错在 `apply_twice(|| drop(s))`：`error[E0507]: cannot move out of 's', a captured variable in an 'FnMut' closure`（以 Rust 1.98 为例）。`apply_twice` 要求 `F: FnMut`，而 `FnMut` 意味着闭包可能被调用多次，所以闭包体不能把捕获的 `String` 消耗掉 —— `drop(s)` 正是消耗。
+**3.** 错在 `apply_twice(|| drop(s))`：`` error[E0507]: cannot move out of `s`, a captured variable in an `FnMut` closure ``（以 Rust 1.98 为例）。`apply_twice` 要求 `F: FnMut`，而 `FnMut` 意味着闭包可能被调用多次，所以闭包体不能把捕获的 `String` 消耗掉 —— `drop(s)` 正是消耗。
 
 修法二选一：`apply_twice(|| drop(s.clone()))`（闭包只共享借用 `s`，每次克隆一份再丢弃），或者把接口改成只调一次：`fn apply_once<F: FnOnce()>(f: F) { f() }`。
 

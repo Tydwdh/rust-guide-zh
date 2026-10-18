@@ -47,4 +47,13 @@ Blocked by: 06
 - 主动取舍：
   - 迭代器链（`iter().map().collect()`）只用到、不展开，明确指向第 10 章；`sort_by` 同理。
   - 加了一节可选「语言对照角」（WRITING §4 允许），因为字符串/集合的跨语言差异是本章最大卖点；未引入 mermaid/SVG。
-  - 习题 2 用 `rust,compile_fail`，让 `mdbook test` 正向断言它编译失败；练习题与答案均不含会 panic 的普通 `rust` 块。
+  - 习题 2 用 `rust,compile_fail`，让 `mdbook test` 正向断言它编译失败；练习题与答案不含会 panic 的普通 `rust` 块。
+- 2026-10-18 交叉审校修回（reviewer RwCh06：1 major + 7 minor，只动本章文件）：7 条全部采纳。
+  1. **major｜C++ 事实错误**：`std::string::substr` 在 `pos > size()` 时抛 `std::out_of_range`，不是「不检查」→ 改为「`operator[]` 完全不检查，`substr` 只在 `pos > size()` 时抛 `std::out_of_range`，两者都不关心 UTF-8 字符边界」。
+  2. `vec![1, 2, 3]` 与「空 `Vec` 再 push」不是可观察等价 → 改为「内容等价，容量轨迹不同」，并把实测值写进正文：`vec![1, 2, 3].capacity() == 3`，空 `Vec` push 三次 `== 4`（本机 1.98 实测）。
+  3. `push`/`pop` 不是严格 O(1) → 改「摊还 O(1)（偶尔那一次会触发扩容、搬 n 个元素）」。
+  4. 迭代器产出类型写错：`HashMap<&str, u32>::iter()` 产出 `(&&str, &u32)`，不是 `(&str, &u32)` → 已改正，并说明 `map(|(w, n)| (*w, *n))` 解引用成 `(&str, u32)`。
+  5. 「Unicode 标量值」首现补英文：`Unicode 标量值（Unicode scalar value）`；顺带给「语言对照角」里的码点/码元补 `code point` / `code unit`。
+  6. 版本标注补齐：现场二定位路径段尾加「（以 Rust 1.98 为例；行号按你项目里的实际位置。）」；练习 2 答案的 E0502 输出块后加「（以 Rust 1.98 为例。）」。
+  7. 「动手看看」词频注释补就近指向：「`iter()` / `map()` / `collect()` / `sort_by` 属于迭代器与闭包，第 10 章展开」。
+  - 修回复验：`mdbook test -c ch06-collections-strings.md` → exit=0（15 个用例全过）；篇幅汉字 3171（含中文标点 3809），仍在 3000–4000 区间。

@@ -22,7 +22,7 @@ Rust 不是「写完就能跑」的脚本语言：源文件要先经过编译器
 源代码  ──rustc──►  可执行文件  ──操作系统──►  运行结果
 ```
 
-rustc 只认一次编译任务：给它一组源文件和相关参数，它做完整检查（类型、借用、……）并生成机器码。它不知道什么叫「项目」「依赖版本」「测试」。这些属于 cargo：
+rustc 只认一次编译任务：给它一组源文件和相关参数，它做完整检查（类型、内存安全……）并生成机器码。它不知道什么叫「项目」「依赖版本」「测试」。这些属于 cargo：
 
 ```text
 你的命令（cargo run）
@@ -90,7 +90,7 @@ $ .\hello.exe
 Hello, world!
 ```
 
-（Windows 写法；Linux/macOS 下可执行文件没有 `.exe`，运行写 `./hello`。）注意 rustc 成功时一声不吭：没有输出就是好消息。产物是原生可执行文件，运行时不需要 Rust 工具链，复制到同平台的另一台机器上照样能跑。
+（Windows 写法；Linux/macOS 下可执行文件没有 `.exe`，运行写 `./hello`。）注意 rustc 成功时一声不吭：没有输出就是好消息。产物是原生可执行文件，运行时不经过 Rust 工具链——但它默认动态链接系统 C 运行库（本机实测：导入表里有 `VCRUNTIME140.dll`、`api-ms-win-crt-runtime`），换一台 Windows 机器运行就得有对应的 MSVC 运行库；想让产物连这个也自带，编译时加 `-C target-feature=+crt-static` 改成静态链接（实测这样导入表里就不再出现 `VCRUNTIME140.dll`）。
 
 代价是 `rustc hello.rs` 只处理你递给它的文件。依赖、多文件组织、测试、发布配置……都不在它职责内。于是我们回到 cargo。
 
@@ -106,6 +106,7 @@ note: see more `Cargo.toml` keys and their definitions at https://doc.rust-lang.
 
 ```text
 hello/
+├── .git/           # cargo new 默认初始化的 git 仓库（内容省略）
 ├── .gitignore      # 内容只有一行 /target
 ├── Cargo.toml      # 包清单：名字、版本、edition、依赖
 └── src/
@@ -147,29 +148,29 @@ fn main() {
 
 ```console
 $ cargo check
-    Checking hello v0.1.0 (/path/to/hello)
+    Checking hello v0.1.0 (\path\to\hello)
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.87s
 
 $ cargo run
-   Compiling hello v0.1.0 (/path/to/hello)
+   Compiling hello v0.1.0 (\path\to\hello)
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.18s
      Running `target\debug\hello.exe`
 Hello, world!
 ```
 
-（为便于阅读，编译行里的项目路径统一写成 `/path/to/hello`。）
+（为便于阅读，编译行里的项目路径统一写成 `\path\to\hello`；报错里的工具链源码路径同样省略了前缀。）
 
 - `cargo check`：只检查到「有没有错误」为止，跳过生成机器码这一步（官方说法：`Check a local package and all of its dependencies for errors`），它不产出可执行文件——这正是它快的原因。改完代码先 `check`。
 - `cargo build`：完整编译，产出可执行文件，但不运行。
 - `cargo run`：先构建、再运行，等价于 build 加运行；`Running ...` 那行是 cargo 在告诉你它执行了哪个文件。
 
-三个命令输出的动词也不同：`Checking` 表示只做分析，`Compiling` 表示真在生成机器码，`Finished` 是收尾。`Finished` 后面的 `dev` 是 **profile（构建配置）** 的名字，`[unoptimized + debuginfo]` 说明它是「不优化、带调试信息」的调试版——日常开发都跑在这一档，编译快，也方便调试。本章只讲这三个命令加两条辅助命令；cargo 的完整命令面（依赖特性、workspace、发布等）在第 30 章展开。
+三个命令输出的动词也不同：`Checking` 表示只做分析，`Compiling` 表示真在生成机器码，`Finished` 是收尾。`Finished` 后面的 `dev` 是 **profile（构建配置）** 的名字，`[unoptimized + debuginfo]` 说明它是「不优化、带调试信息」的调试版——日常开发都跑在这一档，编译快，也方便调试。本章只讲 `check`、`build`、`run` 三个主命令，外加 `fmt`、`clippy` 两条辅助命令；cargo 的完整命令面（依赖特性、workspace、发布等）在第 30 章展开。
 
 交付时换成优化版：
 
 ```console
 $ cargo build --release
-   Compiling hello v0.1.0 (/path/to/hello)
+   Compiling hello v0.1.0 (\path\to\hello)
     Finished `release` profile [optimized] target(s) in 2.29s
 ```
 
@@ -197,11 +198,11 @@ hello/target/debug/
 
 为免后面反复解释，把全书的底线在这里一次性钉住：
 
-1. **edition 用 2024。** `cargo new` 默认就是 2024（`cargo new --edition` 的文档写着 「The edition to use. Default is 2024.」），本书 `book.toml` 也设了 `edition = "2024"`，所有示例都在 2024 下编译验证。edition 是「语言方言」，不是编译器版本：edition 2024 自 Rust 1.85 起稳定，同一个 1.98 能编 2015/2018/2021/2024 四种 edition 的代码。如果报错里出现 `... is only allowed in Rust 2024 or later` 之类的提示，多半是 `Cargo.toml` 里的 `edition` 不是 2024。各 edition 的差异清单在第 33 章展开。
+1. **edition 用 2024。** `cargo new` 默认就是 2024（`cargo new --edition` 的原文是 「Specify the Rust edition to use. Default is 2024.」），本书 `book.toml` 也设了 `edition = "2024"`，所有示例都在 2024 下编译验证。edition 是「语言方言」，不是编译器版本：edition 2024 自 Rust 1.85 起稳定，同一个 1.98 能编 2015/2018/2021/2024 四种 edition 的代码。如果报错里出现 `... is only allowed in Rust 2024 or later` 之类的提示，多半是 `Cargo.toml` 里的 `edition` 不是 2024。各 edition 的差异清单在第 33 章展开。
 2. **版本基线是 stable 1.98。** 本章的 `rustc 1.98.0`、`cargo 1.98.0` 就是本书的验证环境（Windows x86_64-pc-windows-msvc）。只使用 stable 能力；万一出现 nightly-only 的内容，会显式标注。
 3. **报错示例标注「以 Rust 1.98 为例」。** 编译器的措辞和建议会随版本改进，但「结论 → 位置 → 建议 → 补充」的结构不会变。
 4. **命令行写法。** `$` 开头的是你要输入的命令，其余行是输出；Windows 的 cmd/PowerShell 提示符不同，命令本身一样。
-5. **示例怎么跑。** 单文件片段可以用 `rustc --edition 2024 文件.rs` 直接编；带 `fn main` 的完整程序整段贴进 `src/main.rs` 再 `cargo run` 即可。标着「编译不过」的小块是故意写的反例。
+5. **示例怎么跑。** 单文件片段可以用 `rustc --edition 2024 文件.rs` 直接编；带 `fn main` 的完整程序整段贴进 `src/main.rs` 再 `cargo run` 即可。偶尔出现的编译失败示例会在正文里明确标成「故意写错的反例」，别把它们当成能跑通的代码。
 6. **跨章指引。** 需要别章的前提时，正文在括号里标出「（第 N 章展开）」；你可以先跳过去，不必一次读完。
 
 ## 动手看看
@@ -213,7 +214,7 @@ $ cargo new hello
     Creating binary (application) `hello` package
 $ cd hello
 $ cargo run
-   Compiling hello v0.1.0 (/path/to/hello)
+   Compiling hello v0.1.0 (\path\to\hello)
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.18s
      Running `target\debug\hello.exe`
 Hello, world!
@@ -232,7 +233,7 @@ fn main() {
 
 ```console
 $ cargo run
-   Compiling hello v0.1.0 (/path/to/hello)
+   Compiling hello v0.1.0 (\path\to\hello)
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.16s
      Running `target\debug\hello.exe`
 Hello, world!
@@ -243,7 +244,7 @@ Hello, world!
 
 ## 报错现场
 
-把 `println!` 拼错成 `printlin!`：
+下面这段是**故意写错的反例**——把 `println!` 拼错成 `printlin!`，不会编译通过：
 
 ```rust,compile_fail
 fn main() {
@@ -254,7 +255,7 @@ fn main() {
 `cargo run` 的真实输出（以 Rust 1.98 为例）：
 
 ```text
-   Compiling hello v0.1.0 (/path/to/hello)
+   Compiling hello v0.1.0 (\path\to\hello)
 error: cannot find macro `printlin` in this scope
    --> src\main.rs:2:5
     |
@@ -279,10 +280,11 @@ error: could not compile `hello` (bin "hello") due to 1 previous error
 
 - `error: ...` 行是**结论**：编译器认为当前最该先修的那件事。
 - `--> src\main.rs:2:5` 是**位置**：文件、行、列；下面的 `^^^^` 与代码框把出错范围指出来。
-- `help: ...` 是**建议**：这次是「存在一个名字相近的宏」，于是引用标准库里 `macro_rules! println` 的定义处，并直接给出改法 `printlin!` → `println!`。
+- `::: ...\library\std\src\macros.rs:141:1` 是**次级位置**：真正的出错点在你自己的文件里，但理解这条错误需要看一眼别处的定义——这里指向标准库中 `println!` 宏的定义。
+- `help: ...` 是**建议**：说明「存在一个名字相近的宏」，并直接给出可以照抄的改法 `printlin!` → `println!`。
 - 末尾 `error: could not compile ...` 是 cargo 的总结：本次构建失败（`cargo run` 的退出码是 101），所以程序根本没运行。
 
-另一类常见角色是 `note:`。例如把 `src/main.rs` 清空后再 `cargo run`：
+另一类常见角色是 `note:`。例如把 `src/main.rs` 清空后再 `cargo run`，输出如下（以 Rust 1.98 为例，只摘关键几行）：
 
 ```text
 error[E0601]: `main` function not found in crate `hello`

@@ -29,5 +29,13 @@ Blocked by: 06
     3. `expected` 为子串匹配，已实测（panic 信息须包含该子串）；原文示例第一版用 `expected = "越界"` 配 `v[99]`，实测**不通过**（真实信息是 `index out of bounds…`），已改成自定义 `panic!("文本不能为空")` + `checked_len`，并真跑通过。
     4. 断点调试只按任务要求给「VS Code + CodeLLDB + 官方仓库链接」两三句，未实测（本机未装该扩展）。
   - 新术语（English | 建议中文）：unit test | 单元测试；integration test | 集成测试；assertion | 断言；test runner | 测试运行器；test harness | 测试框架/测试工具；documentation test (doctest) | 文档测试；`#[ignore]` 保留英文即可。（本章首现「单元测试（unit test）」「集成测试（integration test）」，已按首现格式；其余建议交协调者统一并表。）
-  - 邻章衔接：第 7 章（`Result`/`panic`/`RUST_BACKTRACE`）多处回指；第 2 章（`cfg`/读编译器）回指；第 5 章（`#[derive(Debug)]`）回指；第 8 章（模块）回指；第 32 章（doctest）预告；compile_fail / proptest / nextest / CI 明确只预告、指向第 31 章。项目 1（CLI）可复用本章「从失败回推」循环。
+  - 邻章衔接：第 7 章（`Result`/`panic`/`RUST_BACKTRACE`）多处回指；第 2 章（`cfg`/读编译器）回指；第 5 章（`#[derive(Debug)]`）回指；第 8 章（模块）回指；doctest 与 compile_fail / proptest / nextest / CI 一样归第 31 章（测试进阶），本章只预告。项目 1（CLI）可复用本章「从失败回推」循环。
   - 图示需求：本章现用 1 个 `text` 目录树 + 1 个宏对照表。若 08 票定图示体系，适合加图处：(a)「单元测试 vs 集成测试」与 cargo test 三段目标（lib / tests / doctests）的关系图；(b)「失败→定位→修复」循环图（复现→最小化→假设→验证）；(c) `#[cfg(test)]` 在 `cargo build` 与 `cargo test` 两条路径下「模块是否编入产物」的对比图。
+
+- 2026-10-18 交叉审校修订（reviewer RwCh11 转来 6 × minor，全部处理，只动 `src/ch11-testing-debugging.md` + 本票）：
+  1. `:116` / `:399` 逐字引用的编译错误改用双反引号行内码保留原样（原文漏了内层反引号）：``functions using `#[should_panic]` must return `()` ``。
+  2. doctest 回指由第 32 章改为**第 31 章**（对齐 `outline-v0.md` 第 31 章「集成/doctest、compile_fail、proptest…」）；本 Comments 上一版「第 32 章（doctest）预告」同处已一并订正。
+  3. 两段真跑输出重跑为从 `snippets/ch11/` 执行的版本（`Compiling ch11-demo v0.1.0 (D:\Rust\snippets\ch11)`），失败态同步为本次 rustc 1.98 真跑的测试顺序与行号（`src\lib.rs:17:9` / `:22:9`；`@ 报错现场` 引用的 thread id 一并改为本次的 13212）。为让 fail 态行号与正文错版一致，`snippets/ch11/src/lib.rs` 去掉了原首行 `//!` 模块文档（现第 1 行 `/// 统计…`、第 3 行 `split_whitespace()`），其余不变；`cargo test`（cwd = `snippets/ch11`，失败态/修复态/子串过滤）均真跑真粘。
+  4. `--nocapture` 措辞对齐一手来源：`library/test/src/cli.rs:204` 为 `optflag("", "nocapture", "Deprecated, use --no-capture")`；正文改为「自 1.88 起已弃用，但仍被接受，且不再出现在 `--help` 里」。
+  5. 失败起点补精确复现指令：「打开 `snippets/ch11/src/lib.rs`，把第 3 行 `split_whitespace()` 换回 `split(' ')`，在 `snippets/ch11/` 跑 `cargo test`」。
+  - 复跑：`mdbook test -c ch11-testing-debugging.md` → `INFO Testing chapter …` / **EXIT=0**。清理：删除 `snippets/ch11/target` 与 `Cargo.lock`，目录仅剩 `Cargo.toml`、`src/lib.rs`、`tests/integration.rs`。现值：20492 字节，正文 3163 汉字（仍在 3000–4000）。

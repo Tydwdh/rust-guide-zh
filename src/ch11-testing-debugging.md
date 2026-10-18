@@ -113,7 +113,7 @@ fn checked_division() -> Result<(), String> {
 }
 ```
 
-对应关系要记清：`Ok(())` = 通过，`Err(...)` = 失败，中间的断言 panic 也 = 失败。唯一的限制是：返回 `Result` 的测试**不能**再标 `#[should_panic]`——前者靠返回 `Err` 表示失败，后者靠 panic，语义冲突，编译器会直接拒绝（1.98 实测：`functions using #[should_panic] must return ()`）。
+对应关系要记清：`Ok(())` = 通过，`Err(...)` = 失败，中间的断言 panic 也 = 失败。唯一的限制是：返回 `Result` 的测试**不能**再标 `#[should_panic]`——前者靠返回 `Err` 表示失败，后者靠 panic，语义冲突，编译器会直接拒绝（1.98 实测：``functions using `#[should_panic]` must return `()` ``）。
 
 ### 集成测试：只碰公开 API
 
@@ -144,7 +144,7 @@ ch11-demo
 
 ### 读 `cargo test` 的输出
 
-`cargo test` 会依次跑三类目标，每类一段输出：**单元测试**（`Running unittests src\lib.rs`）、**集成测试**（`Running tests\integration.rs`）、最后是**文档测试**（`Doc-tests`，第 32 章展开）。每段都以一行汇总收尾：
+`cargo test` 会依次跑三类目标，每类一段输出：**单元测试**（`Running unittests src\lib.rs`）、**集成测试**（`Running tests\integration.rs`）、最后是**文档测试**（`Doc-tests`，第 31 章展开）。每段都以一行汇总收尾：
 
 ```text
 test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
@@ -155,7 +155,7 @@ test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 常用的三个开关：
 
 - `cargo test <子串>`：只跑名字里含该子串的测试（子串同时匹配三类目标里的函数名）。
-- `cargo test -- --no-capture`：`--` 之后的参数交给测试运行器。默认它会**捕获**测试打印的 stdout/stderr，只在失败时显示；`--no-capture` 让它们实时打出来——调试时很有用。（1.88 前的拼写是 `--nocapture`，仍被接受，但已不在 `--help` 里，用新写法。）
+- `cargo test -- --no-capture`：`--` 之后的参数交给测试运行器。默认它会**捕获**测试打印的 stdout/stderr，只在失败时显示；`--no-capture` 让它们实时打出来——调试时很有用。（旧拼写 `--nocapture` 自 1.88 起已弃用——libtest 源码里标着 ``Deprecated, use `--no-capture` ``——但仍被接受，只是不再出现在 `--help` 里；新代码请用 `--no-capture`。）
 - `cargo test -- --test-threads=1`：串行执行。测试默认是多线程并行的，当几个测试共享文件或端口、互相干扰时，这条命令能消除顺序不确定性。
 
 还有两个按目标过滤的开关，调试时能少看一堆输出：`cargo test --lib` 只跑单元测试，`cargo test --test integration` 只跑 `tests/integration.rs` 这一个文件。注意 `--lib`、`--test` 属于 cargo 的参数，写在 `--` 前面。
@@ -209,35 +209,37 @@ mod tests {
 }
 ```
 
+想亲手复现这段失败：打开 `snippets/ch11/src/lib.rs`，把第 3 行的 `split_whitespace()` 换回 `split(' ')`（即上面这份错版），在 `snippets/ch11/` 目录下跑 `cargo test` 即可。
+
 跑 `cargo test`（以 Rust 1.98 为例）：
 
 ```console
 $ cargo test
-   Compiling ch11-demo v0.1.0 (D:\Rust\.scratch\tmp-20\ch11demo)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.72s
+   Compiling ch11-demo v0.1.0 (D:\Rust\snippets\ch11)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.28s
      Running unittests src\lib.rs (target\debug\deps\ch11_demo-bd516542a222d203.exe)
 
 running 3 tests
 test tests::counts_words ... ok
-test tests::ignores_extra_spaces ... FAILED
 test tests::empty_text ... FAILED
+test tests::ignores_extra_spaces ... FAILED
 
 failures:
 
----- tests::ignores_extra_spaces stdout ----
-
-thread 'tests::ignores_extra_spaces' (19164) panicked at src\lib.rs:17:9:
-assertion `left == right` failed
-  left: 8
- right: 2
-
 ---- tests::empty_text stdout ----
 
-thread 'tests::empty_text' (9764) panicked at src\lib.rs:22:9:
+thread 'tests::empty_text' (2864) panicked at src\lib.rs:22:9:
 assertion `left == right` failed
   left: 1
  right: 0
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- tests::ignores_extra_spaces stdout ----
+
+thread 'tests::ignores_extra_spaces' (13212) panicked at src\lib.rs:17:9:
+assertion `left == right` failed
+  left: 8
+ right: 2
 
 
 failures:
@@ -270,8 +272,8 @@ pub fn count_words(text: &str) -> usize {
 
 ```console
 $ cargo test
-   Compiling ch11-demo v0.1.0 (D:\Rust\.scratch\tmp-20\ch11demo)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.55s
+   Compiling ch11-demo v0.1.0 (D:\Rust\snippets\ch11)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.33s
      Running unittests src\lib.rs (target\debug\deps\ch11_demo-bd516542a222d203.exe)
 
 running 3 tests
@@ -394,7 +396,7 @@ test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; 
 
 1. 抓不到，而且这个写法本身有问题。它断言的是 `square(3) == square(2) + square(1)`。对正确的实现 `x * x` 来说，就是 `9 == 4 + 1`——**不成立**，测试会失败，但函数其实没错。反过来，对错误的实现 `fn square(x: i32) -> i32 { 3 * x }`，等式 `9 == 6 + 3` 却成立，测试通过而函数是错的。两头都不靠谱：用被测函数自己的输出互相验证，证明的只是「两者一致」，不是「结果正确」。正确写法是拿写死的期望值比：`assert_eq!(square(3), 9);`。
 
-2. 不对。`#[should_panic]` 要求测试函数返回 `()`，而返回 `Result` 的测试必须返回 `Result`，两者互斥，编译器会直接报错（`functions using #[should_panic] must return ()`）。二选一：要验证 `Err`，就让测试返回 `Result`、把「应失败」的情况写成断言；要验证 panic，就让测试返回 `()` 并用 `#[should_panic]`。
+2. 不对。`#[should_panic]` 要求测试函数返回 `()`，而返回 `Result` 的测试必须返回 `Result`，两者互斥，编译器会直接报错（``functions using `#[should_panic]` must return `()` ``）。二选一：要验证 `Err`，就让测试返回 `Result`、把「应失败」的情况写成断言；要验证 panic，就让测试返回 `()` 并用 `#[should_panic]`。
 
 3. 最可能是包名没对上。集成测试里用的 crate 名来自 `[package] name`，且其中的连字符要换成下划线（包名 `my-crate` → crate 名 `my_crate`）。另外，如果项目是**只有 `src/main.rs` 的二进制 crate**，它不向外部暴露任何函数，集成测试根本无从 `use`——这时要把逻辑挪进 `src/lib.rs`，让集成测试去测库。
 
@@ -402,9 +404,9 @@ test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; 
 
 ## 延伸阅读
 
-- The Book, 第 11 章《Writing Automated Tests》：<https://doc.rust-lang.org/1.98.0/book/ch11-00-testing.html>
-- Cargo Book,《Tests》指南：<https://doc.rust-lang.org/1.98.0/cargo/guide/tests.html>
-- `cargo test` 命令参考：<https://doc.rust-lang.org/1.98.0/cargo/commands/cargo-test.html>
-- 标准库断言宏与 `dbg!`：<https://doc.rust-lang.org/1.98.0/std/macro.assert_eq.html>、<https://doc.rust-lang.org/1.98.0/std/macro.dbg.html>
-- rustc,《Tests》说明（libtest 运行器）：<https://doc.rust-lang.org/1.98.0/rustc/tests/index.html>
+- The Book, 第 11 章《Writing Automated Tests》：<https://doc.rust-lang.org/book/ch11-00-testing.html>
+- Cargo Book,《Tests》指南：<https://doc.rust-lang.org/cargo/guide/tests.html>
+- `cargo test` 命令参考：<https://doc.rust-lang.org/cargo/commands/cargo-test.html>
+- 标准库断言宏与 `dbg!`：<https://doc.rust-lang.org/std/macro.assert_eq.html>、<https://doc.rust-lang.org/std/macro.dbg.html>
+- rustc,《Tests》说明（libtest 运行器）：<https://doc.rust-lang.org/rustc/tests/index.html>
 - VS Code 调试扩展 CodeLLDB：<https://github.com/vadimcn/code-lldb>

@@ -57,7 +57,7 @@ fn main() {
 }
 ```
 
-`vec![1, 2, 3]` 是标准库宏，等价于建一个空 `Vec` 再依次 `push`。真跑输出：
+`vec![1, 2, 3]` 是标准库宏，用来写「带初值的表」——内容上等价于建一个空 `Vec` 再依次 `push`，但容量轨迹不同：`vec![1, 2, 3].capacity()` 是 3，而空 `Vec` push 三次后容量是 4。真跑输出：
 
 ```text
 [10, 20, 30]
@@ -149,7 +149,7 @@ fn main() {
 30
 ```
 
-顺带记住成本：`push`/`pop` 作用在末尾，是 O(1)；`insert(i, x)` 和 `remove(i)` 作用在中间，后面的元素要整体前移或后移，是 O(n)。中间插删频繁时，`Vec` 是错误的容器。
+顺带记住成本：`push`/`pop` 作用在末尾，是摊还 O(1)（偶尔那一次会触发扩容、搬 n 个元素）；`insert(i, x)` 和 `remove(i)` 作用在中间，后面的元素要整体前移或后移，是 O(n)。中间插删频繁时，`Vec` 是错误的容器。
 
 **`Vec` 还是数组？**长度在编译期已知、也不需要增长，用 `[T; N]`（第 3 章）；长度运行时才知道，或者需要增删，用 `Vec<T>`。
 
@@ -302,12 +302,46 @@ Some("你")
 
 反过来也一样：`Vec<u8>` 不会自动变成 `String`。`String::from_utf8(bytes)` 会校验合法性并返回 `Result`（第 7 章）：对 `[228, 189, 160, 229, 165, 189]` 返回 `Ok("你好")`，对含非法字节的 `[0xff]` 返回 `Err(FromUtf8Error { .. })`。这就是「合法 UTF-8」这条保证的入口。
 
+下图把这 6 个字节摊开 —— 每个汉字 3 个字节，字符边界只在 0、3、6 处：
+
+<svg viewBox="0 0 640 212" width="100%" role="img" aria-label="“你好”的 UTF-8 字节布局、字符边界与非法切点" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">“你好”的 UTF-8 字节布局：共 6 字节，字符边界只在 0、3、6</text>
+<g font-size="12" text-anchor="middle" fill="currentColor">
+<text x="100" y="44">0</text><text x="144" y="44">1</text><text x="188" y="44">2</text><text x="232" y="44">3</text><text x="276" y="44">4</text><text x="320" y="44">5</text>
+</g>
+<g font-size="13" text-anchor="middle" fill="currentColor" font-family="monospace">
+<rect x="80" y="50" width="40" height="30" fill="none" stroke="currentColor" stroke-opacity="0.55" /><text x="100" y="70">e4</text>
+<rect x="124" y="50" width="40" height="30" fill="none" stroke="currentColor" stroke-opacity="0.55" /><text x="144" y="70">bd</text>
+<rect x="168" y="50" width="40" height="30" fill="none" stroke="currentColor" stroke-opacity="0.55" /><text x="188" y="70">a0</text>
+<rect x="212" y="50" width="40" height="30" fill="none" stroke="currentColor" stroke-opacity="0.55" /><text x="232" y="70">e5</text>
+<rect x="256" y="50" width="40" height="30" fill="none" stroke="currentColor" stroke-opacity="0.55" /><text x="276" y="70">a5</text>
+<rect x="300" y="50" width="40" height="30" fill="none" stroke="currentColor" stroke-opacity="0.55" /><text x="320" y="70">bd</text>
+</g>
+<g font-size="13" text-anchor="middle" fill="currentColor">
+<text x="144" y="102">你（3 字节）</text>
+<text x="276" y="102">好（3 字节）</text>
+</g>
+<g stroke="var(--links)" stroke-width="2">
+<line x1="80" y1="112" x2="80" y2="124" /><line x1="210" y1="112" x2="210" y2="124" /><line x1="340" y1="112" x2="340" y2="124" />
+</g>
+<g font-size="12" text-anchor="middle" fill="var(--links)">
+<text x="80" y="140">边界 0</text><text x="210" y="140">边界 3</text><text x="340" y="140">边界 6</text>
+</g>
+<g stroke="var(--warning-border)" stroke-width="2" stroke-dasharray="4 3">
+<line x1="122" y1="38" x2="122" y2="92" />
+</g>
+<g font-size="12" fill="var(--warning-border)">
+<text x="132" y="178">✗ &amp;s[0..1] 在字节 1 处切开 —— 不是字符边界，运行时会 panic</text>
+</g>
+<text x="0" y="200" font-size="12" fill="currentColor" opacity="0.7">（每个汉字占 3 个字节；&amp;s[0..3]、&amp;s[3..6] 才是完整字符）</text>
+</svg>
+
 三个遍历 API 的语义：
 
 | 调用 | 每次产出 | 单位 | 用途 |
 |---|---|---|---|
 | `s.bytes()` | `u8` | 1 字节 | 处理原始字节（协议、校验、哈希） |
-| `s.chars()` | `char` | 一个 Unicode 标量值（1–4 字节） | 按字符处理：计数、翻转、逐字判断 |
+| `s.chars()` | `char` | 一个 Unicode 标量值（Unicode scalar value，1–4 字节） | 按字符处理：计数、翻转、逐字判断 |
 | `s.char_indices()` | `(usize, char)` | — | 同时要字符和它的字节下标 |
 
 ```rust
@@ -423,7 +457,7 @@ brown: 1
 
 - `text.len()` 是 55，`chars().count()` 是 40——差的 15 个字节全部来自中文和 emoji；
 - 第 4 行起是排序后的词频前三名；因为排过序，这个输出是确定的；
-- `counts.iter()` 借出 map，`map(|(w, n)| (*w, *n))` 把 `(&str, &u32)` 变成 `(&str, u32)`，然后 `sort_by` 先按次数降序、次数相同按词升序。
+- `counts.iter()` 借出 map（产出 `(&&str, &u32)`），`map(|(w, n)| (*w, *n))` 解引用成 `(&str, u32)`，然后 `sort_by` 先按次数降序、次数相同按词升序。`iter()` / `map()` / `collect()` / `sort_by` 属于迭代器与闭包，第 10 章展开。
 
 ## 报错现场
 
@@ -469,7 +503,7 @@ error[E0277]: the type `str` cannot be indexed by `{integer}`
           for more information, see chapter 8 in The Book: <https://doc.rust-lang.org/book/ch08-02-strings.html#indexing-into-strings>
 ```
 
-定位路径：`String` 借 `Deref` 解引用到 `str`，而 `str` 没有实现 `Index<usize>`（只有 `Index<Range<usize>>` 这类切片索引），所以编译器报 `str` 不能被整数索引。注意它是 `E0277`（trait 未实现），不是「越界」——越界是运行期的事。
+定位路径：`String` 借 `Deref` 解引用到 `str`，而 `str` 没有实现 `Index<usize>`（只有 `Index<Range<usize>>` 这类切片索引），所以编译器报 `str` 不能被整数索引。注意它是 `E0277`（trait 未实现），不是「越界」——越界是运行期的事。（以 Rust 1.98 为例；行号按你项目里的实际位置。）
 
 修法：按字符取 `.chars().nth(0)`，按字节取 `.bytes().nth(0)`；按范围切片用 `&s[0..1]`（确保落在字符边界），更稳的写法是 `s.get(0..1)`——边界不合法时给你 `None` 而不是 panic。
 
@@ -485,8 +519,8 @@ error[E0277]: the type `str` cannot be indexed by `{integer}`
 ## 语言对照角
 
 - **Python**：`len(s)` 是字符数，`s[0]` 给第一个字符（Python 3 的 `str` 是码点序列）。Rust 两个都不给你，因为 `str` 是 UTF-8 字节，你必须先声明「我按字节还是按字符」。
-- **Java**：`String` 内部是 UTF-16 码元序列，`s.charAt(0)` 给一个 `char`（UTF-16 码元），一个 emoji 要占两个。Rust 的 `char` 是完整的 Unicode 码点（1–4 字节），比 Java 的 `char` 更「整」，但同样不等于「用户眼里的一个字」。
-- **C++**：`std::string` 也是字节序列，`s[0]` 给首字节——字节视角与 Rust 相同。区别是 Rust 在类型上把「拥有」与「借用」分开（`String` 对 `&str`），切片还做边界检查（越界 panic），而 C++ 的 `operator[]`、`substr` 都不检查。
+- **Java**：`String` 内部是 UTF-16 码元（code unit）序列，`s.charAt(0)` 给一个 `char`（UTF-16 码元），一个 emoji 要占两个。Rust 的 `char` 是完整的 Unicode 码点（code point，1–4 字节），比 Java 的 `char` 更「整」，但同样不等于「用户眼里的一个字」。
+- **C++**：`std::string` 也是字节序列，`s[0]` 给首字节——字节视角与 Rust 相同。区别是 Rust 在类型上把「拥有」与「借用」分开（`String` 对 `&str`），切片还做边界检查（越界 panic）；C++ 的 `operator[]` 完全不检查，`substr` 只在 `pos > size()` 时抛 `std::out_of_range`，两者都不关心 UTF-8 字符边界。
 - **Go**：`string` 也是 UTF-8 字节序列，`len(s)` 是字节数——与 Rust 一致，只有 `for range` 才按 rune 迭代。Rust 把这层区分做成了两个显式的 API：`bytes()` 与 `chars()`。
 - **集合**：Python `list`、Java `ArrayList`、C++ `vector` 大致对应 `Vec<T>`；Rust 多给了一条路——越界可以 `[]` panic，也可以 `get` 拿 `Option`，把「可能失败」写进类型。
 
@@ -532,6 +566,8 @@ error[E0502]: cannot borrow `v` as mutable because it is also borrowed as immuta
 5 |     println!("{first}");
   |                ----- immutable borrow later used here
 ```
+
+（以 Rust 1.98 为例。）
 
 `first` 借用了 `v` 的元素，而 `push` 需要可变借用（还可能重新分配内存），两者不能同时存在（第 4 章）。至少改一处：把 `println!("{first}")` 移到 `push` 之前（借用结束得早），或者把 `first` 改成拷贝 `let first = v[0];`（`i32` 是 `Copy`），或者改用 `first.clone()`（元素是 `String` 等类型时）。
 

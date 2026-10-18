@@ -18,13 +18,13 @@
 
 ## 为什么这样设计
 
-把类型想成「一组可能的值」：`bool` 有两个值，`u8` 有 256 个。你定义的 struct 是「每个字段各自取值，拼在一起」——这是 AND；enum 是「从这几种形状里选一个」——这是 OR。用 AND 与 OR 把类型拼起来，这套做法一般叫代数数据类型（algebraic data type，ADT）。剩下的问题是怎么把值拆开：`match` 负责这件事，并且顺便让编译器替你检查「是否每种情况都处理了」。
+把类型想成「一组可能的值」：`bool` 有两个值，`u8` 有 256 个。你定义的 struct 是「每个字段各自取值，拼在一起」——这是 AND；enum 是「从这几种形状里选一个」——这是 OR。用 AND 与 OR 把类型拼起来，这套做法叫代数数据类型（algebraic data type，ADT）。剩下的问题是怎么把值拆开：`match` 负责这件事，顺便让编译器替你检查「是否每种情况都处理了」。
 
 对比其他语言对同一个问题的处理：
 
 - C 表示「任务状态」通常是结构体里放一个 `int status` 加几个字段，用 `switch` 分派。编译器不检查你有没有漏掉某个状态，也不阻止「失败的任务带着完成路径」这种组合。
 - Java/Python 常见的是继承加 `null`、`Optional` 或异常。`null` 的真正问题在于类型系统对「可能没有」失灵：签名写着返回 `Task`，实际可能给你 `null`，运行时才知道。
-- Rust 的选择是把状态和它携带的数据合成一个类型，用 `match` 取出：每个状态只能看到自己那份数据，而且编译器强制你处理全部状态。C++ 的 `std::variant`、C#/F# 的 discriminated union 是近亲。
+- Rust 的选择是把状态和它携带的数据合成一个类型，用 `match` 取出：每个状态只能看到自己那份数据，而且编译器强制你处理全部状态。C++ 的 `std::variant`、F# 的 discriminated union 是近亲（C# 只有提案）。
 
 本章的主线是**状态建模**，语法只是手段。当「任务已经完成但进度还是 42%」这种组合无法被构造出来时，一整类 bug 就消失了。下面是三种做法的对照：
 
@@ -51,8 +51,8 @@ struct Job {              // 命名字段：最常用
     title: String,
 }
 
-struct Point(f64, f64);   // 元组结构体：字段没有名字，用 .0/.1 访问
-struct Marker;            // 单元结构体：不携带数据
+struct Point(f64, f64);   // 元组结构体（tuple struct）：字段没有名字，用 .0/.1 访问
+struct Marker;            // 单元结构体（unit struct）：不携带数据
 
 let job = Job { id: 7, title: String::from("第 5 章草稿") };
 println!("{} {}", job.id, job.title);
@@ -144,7 +144,7 @@ Point { x: 1, y: 2 }
 - `Debug` 提供 `{:?}`（单行）与 `{:#?}`（多行）调试打印；`{}` 需要的是 `Display`，它不能 derive（第 9 章讲 trait 时说清为什么）。
 - `Clone` 提供 `.clone()`，是**可能分配内存的显式拷贝**。
 - `Copy` 表示「赋值与传参按位复制，而不是移动」。**能不能 Copy 由字段决定**：所有字段都 Copy，而且不含 `String`、`Vec`、`Box` 这类拥有堆内存的字段才行。这是第 4 章移动规则的直接推论。
-- `PartialEq` 提供 `==` 与 `!=`；`Eq` 用于需要「完全等价关系」的场合（比如当 `HashMap` 的键，第 6 章展开）。
+- `PartialEq` 提供 `==` 与 `!=`；`Eq` 用于需要「完全等价关系」的场合（比如当 `HashMap` 的键，但键还要求 `Hash`，第 6 章展开）。
 
 `#[derive]` 不是魔法：它展开成对这个类型的 `impl`（第 9 章会看到 trait 与手写 `impl`）。把上面的 `Point` 换成带 `String` 的类型，赋值就从复制变回移动：
 
@@ -250,7 +250,7 @@ println!("{:?}", line.strip_prefix("size="));     // None
 println!("{}", path.map(str::len).unwrap_or(0));  // 7
 ```
 
-三种处理方式先认识一下，细节留到第 7 章：
+三种处理方式先认识一下（细节见第 7 章）：
 
 - `match`：`Some(p)` 与 `None` 都写出来，最完整。
 - `if let`：只关心 `Some` 的分支（见 5.8）。
@@ -263,7 +263,7 @@ println!("{}", path.map(str::len).unwrap_or(0));  // 7
 `match` 有两条要记住的规则：
 
 - **它是表达式**：每个分支产出的值类型必须一致，`match` 整体就是这些值之一。所以它能直接写进 `let`，也能给函数当返回值。
-- **它要求穷尽（exhaustive）**：所有可能的值都要有分支覆盖。编译器知道每个 enum 的完整变体列表（同一个 crate 内），漏一个就是编译错误。
+- **它要求穷尽（exhaustive）**：所有可能的值都要有分支覆盖。编译器知道每个 enum 的完整变体列表（外部 crate 里标了 `#[non_exhaustive]` 的枚举除外），漏一个就是编译错误。
 
 ```rust
 for n in [0, 7, 42, -1] {
@@ -285,7 +285,7 @@ for n in [0, 7, 42, -1] {
 
 分支自上而下尝试，第一个命中的生效；所以 `_ if n < 0` 必须写在 `_` 前面。守卫不是模式，是模式后面附加的 `if` 条件（1.95 起守卫里也能写 `if let`）。
 
-`_` 兜底能少写很多分支，但它也是本次改动的「静音键」：以后给 enum 加变体，编译器不会再提醒你这里的 `_` 顺手吃掉了新情况。建模状态时优先把变体写全；只在确实「其余都一样」的地方用 `_`。
+`_` 兜底能少写很多分支，但它也是「静音键」：以后给 enum 加变体，编译器不会再提醒你这里的 `_` 吃掉了新情况。建模状态时优先把变体写全；只在确实「其余都一样」的地方用 `_`。
 
 ### 5.7 模式（pattern）能写什么
 
@@ -293,11 +293,11 @@ for n in [0, 7, 42, -1] {
 |---|---|---|
 | 字面量 | `0`、`"q"` | 相等才命中 |
 | 范围 | `1..=9` | 闭区间 |
-| 或模式 | `'q' \| 'Q'` | 任一命中即可 |
+| 或模式（or-pattern） | `'q' \| 'Q'` | 任一命中即可 |
 | 绑定 | `p`、`title` | 把值绑定到名字；是移动还是复制由类型决定 |
 | 通配 | `_` | 匹配任何值且不绑定 |
 | 剩余 | `..` | 忽略剩余字段或元素 |
-| 解构 | `Job { id, title }`、`Point(x, y)`、`Some((head, tail))` | 拆开 struct / 元组 / enum，可嵌套 |
+| 解构（destructuring） | `Job { id, title }`、`Point(x, y)`、`Some((head, tail))` | 拆开 struct / 元组 / enum，可嵌套 |
 | `@` | `p @ 1..=9` | 命中就绑定整个值 |
 
 模式不只在 `match` 里出现：`let`、函数参数、`for` 的循环变量都是模式（`let (a, b) = pair;` 就是一次解构）。几个例子：
@@ -355,7 +355,7 @@ match r {
 ```
 
 > [!NOTE]
-> edition 2024 起，这种「隐式借用」的模式里不能再手写 `ref` / `mut`（2021 只是警告，2024 直接报错）：`Job { ref id, .. }` 会得到 `cannot explicitly borrow within an implicitly-borrowing pattern`，按提示去掉 `ref` 即可。规则细节见 Reference 的 pattern binding modes 一节。
+> edition 2024 起，这种「隐式借用」的模式里不能再手写 `ref` / `mut`：`Job { ref id, .. }` 会得到 `cannot explicitly borrow within an implicitly-borrowing pattern`，按提示去掉 `ref` 即可。2021 及更早的 edition 允许这么写，想提前发现可开默认 `allow` 的 `rust-2024-incompatible-pat` lint。细节见 Reference 的 pattern binding modes 一节。
 
 ### 5.8 更短的匹配：if let / while let / let else / matches!
 
@@ -431,11 +431,11 @@ println!("完成？{}", matches!(done, Status::Done { .. }));  // true
 {{#rustdoc_include ../snippets/ch05/task_state.rs}}
 ```
 
-在仓库根编译并运行（Windows 下产物是 `task_state.exe`，其他平台是 `./task_state`）：
+在仓库根编译并运行（下面按 Windows 写：`rustc -o` 不会自动补 `.exe`，运行要带 `.\` 前缀；其他平台编译成 `task_state`、运行 `./task_state`）：
 
 ```console
-> rustc --edition 2024 snippets/ch05/task_state.rs -o task_state
-> task_state.exe
+$ rustc --edition 2024 snippets/ch05/task_state.rs -o task_state.exe
+$ .\task_state.exe
 ```
 
 ```text
@@ -450,7 +450,7 @@ saved_path = Some("ch05.md")
 值得留意的几处：
 
 - 状态转换只写在 `impl Job` 里（`start` / `set_progress` / `finish`），外面拿不到「半个状态」；`set_progress` 用 `if let ... = &mut self.status` 写，不在下载中时调用它什么也不做。
-- `saved_path` 返回 `Option<&str>`，而不是用空字符串之类的哨兵值表示「没有产出」：类型本身就把这件事说清楚了。
+- `saved_path` 返回 `Option<&str>`，而不是用空字符串之类的哨兵值（sentinel value）表示「没有产出」：类型本身就把这件事说清楚了。
 - `describe` 的 `match` 写全了四个变体。给 `Status` 加一个 `Cancelled { at: u32 }` 变体，编译器会立刻在这里报错，告诉你哪些地方还没处理新状态——这就是穷尽性检查的价值。
 - `main` 结尾的 `matches!(failed.status, Status::Failed { .. })` 是只取布尔值的写法，不需要把 `reason` 拿出来。
 
@@ -499,7 +499,7 @@ help: ensure that all possible cases are being handled by adding a match arm wit
 
 定位路径：
 
-- 报错文案里的 `&Status::Done` 带了个 `&`，因为 `status` 是 `&Status`，匹配的是引用（5.7 的「匹配人体工程学」）。读报错时先看被匹配值的类型。
+- 报错里的 `&Status::Done` 带了个 `&`，因为 `status` 是 `&Status`，匹配的是引用（5.7 的「匹配人体工程学」）。读报错先看被匹配值的类型。
 - 编译器能写出具体缺哪个变体，是因为它知道 `Status` 的全部变体：所以建模状态时，**写全分支**比 `_` 兜底更有价值。
 - 修法：补一句 `Status::Done => "完成",`。或者临时用 `_ => todo!()` 兜底让编译通过，但要清楚它掩盖了后续新增的变体。
 
@@ -633,7 +633,7 @@ fn relabel(job: &Job) {
 
 **1.** 报错，因为 `Copy` 要求**所有字段**都实现 `Copy`，而 `Vec<String>` 拥有堆内存、不是 `Copy`（每个值都要负责释放自己的缓冲区，位复制会变成双重释放）。1.98 的报错是 E0204，关键行是 ``the trait `Copy` cannot be implemented for this type``，并指出 `items: Vec<String>` 这个字段没有实现 `Copy`。去掉 `Copy`、保留 `Clone` 即可：`.clone()` 会真的复制一份 `Vec`，这是可以被察觉的开销。
 
-**2.** `&Job` 是共享借用，只能读。`job.title = ...` 试图通过共享借用写入，报 E0594：`cannot assign to job.title, which is behind a & reference`，`help` 会建议把参数改成 `&mut Job`。
+**2.** `&Job` 是共享借用，只能读。`job.title = ...` 试图通过共享借用写入，报 E0594，原话是 ``cannot assign to `job.title`, which is behind a `&` reference``，`help` 会建议把参数改成 `&mut Job`。
 
 - 修法 A：签名改成 `fn relabel(job: &mut Job)`，调用方也要能拿到可变借用（`relabel(&mut job)`，且 `job` 本身是 `let mut`）。
 - 修法 B：不要原地修改，返回一个新值：`fn relabeled(job: &Job) -> Job { Job { title: String::from("新标题") } }`。想避免把 `title` 搬走又需要沿用原值时，用 `job.title.clone()`（第 6 章会看到更省的做法）。

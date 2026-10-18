@@ -31,3 +31,18 @@ Blocked by: 06
   - 新术语：无待入表新词。正文按 GLOSSARY 首现标注了「包（package）」「crate（编译单元）」「宏（macro）」；`profile（构建配置）` **不在** GLOSSARY 内，本章按「profile（构建配置）」标注，建议协调者决定是否入表；`edition` 沿用社区原词未译。
   - 邻章衔接：第 2 章（报错方法论）、第 8 章（依赖与模块）、第 27 章（宏）、第 30 章（cargo 全命令面：features/workspace/发布）、第 33 章（edition 迁移）均以「（第 N 章展开）」标出；第 4 章（所有权）未触碰，本章只提到「rustc 做完整检查（类型、借用、……）」。全书跨章指引写法也写进了「本书约定」第 6 条。
   - 图示需求：①「cargo run 的编排」现在是 text 块里的 ASCII 竖排流程（命令 → cargo 编排 → rustc → target/ → 终端），08 票统一图示体系后建议升级为横向管线图；②「三层分工 rustup / cargo / rustc」现在是表格，可升级为同心/分层图；③ `target/debug/` 目录树想配「哪些是可删缓存、哪些该提交（`Cargo.lock` 反之）」的标注图；④ `cargo check` vs `build` vs `run` 的产出差异（有无 `.exe`）值得一张对照图。
+
+- 2026-10-18 复审修订（RwCh01 的 9 条 minor 全部处理；跨章重复的 `cargo check` 讲解按协调者裁定不动）：正文自 2789 → **2969 个汉字**（仍在 2500–3500）。
+  - 自验（修完复跑）：`mdbook test -c ch01-getting-started.md` → ` INFO Testing chapter '第 1 章 起步：工具链与第一个程序': "ch01-getting-started.md"`，**exit 0**；栅栏 38 个（成对闭合、无裸栅栏）。
+  - 逐条落点：
+    1. `:93` 删去「复制到同平台的另一台机器上照样能跑」，改为实测限定：默认动态链接系统 C 运行库（本机实测导入表含 `VCRUNTIME140.dll`、`api-ms-win-crt-runtime`）→ 目标机需 MSVC 运行库；并给出 `-C target-feature=+crt-static` 静态链接（**新补实测**：加该选项后 `stat.exe` 导入表里 `VCRUNTIME140.dll` 计数为 0，KERNEL32 仍在，程序正常运行打印 `Hello, world!`）。
+    2. `:200` 引文改为快照原文 「Specify the Rust edition to use. Default is 2024.」（已回查 `commands/cargo-new.html`，后接 `Possible values: 2015, 2018, 2021, 2024`）。
+    3. `:282` 拆开：`:::` 单独一条解释为**次级位置**（指向标准库中 `println!` 宏定义处），`help:` 一条只讲**可照抄的改法**。
+    4. `:287` E0601 块补「（以 Rust 1.98 为例，只摘关键几行）」，与本章另两处报错块及「本书约定」第 3 条一致。
+    5. `:246` 反例块前改为「下面这段是**故意写错的反例**——把 `println!` 拼错成 `printlin!`，不会编译通过」；「本书约定」第 5 条同步改成「偶尔出现的编译失败示例会在正文里明确标成『故意写错的反例』」（不再提不存在的可见标记）。
+    6. `:25` 去掉裸词「借用」，改为「它做完整检查（类型、内存安全……）」（`借用` 全章只此一处，现为零处，无需 GLOSSARY 首现括注）。
+    7. `:150/154/172/216/235/257` 六处占位路径统一为 Windows 反斜杠 `\path\to\hello`；声明句 `:160` 补「报错里的工具链源码路径同样省略了前缀」。
+    8. `:108` 目录树补 `├── .git/  # cargo new 默认初始化的 git 仓库（内容省略）`。
+    9. `:167` 计数改写为「只讲 `check`、`build`、`run` 三个主命令，外加 `fmt`、`clippy` 两条辅助命令」。
+  - 上一条 Comment 中已过时的三处，以本条为准：字数（2789）、占位路径（`/path/to/hello`）、`cargo-new` 引文（`The edition to use.`）、以及「只提到 rustc 检查类型/借用」的说法。
+  - 探针（`.scratch/tmp-10/probe/` 下的 `solo.rs`、`stat.rs`）用完已删除。

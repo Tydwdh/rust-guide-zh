@@ -2,7 +2,7 @@
 
 > 协调者维护；写作者只读不写。滚动更新 —— 各票交付 / 裁定 / 新术语 / 图示需求 / 遗留。
 
-## 状态：已落地 10/13（前言、第 1、2、5、6、7、8、9、10、11 章）；在写 3 票（第 3、4 章 + 项目 1）
+## 状态：已落地 12/13（前言、第 1–11 章全覆盖，缺项目 1）；在写 1 票（项目 1）
 
 ### 票 09 前言 — 定稿（两轮退修完成）
 - 1202 汉字（四种计数口径全 ≤1500）；退修：跳读路径消歧、隐藏行说明按实测更正、修辞精简。
@@ -67,6 +67,22 @@
 - 术语（待并表）：适配器（adapter）、消费者（consumer）、惰性求值（lazy evaluation）、拉/推模型；对照角用视图（view）、流（stream）。
 - 图示（转 08）：`Fn` 系包含关系、迭代器链套娃类型、惰性管线对比。
 
+### 票 12 第 3 章 语言基础 — 初稿到（3624 汉字，exit 0；展开 include 后 rustdoc 27 块全绿）
+- snippet：`snippets/ch03/tour.rs`（70 行）、`overflow.rs`（6 行）。
+- 实测：debug 溢出 panic（101）vs release 环绕 `-128`；编译期 `arithmetic_overflow`（同程序 `cargo check` 退出 0）；`as`/`try_into`；`{1+1;}` 的 unit；`wrapping/saturating/checked_add`；char 4 字节与 `from_u32(0xD800)`；8 组 cargo 报错原文。
+- **include 真执行的新证据**：故意 panic 的程序经 include 使 `mdbook test -c` FAILED；标 `rust,should_panic` 后通过 → 已并入 WRITING §1 的规则措辞。
+- 术语（待并表）：绑定（binding）、遮蔽（shadowing）、单元类型（unit type）、尾表达式（tail expression）、整数溢出（integer overflow）、文档注释（doc comment）、类型标注/推断（annotation / inference）、可变绑定（mutable binding）。
+- 图示（转 08）：表达式导向 vs 语句导向、溢出 debug/release 决策树。
+- 遗留：E0571/E0317/运行期越界一句带过（已实测）；遮蔽的精确 drop 语义留第 4 章。
+
+### 票 13 第 4 章 所有权、借用与切片 — 初稿到（核心章 5401 汉字，exit 0；include 覆盖实证）
+- snippet：`snippets/ch04/word_stats.rs`（唯一文件；目录内无编译产物 ✓）。
+- 实测：E0382/E0499/E0502/E0515/E0106/E0204 + 非字符边界 panic（101）；尺寸表（String24 / Vec24 / &String8 / &Vec8 / &str16 / &[u8]16 / `Box<str>`16 / &[u8;4]8）；切片地址偏移 6；drop 顺序；`v.push(v.len())` 两阶段借用可编译。
+- **重要发现（已写进 WRITING §1）**：`{{#rustdoc_include}}` 指令必须写在 ```rust 围栏**内**；裸写 → 当段落渲染且完全不被测试（本章已修；作者核查确认其余 11 章 + 项目章围栏全部正确）。
+- 术语（待并表）：移动（move）、克隆（clone）、析构（drop）、动态大小类型（DST）、胖指针（fat pointer）、瘦指针（thin pointer）、解引用强转（deref coercion）、借用区间（borrow region）、别名规则（aliasing rules）、悬垂引用（dangling reference）、重复释放（double free）；`Copy`/`Clone`/`Drop` 保留英文。
+- 图示（转 08）：① §4.5 借用区间时间轴（作者建议「最值得上 mermaid」）；② §4.7 三型内存布局对照；③ §4.3「move = 释放责任交接」状态转移。
+- 主动裁掉：research/02 §5.2#4（2024 临时值 drop 影响）留第 5/7 章（实则第 33 章有专章，收尾时确认由它覆盖）；`for x in v` 隐式移动只一句。
+
 ## 事件与勘误
 
 - **编译产物事故（已处置）**：ch04 的 `ws.exe/ws.pdb`、ch08 的 `shop17.exe/shop17.pdb` 落进 `snippets/` → 已删；`.gitignore` 增 `*.exe`/`*.pdb`；已通知两票（输出一律进 `.scratch/tmp-NN/`，snippets 只放源码）。
@@ -76,9 +92,24 @@
 - **linkcheck2 已启用**（book.toml，follow-web-links=false / require-md-extension=true / warning-policy=warn）：clean build exit 0；HTML 输出改为 `book/html/`；README 与 WRITING §3/§7 已同步。
 - **跨章承诺**：前言承诺第 9、10 章「C++/Java/Python 对照」→ 已转达两章落实。
 
-## 下一步（协调者）
+- **内嵌 SVG 可行性（08 票前置事实，已实测）**：mdbook 原样渲染 `<svg>`（`<main>` 内完整保留，`currentColor` 生效）；**但不能含空行**（CommonMark HTML 块遇空行截断 → `</svg>` 错位、图形碎裂）。08 决策时给用户：A 文本图 / B 内嵌 SVG（已验证）/ C mermaid 插件（需安装 + JS 资产）。
 
-- [ ] 其余 8 票落地即验；批次收尾跑全量链（build 扫 ERROR/WARN + `mdbook test` + `cargo test --manifest-path examples/Cargo.toml`）。
-- [ ] 交叉审校：计划 4 个 reviewer（每 3–4 章，含组内跨章一致性）+ 全局术语/章引用一致性 grep（术语并表前跑）。
-- [ ] 术语并表 `GLOSSARY.md`；图示需求汇总 → 08 票定「图示体系」。
-- [ ] 收尾提交（单章文件 + 票 + snippets + examples），地图/README/08 同步。
+## 审校（reviewer 回报与分流）
+
+- 票 11 第 2 章（RwCh02）：5 × minor、0 blocker/major；事实/规范/跨章三轴全部复跑通过。已转 Ch02Compiler 修（计数矛盾 / warning 的 help 断言过宽 / `= note:` 举例错位 / 术语首现位置 ×3 / 「原话」实为译文）。
+- 票 15 第 6 章（RwCh06）：**1 × major**（C++ `substr` 断言错：实际 `pos > size()` 抛 `out_of_range`）+ 7 × minor（`vec!` 容量「等价」、`push` 摊还 O(1)、`&&str` 层级、术语首现、1.98 标注 ×2、第 10 章指针）。已转 Ch06Collections 修；WRITING §4 新增「跨语言断言必须核对一手文档」。
+- 票 14 第 5 章（RwCh05）：**1 × blocker**（NOTE 称 edition 2021 下 `ref` 写法「只是警告」，实为「允许且无警告」；edition-guide 原文已核）+ 5 × minor（C# 无原生 DU；术语首现 ×4；「同一个 crate 内」误述；`HashMap` 键需 `Eq + Hash`）。已转 Ch05StructsEnums 修。
+- 票 10 第 1 章（RwCh01）：9 × minor（引文实为转述；CRT 依赖导致「跨机可跑」不严谨；`:::` 归类；E0601 缺 1.98 标注；「编译不过」无可见标记；「借用」裸首现；路径分隔符；目录树缺 `.git/`；命令计数含糊）+ 与 ch02 的 `cargo check` 重复（**裁定：接受不改**）。已转 Ch01GettingStarted 修。
+- 票 20 第 11 章（RwCh11）：6 × minor（错误行引用缺反引号 ×2；doctest 回指应为第 31 章；输出含批次临时路径；`--nocapture` 已弃用；失败起点不可直接复现）。已转 Ch11Testing 修。
+- 票 17 第 8 章（RwCh08）：**1 × major（跨章承诺缺口）**：ch05 承诺「E0616 跨模块访问私有字段，第 8 章会碰到」，ch08 通篇没有 → 已要求补 E0616 最小复现 + 1.98 输出；另 6 × minor（跨 crate 优化归因、Cargo.lock 节选标注、features/workspace 体例、标题「私有模块」应为「私有项」、根模块措辞、Windows 执行写法）。已转 Ch08Modules 修。**另：ch08 的三段 include 待 build 后目视确认渲染**（评审侧无法跑 build）。
+- 新规则：WRITING §5 增「引用官方英文原文必须逐字核对」（第 1/2/11 章同类问题）；§4 增「跨语言断言核对一手文档」（第 5/6 章同类问题）；§5 增「命令行与路径口径」（提示符 `$`；正文文件引用正斜杠；命令与粘贴输出按实况）。
+- **修回进度**：ch02（5）✓ / ch06（7）✓ / ch01（9）✓ / ch05（8，含提示符与 `.\task_state.exe` 回正）✓ / ch08（8，含新补 E0616+E0451）✓ / ch03（5）✓ / ch11（6）✓ / ch04（5，E0505 归属修正 + 速查表补行）✓ / ch07（5，含 blocker：`unused_must_use` 是警告不是错误）✓ / ch09（14，含 blocker：Windows `-o` 命名坑）✓；在修：preface（11）、ch10（12）；RwProject1 审校在跑。
+- **术语并表已完成**：`GLOSSARY.md` 19 → **99 条**（新增「类型与建模 / 所有权与借用 / 集合与字符串 / 错误处理 / 模块与工程 / 泛型与 trait / 迭代器与闭包 / 测试」八个分节；社区表已核对，分歧与 `_Avoid_` 均已记录）。
+- 收尾待办（我）：路径/提示符终扫；全量链 + include 渲染目视确认；08 图示决策（已向用户发问）；地图/README/提交。
+
+## 收尾状态（2026-10-18）
+
+- **08 票 resolved**：图示体系 = **内嵌 SVG**（用户裁决）；样例图已落 `src/ch06-collections-strings.md` 的 UTF-8 一节，并验证：`aria-label` 匹配、元素齐全、build 无 WARN/ERROR、全站 0 处 `{{#` 残留。
+- **新开票 22**（基础篇图示补全，需求 ~35 处，等用户验样例后排期）；地图（进度 / 图示 / 决策 / 迷雾）、README、`examples/README.md` 已同步。
+- **术语并表完成**：`GLOSSARY.md` 19 → 99 条。
+- 待办：Project1Cli 修回 → 全量链（`mdbook test` 全量 + `cargo test --manifest-path examples/Cargo.toml` + `mdbook build` 扫 ERROR/WARN）→ 收尾提交 → 用户验收（`mdbook serve` 通读 + 样例图判定）。

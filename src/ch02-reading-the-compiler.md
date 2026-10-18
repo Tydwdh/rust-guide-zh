@@ -15,7 +15,7 @@ Rust 把大量检查从运行期搬到了编译期。这带来一个必须接受
 - 认出五个最常见的错误家族，知道每个家族为什么发生、怎么修；
 - 用 `cargo check` 建立「改一点、编一次」的快速循环。
 
-本章只谈编译期。运行期的错误处理在第 7 章展开，lint 与工程化配置在第 32 章展开，所有权（ownership）的完整规则在第 4 章展开——本章负责把引子埋好。本章所有输出都用本机 `rustc 1.98.0` 实跑得到；为方便对照，示例中的文件名统一为 `main.rs`，路径信息已省略。
+本章只谈编译期。运行期的错误处理在第 7 章展开，lint（编译器内置的静态检查规则）与工程化配置在第 32 章展开，所有权（ownership）的完整规则在第 4 章展开——本章负责把引子埋好。本章所有输出都用本机 `rustc 1.98.0` 实跑得到；为方便对照，示例中的文件名统一为 `main.rs`，路径信息已省略。
 
 ## 为什么这样设计
 
@@ -33,7 +33,7 @@ Rust 的选择是：把所有能在编译期回答的问题都提前回答。这
 
 1. **消息**：它认为哪里错了。一句话，先读这句。
 2. **位置**：出错的地方，以及与之相关的其它地方。
-3. **上下文**（`= note:`）：它掌握、而你缺的那条事实，比如「`String` 没有实现 `Copy`」。
+3. **上下文**（`= note:`）：它掌握、而你缺的那条事实，比如后面会出现的 ``note: `into_iter` takes ownership of the receiver `self` ``。
 4. **建议**（`help:`）：可以照着做的修法，有时直接给一份 diff 形式的补丁。
 
 还有一条基本区分：**error 阻止产出，warning 不阻止**。看到 warning 不要直接跳过，它往往在告诉你一条你还不了解的语言规则。
@@ -147,11 +147,11 @@ warning: function `helper` is never used
   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
 ```
 
-三条 warning 的读法一致：
+三条 warning 的骨架是一样的，按这个顺序读：
 
 - 第一行说明哪儿不对劲，`^^^` 指到具体的名字；
-- `help:` 直接给出修法（变量名加下划线前缀 `_total`，表示「我知道它没被用，我是有意的」）；
-- `= note: #[warn(unused_variables)] ... on by default` 告诉你这条警告由哪个 lint（编译器内置的静态检查规则）控制、默认是否开启。lint 名可以写进代码或 Cargo 配置来调整（第 32 章展开）。
+- 末尾的 `= note: #[warn(···)] ... on by default` 告诉你这条警告由哪个 lint 控制、默认是否开启。lint 名可以写进代码或 Cargo 配置来调整（第 32 章展开）；
+- 中间那段不一定有：例一带了内联 `help:`（把变量名加下划线前缀 `_total`，表示「我知道它没被用，我是有意的」）；例二、例三没有 `help`，怎么处理要自己定——比如保留 `HashMap` 的导入以便稍后用，或先删掉那个没人调用的函数。
 
 warning 也可能升级为 error：edition 2024 里，给 `static mut` 取引用从「警告」变成了「拒绝编译」。所以「warning 不影响运行」不等于「可以不管」。
 
@@ -233,7 +233,7 @@ help: consider iterating over a slice of the `Vec<i32>`'s content to avoid movin
     |                  +
 ```
 
-信息很长：三个相关位置、一条说明、一条建议。想知道「移动」到底是怎么回事，就把求和的部分删掉：
+信息很长：三个相关位置、一条说明、一条建议。想知道**移动（move）**到底是怎么回事，就把求和的部分删掉：
 
 ```rust,compile_fail
 fn main() {
@@ -261,7 +261,7 @@ help: consider iterating over a slice of the `Vec<i32>`'s content to avoid movin
     |              +
 ```
 
-同一个错误，但一切都变短了：剩下两处相关位置，而且都是必须懂的部分。**这就是最小复现的价值**——它删掉的不是错误的难度，而是无关代码带来的噪音。
+同一个错误，但一切都变短了：三处相关位置（移动 2 处 + 使用 1 处）都挤在 5 行代码里，每一处都非懂不可。**这就是最小复现的价值**——它删掉的不是错误的难度，而是无关代码带来的噪音。
 
 删代码用二分法最快：先删一半，错误还在 → 主犯在这一半；错误没了 → 主犯在你刚删掉的那一半（把它加回来，再对另一半重复）。经验上，一个错误缩到十行以内还没看懂，说明你还没找到主犯。
 
@@ -273,7 +273,7 @@ help: consider iterating over a slice of the `Vec<i32>`'s content to avoid movin
 $ cargo check
 ```
 
-Cargo Book 的原话是：「编译包，但不做代码生成的最后一步，因此比 `cargo build` 快」。代价是它不产出可执行文件，且只在代码生成阶段才出现的诊断不会被报告。改一点、跑一次 `cargo check`，比反复 `cargo run` 快得多。
+Cargo Book 的定义是 "compile the packages without performing the final step of code generation, which is faster than running `cargo build`"（大意：编译包，但不做代码生成的最后一步，因此比 `cargo build` 快）。代价是它不产出可执行文件，且只在代码生成阶段才出现的诊断不会被报告。改一点、跑一次 `cargo check`，比反复 `cargo run` 快得多。
 
 出错的输出长这样（诊断部分与 `rustc` 一致，路径已省略）：
 
@@ -355,6 +355,8 @@ fn main() {
 
 ### ③ E0599：方法不存在（trait 不在作用域）
 
+`trait` 是行为契约（一组方法签名，类型声明自己实现它）。这条报错的意思是：你要调的方法确实存在，但提供它的 trait 不在当前作用域里。
+
 ```rust,compile_fail
 use std::io::stdout;
 
@@ -381,7 +383,7 @@ help: trait `Write` which provides `write_all` is implemented but not in scope; 
    1 + use std::io::Write;
 ```
 
-为什么：`write_all` 不是 `Stdout` 自带的方法，而是 `Write` trait（行为契约：一组方法签名，类型声明自己实现它）提供的方法；**trait 提供的方法，trait 必须在作用域里才能调用**（trait 的设计见第 9 章）。这条报错难得地给了三条线索：`the method is available for `Stdout` here`（方法确实存在，别再怀疑拼写）、`items from traits can only be used if the trait is in scope`（明确病因），以及一行可以直接照抄的 `use`。
+为什么：`write_all` 不是 `Stdout` 自带的方法，而是 `Write` trait 提供的方法；**trait 提供的方法，trait 必须在作用域里才能调用**（trait 的设计见第 9 章）。这条报错难得地给了三条线索：`the method is available for `Stdout` here`（方法确实存在，别再怀疑拼写）、`items from traits can only be used if the trait is in scope`（明确病因），以及一行可以直接照抄的 `use`。
 
 修法：加一行导入。修好后的完整程序在 `snippets/ch02/report.rs`：
 
@@ -417,7 +419,7 @@ help: consider cloning the value if the performance cost is acceptable
   |              ++++++++
 ```
 
-为什么：`String` 这类类型没有实现 `Copy`。所以 `let t = s;` 不是「复制一份」，而是把 `s` 的值**移动（move）**给了 `t`；移动之后 `s` 不再有效，第 4 行再读它就是错的。那句 `move occurs because `s` has type `String`, which does not implement the `Copy` trait` 注解，就是在交代这条错误的病因。
+为什么：`String` 这类类型没有实现 `Copy`。所以 `let t = s;` 不是「复制一份」，而是把 `s` 的值**移动**给了 `t`；移动之后 `s` 不再有效，第 4 行再读它就是错的。那句 `move occurs because `s` has type `String`, which does not implement the `Copy` trait` 注解，就是在交代这条错误的病因。
 
 修法取决于你想要什么：
 
