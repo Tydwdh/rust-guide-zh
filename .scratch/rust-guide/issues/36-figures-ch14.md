@@ -1,7 +1,7 @@
 # 36 进阶篇图示：第 14 章（impl Trait 与 opaque type）
 
 Type: task
-Status: claimed
+Status: resolved
 
 ## Question
 
@@ -49,3 +49,13 @@ Status: claimed
 - 栅格化目视（`.scratch/tmp-36/preview.html` + 托管 Chromium 截图，收尾已 `rm -rf .scratch/tmp-36`）：两图文字不溢出、不重叠、箭头方向与列标题对齐正确；fig2 的三行两列勾/叉与底部双向箭头层级清楚。目视结论：通过。
 - 未测：`mdbook build`（票内禁）、深色主题下的对比度（配色只用主题变量，理论上随主题走；HTML 渲染与主题确认留给协调者收尾 build）。
 - 遗留不确定：无阻塞项。fig2 第 2、3 行两列同为 ✓ 是有意的（本章改动只影响生命周期那一半），若审校认为冗余可合并为一行（待协调者/审校裁决）。
+
+## Answer
+
+2026-10-19 批次收尾（用户验收通过）。
+
+- 交付：`src/ch14-impl-trait-opaque.md` 补 **2 张** —— APIT vs RPIT 角色方向（:39–64）、捕获集合 2021 vs 2024（:219–246）。
+- 第 3 张可选图（RPIT/`Box<dyn>`/enum 三条路）按 §9「表格能说清就不画」略过并记票。
+- 自验：`mdbook test -c ch14-impl-trait-opaque.md` exit 0；结构自查全过；栅格化目视无重叠。
+- 裁决：fig2 两列同为 ✓ 保留（如实反映「类型/const 参数两 edition 都捕获」）。
+- 遗留：无。

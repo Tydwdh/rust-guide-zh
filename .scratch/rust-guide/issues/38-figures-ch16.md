@@ -1,7 +1,7 @@
 # 38 进阶篇图示：第 16 章（variance、HRTB 与 drop check）
 
 Type: task
-Status: claimed
+Status: resolved
 
 ## Question
 
@@ -66,3 +66,12 @@ Status: claimed
 - **新增术语**：无（图内标识符 `Co` / `Contra` / `Inv` / `Inspector` / `World` / `days` 均为本章正文已有名字；`'long` / `'short` 沿用 Nomicon 子类型判据的写法，已在引出句里说明）。
 - **衔接提示**：三图都不含脚本、不引外链，主题变量交由 build 时的 CSS 解析；`✓`/`✗` 在本仓早前章节的 SVG 里已有先例（第 4 章 `✗`、第 12 章 `✓`），未引入新字形。
 - **遗留不确定**：无。HTML 实际渲染（主题变量、`✓`/`✗` 字形回退、CJK 字体）留给协调者收尾 build 一次性目视。
+
+## Answer
+
+2026-10-19 批次收尾（用户验收通过）。
+
+- 交付：`src/ch16-lifetimes-advanced.md` 补 **3 张** —— 三种型变赋值方向（:249–286）、借用区间 vs 析构点时间轴（:497–515）、省略规则决策树（:655–693）。
+- ASCII 裁定：三层生命周期框图（:41 起）保留（讲三层分工，三图不覆盖）；其余 `text` 均为真实输出。
+- 自验：`mdbook test -c ch16-lifetimes-advanced.md` exit 0；结构自查全过；栅格化目视 + Pillow CJK 量宽（零溢出）；目视修掉 3 处版式（析构点压条、高度超区间、是/否压框）。
+- 遗留：无。

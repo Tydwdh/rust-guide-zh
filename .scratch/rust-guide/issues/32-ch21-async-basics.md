@@ -1,7 +1,7 @@
 # 32 第 21 章 async 基础：Future、执行器与运行时
 
 Type: task
-Status: claimed
+Status: resolved
 
 ## Question
 
@@ -81,3 +81,14 @@ Status: claimed
 3. **【minor】`:257`**：改为「这两个宏在 stable 上都用不上：`std::future::join!` 至今是 nightly-only 实验 API（`future_join`），`select!` 则只在 `futures` 这类 crate 里」。回查本机 1.98 快照 `std/future/macro.join.html` 原文确为 `This is a nightly-only experimental API. (future_join #91642)`，页内无 `Experimental` 字样——之前是把模块索引那行的徽标文字当成页面原文了。
 4. **【minor】`:383`**：小标题改为「就绪标记与唤醒标记的先后不能反」，正文点明「`Delay` 那边先置 `done` 再 `wake()`；执行器这边 `park()` 先看 `Parker::woken` 再阻塞」，不再出现代码里没有的 `ready`。
 5. **【minor】报错块保真**：三处 `text` 报错块（E0728 / 忘记 `.await` / `!Send`）统一补「以 Rust 1.98 为例，关键几行：」（对齐 ch19 口径）；`!Send` 那块按本章 `compile_fail` 代码本身重新真跑后重贴，删掉 caret 行多出的那一个前导空格，并补齐 `--> src/main.rs:9:32` 与出错源行；源行与 caret 行已用 `cmp` 与实况输出**逐字节**比对通过。
+
+## Answer
+
+2026-10-19 批次收尾（用户验收通过）。
+
+- 交付：`src/ch21-async-basics.md`（4965 汉字；八节模板 + 3 道练习）+ `snippets/ch21/{executor.rs,cancel.rs}`（std-only `block_on` 执行器 + 取消演示）。
+- 自验：`mdbook test -c ch21-async-basics.md` → exit 0（17 doctest = 15 通过 + 2 `ignore`）；注入反证 `14 passed; 1 failed; 2 ignored` → 还原；`executor.rs` 真跑 `150–151 ms + 90 ms`。
+- 交叉审校（RvCh21；1 major + 4 minor）全修：`block_on_all` 睡/醒次数按插桩实测改写（两次睡、两次醒）；`Poll` 归属 `std::task`；`join!` 措辞按 1.98 徽标原文；报错块补版本标注 + caret 逐字节对齐。
+- 术语并表（协调者）：执行器 / 任务 / 运行时 / 唤醒·Waker / 状态机 / 取消 已入 GLOSSARY。
+- 全量链（批次级）：同上一档口径全绿。
+- 遗留：执行器耗时数字随机器浮动（正文已注明「要紧的是顺序≈相加、并发≈较慢那段」）。

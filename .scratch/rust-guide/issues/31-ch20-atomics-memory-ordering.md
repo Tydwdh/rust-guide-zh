@@ -1,7 +1,7 @@
 # 31 第 20 章 原子与内存序
 
 Type: task
-Status: claimed
+Status: resolved
 
 ## Question
 
@@ -84,3 +84,14 @@ Status: claimed
 - 篇幅：正文汉字 **5435**（剔除代码块与 SVG），仍在 4000–5500 区间内（第一版 5356，第二版因新增第三例与措辞调整一度到 5669，已按不删信息点的原则压缩行文回落）。
 - 探针目录 `.scratch/tmp-31/` 已删除；`snippets/ch20/litmus.rs` 未改动（其输出被复跑复核一致）。
 - 仍未跑 `mdbook build`/`serve`（协议）；外链已改为用 `read` 逐条实测（这次 404 说明单靠 build 抓不到这类断链）。
+
+## Answer
+
+2026-10-19 批次收尾（用户验收通过）。
+
+- 交付：`src/ch20-atomics-memory-ordering.md`（5435 汉字；八节模板 + 3 道练习）+ `snippets/ch20/litmus.rs`（SB litmus 200 万轮 × 三序）+ 1 张自画 SVG（happens-before 时间轴）。
+- 自验：`mdbook test -c ch20-atomics-memory-ordering.md` → exit 0（14 个 rust 块 = 7 跑 + 4 `compile_fail` + 1 `should_panic` + 1 `no_run` + 1 `ignore`）；注入反证 101 → 还原。
+- 交叉审校（RvCh20；**2 blocker** + 1 major + 6 minor）全修：CAS 失败序按实测重写（常量→编译错误、非常量→运行期 panic）并**新增「报错现场第三例」**（`compile_fail` + `should_panic` 双块，注入反证真被执行）；`type.AtomicUsize.html` 404 修正且 6 条外链全部实测活；nightly 块补 `[!WARNING]`；`完整屏障（memory barrier）` 括注；portable 清单按 std 原话。
+- 术语并表（协调者）：原子类型 / RMW / 先行发生 / 顺序一致性 / CAS / 伪失败 / 无锁 / 无等待 / 存储缓冲 / 自旋锁 / ABA / 完整屏障 已入 GLOSSARY。
+- 全量链（批次级）：同上一档口径全绿。
+- 遗留：`Atomic<T>` 泛型拼写待 `generic_atomic`（#130539）稳定（正文已 WARNING 标注）。

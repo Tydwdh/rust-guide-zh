@@ -1,7 +1,7 @@
 # 37 进阶篇图示：第 15 章（const 泛型与 GAT）
 
 Type: task
-Status: claimed
+Status: resolved
 
 ## Question
 
@@ -51,3 +51,13 @@ error[E0499]: cannot borrow `it` as mutable more than once at a time
 **自验**：`mdbook test -c ch15-generics-limits.md` → **exit 0**（加图前基线同为 exit 0）。探针与栅格化产物 `.scratch/tmp-37/` 已删除。未用 `git`、未 `mdbook build`/`serve`。
 
 **遗留**：HTML 真实渲染（主题变量取色）留给协调者收尾 build 确认；本票因 standalone SVG 无 CSS 变量，只能以「替换实色后的栅格化目视 + 结构自查」兜底。无新增术语。
+
+## Answer
+
+2026-10-19 批次收尾（用户验收通过）。
+
+- 交付：`src/ch15-generics-limits.md` 补 **1 张** —— GAT 借用区间时间轴（:319–343）：三次 `next` 的 `'a1/'a2/'a3` 阶梯 + 「下一次借 self 时旧 `Item` 失效」虚线；底注 E0499 系实跑证据。
+- 覆盖裁定：原三行 `text` 块（三行签名逐字进图）被完整覆盖后删除。
+- 第 2 项（`Buf<4>`/`Buf<8>` 单态化）票面本就「低优先、表格已覆盖」→ 略过并记票。
+- 自验：`mdbook test -c ch15-generics-limits.md` exit 0；结构自查全过；浅/深两份栅格化目视（行标签与区间无重叠）。
+- 遗留：无。

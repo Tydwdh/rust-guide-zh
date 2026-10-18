@@ -1,7 +1,7 @@
 # 30 第 19 章 并发基础：thread、Send/Sync 与共享状态
 
 Type: task
-Status: claimed
+Status: resolved
 
 ## Question
 
@@ -82,3 +82,14 @@ Status: claimed
 - 另用脚本把本章 23 个 rust 块逐个落成 `src/main.rs`、`rustc --edition 2024` 核对：13 个可运行块 rc=0，`compile_fail` 均按预期失败，`no_run` 只编译、`ignore` 跳过；无挂起、无 mismatch。
 - 正文汉字复计 **5493**（仍 ≤ 5500；为容纳修复内容压缩了两处句子）。
 - 探针目录 `.scratch/tmp-30/` 复删。
+
+## Answer
+
+2026-10-19 批次收尾（用户验收通过）。
+
+- 交付：`src/ch19-concurrency-basics.md`（5493 汉字；八节模板 + 3 道练习带答案）+ `snippets/ch19/wordcount.rs`。
+- 自验：`mdbook test -c ch19-concurrency-basics.md` → exit 0；注入反证 `21 passed; 1 failed; 1 ignored` → 还原复跑绿；23 个 rust 块逐块 rc 核对（13 个可运行块 rc=0）。
+- 交叉审校（RvCh19；7 × minor）全修：`LocalKey` 分布表纠正为 auto Send+Sync、引文计数/弯引号/截断、`join` 返回类型补齐 `+ 'static`、报错现场排序口径、练习 2 补最小程序（输出改确定性版）。
+- 术语并表（协调者）：通道（channel）、交会（rendezvous）已入 GLOSSARY。
+- 全量链（批次级）：`mdbook build` 0 ERROR/0 警告｜`mdbook test` 24 章 exit 0｜examples 19+2 passed。
+- 遗留：语言对照角未写（票内可选，宁缺勿错）。

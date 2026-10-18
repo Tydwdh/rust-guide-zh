@@ -1,7 +1,7 @@
 # 35 进阶篇图示：第 13 章（dyn 兼容性与 trait 对象）
 
 Type: task
-Status: claimed
+Status: resolved
 
 ## Question
 
@@ -40,3 +40,12 @@ Status: claimed
   2. 图 2 中缝分隔线沿用第 10/11 章已发布图的口径 `stroke="var(--quote-border)"`：light 主题下该色极浅、近乎不可见（既有图表同况），未自创色值。
   3. 图 1 表头沿用「1.98 实测 24 字节」，与本章 `dispatch.ll` 摘录里的 `[24 x i8]`、`i64 24` 一致，系既有正文口径，未新增实测。
   4. 新增术语：无。
+
+## Answer
+
+2026-10-19 批次收尾（用户验收通过）。
+
+- 交付：`src/ch13-dyn-trait-objects.md` 补 **3 张** —— 胖指针+vtable 布局（最高优先，:229–272）、泛型 vs dyn 代码路径（:34–70）、向上转型（:351–394，含「横向不合法 → E0605」）。
+- 覆盖裁定：两处 ASCII 草图（vtable 段、两条多态路线）被新图逐项完整覆盖后删除（逐条论证记票）。
+- 自验：`mdbook test -c ch13-dyn-trait-objects.md` exit 0；结构自查全过；**双主题（light/coal 真实变量）6 张截图**目视无重叠。
+- 遗留：无（其余主题/窄屏渲染由协调者收尾 build 统一确认）。

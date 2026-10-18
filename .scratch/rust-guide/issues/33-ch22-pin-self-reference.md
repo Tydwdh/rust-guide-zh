@@ -1,7 +1,7 @@
 # 33 第 22 章 Pin 与自引用
 
 Type: task
-Status: claimed
+Status: resolved
 
 ## Question
 
@@ -95,3 +95,14 @@ Status: claimed
 12. safe 面表述更正：构造侧 `Pin::new` 要求 pointee `Unpin`；取回 `&mut T` 走 `Pin::get_mut` / `Pin::into_inner` / `DerefMut`（不再把 `Pin::new` 混进「取回 `&mut T` 的通道」）。
 
 复跑与复检：`mdbook test -c ch22-pin-self-reference.md` → **exit 0**。四处粘贴输出的逐行 diff：现场二、现场三、22.4 逐字一致；现场一仅「工具链路径前缀」按书中约定缩写为 `…/library/core/src/pin.rs:1159:25`，其余逐字一致。正文 5495 汉字（修改过程中曾到 5527，压缩三处引导句后回到 4000–5500 内）。探针目录 `.scratch/tmp-33f/` 及本票产生的临时文件已删。
+
+## Answer
+
+2026-10-19 批次收尾（用户验收通过）。
+
+- 交付：`src/ch22-pin-self-reference.md`（5495 汉字；八节模板 + 3 道练习）+ `snippets/ch22/selfref.rs`。
+- 自验：`mdbook test -c ch22-pin-self-reference.md` → exit 0（15 个测试 = 11 真跑 + 3 `compile_fail` + 2 `ignore`）；注入反证 101 → 还原；四个粘贴输出块逐行 diff（现场二/三/22.4 逐字一致，现场一仅工具链路径前缀按约定缩写）。
+- 交叉审校（RvCh22；13 × minor）全修：栏位宽度/删行标记按实况重贴、引文补完整句、练习 3 函数名、`容器`·`转移` 清零、术语首现统一、22.6 标题口径、Drop guarantee 与 dropck 分开叙述、`Pin::new` 归类。
+- 术语并表（协调者）：自引用 / 地址敏感 / pin / pin 投影 / 结构化 pinning 已入 GLOSSARY。
+- 全量链（批次级）：同上一档口径全绿。
+- 遗留：无。

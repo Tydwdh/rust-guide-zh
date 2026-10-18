@@ -1,7 +1,7 @@
 # 39 进阶篇图示：第 17 章（智能指针与内部可变性）
 
 Type: task
-Status: claimed
+Status: resolved
 
 ## Question
 
@@ -62,3 +62,12 @@ Status: claimed
 - HTML 实际渲染（真实主题下 `var(--…)` 的观感）留给协调者收尾 build。
 - 未新增术语；未改 `SUMMARY.md`。
 - `.scratch/tmp-39/` 已删除；本批其他章节图票各自用 `tmp-<票号>` 目录，无冲突。
+
+## Answer
+
+2026-10-19 批次收尾（用户验收通过）。
+
+- 交付：`src/ch17-smart-pointers.md` 补 **5 张** —— Rc/Arc 堆布局两档计数（替换原 ASCII）、`Rc<RefCell<T>>` 两层检查、`Ref`/`RefMut` guard 借用区间、共享×线程四格矩阵、瘦/胖指针对比。
+- 覆盖裁定：原 5 行 `text` 计数块被 1 号图完整覆盖后删除（`grep` 复核 0 残留）。
+- 自验：`mdbook test -c ch17-smart-pointers.md` exit 0；结构自查 5/5 全过；栅格化目视（修掉图 3 图例出框一处）。
+- 遗留：无。
