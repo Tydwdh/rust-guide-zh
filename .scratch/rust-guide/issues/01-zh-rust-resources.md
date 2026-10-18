@@ -1,7 +1,7 @@
 # 01 中文 Rust 学习资源地图
 
 Type: research
-Status: open
+Status: resolved
 
 ## Question
 
@@ -18,3 +18,14 @@ Status: open
 **用途**：作为「04 定位与差异化边界」的输入 —— 可差异化的空间在哪。
 
 产出物：findings 文档归档到 `.scratch/rust-guide/research/01-zh-rust-resources.md`，结论要点写进本票 `## Answer`。
+
+## Answer
+
+（查证日期 2026-10-18；详见 `.scratch/rust-guide/research/01-zh-rust-resources.md`）
+
+1. **[事实] 第一层已齐全但陈旧**：The Book / RBE / Rustlings / Nomicon 的中译都有，但 `rust-lang-cn/book-cn` 自述内容最后更新 **2022-02-06**、且**中文目录无异步章**（`src/ch17-00-async-await.md` 404）；RBE 中文自述最后更新 **2022-01-26**。rust-lang.org 中文站把这些都标为"**非官方翻译**"。
+2. **[事实] The Book 中文有两版分叉**：跟进到 **2024 edition（含 ch17 异步）**的是 `KaiserY/trpl-zh-cn`(5647★)，也是官网链接的那版；被搜到的 rustwiki 版反而缺异步章。
+3. **[事实] 进阶事实标准是 course.rs**（Rust 语言圣经，31038★，2026-08 仍在更新，170+ 章）；但**性能/内存布局/编译优化整段几乎全是 `todo`**，且协议为 **No License（禁改后分发）**。异步中文只有"旧版 async-book 译本 + Tokio tutorial 译本"，官方 async-book 自述仍在重写、much is missing。
+4. **[事实] 读者卡点**：核心概念（借用/生命周期/指针类型差异、move/Copy/Clone）缺心智模型；course.rs 自述"90% 的人还是云里雾里"、"链表是地狱"；rustcc 帖吐槽"资料网页长得都一样"——缺的是进阶路径，不是入门材料。
+5. **[事实] 术语**：术语表（CC0，2025-06 更新）作 trait=**特质**，但两版 The Book **保留英文 trait**，course.rs 用**特征**（三方不一致）；lifetime 术语表并列"生存时间/寿命/生命周期"而主流用"生命周期"；术语表自认 coherence/target triple/token tree 待议。翻译指引停在 2019。
+6. **[推断→可操作] 写什么**：概念心智模型（为何如此设计）+ 异步现状（Pin/Stream/async trait）+ 工程实践与性能（填 course.rs 的 todo）+ 示例可编译。**不写什么**：不做 The Book 逐章对照/又译一版、不重讲入门与 Rustlings 级练习、不搬 course.rs 文本、不追 unsafe 全谱（Nomicon 中译已覆盖）。

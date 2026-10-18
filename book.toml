@@ -1,4 +1,6 @@
 [book]
 title = "Rust 进阶指南（暂定）"
 authors = ["tyd"]
-language = "en"
+language = "zh-CN"
+
+# [output.html] 渲染 / 搜索相关配置待「03 mdBook 能力盘点」与「06 写作与验收规范」定稿后加入。

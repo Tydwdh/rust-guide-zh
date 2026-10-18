@@ -9,7 +9,7 @@
 
 ## Notes
 
-- **父仓库**：D:/Rust（git，`main`）。书籍源码 `src/`，配置 `book.toml`，构建产物 `book/` 已 gitignore。
+- **父仓库**：D:/Rust（git，`main`）。书籍源码 `src/`，配置 `book.toml`，示例 `examples/`（占位），构建产物 `book/` 已 gitignore。
 - **语言**：正文简体中文；术语首现「中文（English）」，之后中文为主。
 - **受众**：会编程（不限语言）、Rust 基础已过（读过 The Book 或能写小程序）；不重讲基础，必要时给「基础补充盒」。
 - **教学法**：概念为骨 + 每部分配一个实战项目。
@@ -23,7 +23,8 @@
 
 <!-- 一张关闭的票一行：票名（链接）: 一句话结论 -->
 
-（暂无）
+- [01 中文 Rust 学习资源地图](issues/01-zh-rust-resources.md): 中文第一层资源齐但陈旧分叉（book-cn 无异步章、末更 2022）；course.rs 是进阶事实上限、也是竞品兼法务红线（No License）；术语三方不一致（trait=特质/特征/保留英文）。
+- [07 仓库工程骨架](issues/07-repo-engineering-skeleton.md): 骨架可 `mdbook serve`（`language=zh-CN` 生效、README/CI 就绪待远端、examples/ 留位）；实测 mdbook 0.5.4 配置非法时打印 ERROR 却 exit 0、`use-unicode-segmentation` 非法 —— 已转 06/03。
 
 ## Not yet specified
 
@@ -38,6 +39,7 @@
 - 许可协议与版权页（公开前必须落定）
 - 公开时机与反馈回路（连载节奏、评论渠道）
 - 章内模板细节（开场、小结、延伸阅读）（待 06/08）
+- 中文搜索体验：mdbook 0.5.4 的 search 无 CJK 分词选项（实测 `use-unicode-segmentation` 非法）——够不够用、要不要替代方案（待 03 结论）
 
 ## Out of scope
 

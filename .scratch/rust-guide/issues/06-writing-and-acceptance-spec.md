@@ -19,3 +19,7 @@ Blocked by: 03
 产出：仓库内写作规范文档（路径由本票定）+ 术语表文件草案。
 
 技能：grilling + domain-modeling（术语表）。
+
+## Comments
+
+- 2026-10-18（07 仓库工程骨架会话实测）：mdbook 0.5.4 在 `book.toml` 配置字段非法时**打印 ERROR 日志但继续构建、exit 0**；本地实测 `[output.html.search] use-unicode-segmentation` 即非法（合法字段：enable / limit-results / teaser-word-count / use-boolean-and / boost-title / boost-hierarchy / boost-paragraph / expand / heading-split-level / copy-js / chapter）。写校验链时不能只看退出码。
