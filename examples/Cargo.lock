@@ -3,5 +3,13 @@
 version = 4
 
 [[package]]
+name = "expr-eval"
+version = "0.1.0"
+
+[[package]]
+name = "task-queue"
+version = "0.1.0"
+
+[[package]]
 name = "todo-cli"
 version = "0.1.0"
