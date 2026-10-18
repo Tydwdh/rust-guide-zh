@@ -52,3 +52,15 @@ Status: claimed
   - §18.3「`#[non_exhaustive]` 在定义 crate 内 / 外的语义差异」——现为 3 行表格（枚举 / 变体 / struct 三种位置），适合画成「同一份代码，两个视角」的对照图。
   - §18.6「一次改动 → major / minor / possibly-breaking」判定——现为 17 行表格，图非必需。
   主动取舍：SemVer 表只保留与错误类型/API 形状相关的条目（未抄全表）；`#[non_exhaustive]` 的 `as` 转换一条因复现不出而略去；未设「语言对照角」（跨语言断言需另核一手文档，本轮从略）；`must_use` 的 uninhabited 例外保留为一个可跑断言块（不是纯叙述），因此章节的 doctest 全绿即是该断言的验证。
+
+- 2026-10-18 审校修回（协调者报 linkcheck2 6 条 `Potential incomplete link`，全在本章）：全部处理完，`mdbook test -c ch18-error-api-design.md` 仍 **exit 0**；正文汉字 5486（未变）。
+  1. 英文原文引号里的省略号 `[…]`（4 处：api-guidelines 关于页、`From` 文档、C-BUILDER 两条、C-GENERIC）→ 转义成 `\[…\]`（渲染仍是 `[…]`，引文保真）。
+  2. C-GOOD-ERR 引文里我照抄了站点的 markdown 却丢了链接目标，留下 `` [`std::error::Error`] `` → 去掉方括号，改为普通行内代码。
+  3. §18.7 长行里两处含反引号的 span 原先用 `\`` 转义（**markdown 代码 span 不支持反斜杠转义反引号**，span 会在第二个反引号处提前闭合）→ 改为双反引号定界 `` ``…`` ``；顺带修掉了读者本来会看到的游离 `\`。
+  复核方式（未跑 `mdbook build`，批次协议禁止）：用 **mdbook 同款解析器 pulldown-cmark 0.13.4**（本机 cargo registry 缓存）写了个一次性渲染探针，逐条对照新旧写法：
+  - `\[…\]` → `<p>…[…]…</p>`（不再成链）；
+  - `` ``unused return value of `Token::issue` that must be used`` `` → 单个 `<code>`，内部反引号原样保留；
+  - `` ``#[must_use = "this `Result` may be an `Err` variant, which should be handled"]`` `` → 单个 `<code>`；
+  - 修复前同口径统计：§18.7「三点补充」那段那一行会**泄漏 1 个 `[`**（`#[must_use` 的 `[` 掉出代码 span）并渲染出游离 `\`；修复后 **0 个 `[`、0 个 `\`**。
+  - 全文复核：剥掉围栏代码块与行内代码 span 后，只剩 `[!NOTE]` / `[!WARNING]` 两个 mdbook admonition 标记（全书通用语法，mdbook 解析阶段即转换，未被算作链接）。
+  探针目录 `.scratch/tmp-29-verify/` 已删除；本轮只改了 `src/ch18-error-api-design.md`。

@@ -49,7 +49,7 @@
 >
 > 后面几节会引用 Rust API Guidelines（`rust-lang.github.io/api-guidelines`）。它由 Rust 库团队基于标准库与生态的经验写成，但它自己在开头就声明这不是强制规范：
 >
-> > These are only guidelines, some more firm than others. […] These guidelines should not in any way be considered a mandate that crate authors must follow
+> > These are only guidelines, some more firm than others. \[…\] These guidelines should not in any way be considered a mandate that crate authors must follow
 >
 > 另有两点限制：其一，它**不覆盖 2024 edition 之后的新语法风格**，也不讨论本书这一代的工具链细节；其二，它给出的建议面向「要长期维护的公开库」，内部 crate 与一次性程序不必照搬。本章引用它时只当**设计惯例**用，凡是有版本敏感的结论，都以 1.98 的实测为准。
 
@@ -59,7 +59,7 @@
 
 库这一侧，错误类型的底线要求是一句话能说清的：**任何出现在公开 `Result<T, E>` 里的 `E`，都必须实现 `std::error::Error`**。API Guidelines 把它写成条目 C-GOOD-ERR：
 
-> An error type is any type `E` used in a `Result<T, E>` returned by any public function of your crate. Error types should always implement the [`std::error::Error`] trait
+> An error type is any type `E` used in a `Result<T, E>` returned by any public function of your crate. Error types should always implement the `std::error::Error` trait
 
 最小合规的形状——`Debug`（父 trait 要求）+ `Display` + `Error`：
 
@@ -193,7 +193,7 @@ fn main() {
 
 `std::convert::From` 的文档给了三条准入条件，翻译过来是：转换不能失败、不能丢信息、语义要对得上。原文对第一条最硬：
 
-> Note: This trait must not fail. The `From` trait is intended for perfect conversions. […] The conversion is infallible: if the conversion can fail, use `TryFrom` instead; don’t provide a `From` impl that panics.
+> Note: This trait must not fail. The `From` trait is intended for perfect conversions. \[…\] The conversion is infallible: if the conversion can fail, use `TryFrom` instead; don’t provide a `From` impl that panics.
 
 用它判两个常见场景：`io::Error → MyError` 语义唯一、无信息损失，**写 `From`**，让 `?` 自动转换；`ParseIntError → MyError` 则说不清是哪个字段失败、原文是什么，**不要写 `From`**，改用显式构造函数——`From` 是隐式的，一旦存在，调用者再遇到 `?` 就分不清被转成了哪个变体。
 
@@ -361,7 +361,7 @@ note: `PortError` defined here
 
 当「构造一个值」需要很多可选项、还要区分必填与可选时，构造函数参数列表会失控。API Guidelines 的 C-BUILDER 给出了五条骨架，头两条最关键：
 
-> 1. Introduce a separate data type `TBuilder` for incrementally configuring a `T` value. […]
+> 1. Introduce a separate data type `TBuilder` for incrementally configuring a `T` value. \[…\]
 > 2. The builder constructor should take as parameters only the data *required* to make a `T`.
 
 也就是：**必填项交给构造函数，可选配置交给链式方法**。Guidelines 区分两种风格，「终端方法只需引用时，用非消费式（借用式）更好」；下面是标准库 `Command` 那种写法：
@@ -450,7 +450,7 @@ error[E0599]: no method named `build` found for struct `ConnBuilder<Missing>` in
 
 翻译成人话：**要所有权就直接要，别 `&T` 进来再 `clone`；不要所有权就别拿走**。剩下「要不要泛化」交给 C-GENERIC：
 
-> The fewer assumptions a function makes about its inputs, the more widely usable it becomes. […] Prefer `fn foo<I: IntoIterator<Item = i64>>(iter: I)` over `fn foo(c: &[i64])`.
+> The fewer assumptions a function makes about its inputs, the more widely usable it becomes. \[…\] Prefer `fn foo<I: IntoIterator<Item = i64>>(iter: I)` over `fn foo(c: &[i64])`.
 
 标准库的现成先例是 `File::open`，它收 `impl AsRef<Path>`，于是字符串字面量、`Path`、`OsString`、`PathBuf` 都能传。下表把常见写法的收益与代价摊开（「能传什么」一列全部实测过）：
 
@@ -574,7 +574,7 @@ help: use `let _ = ...` to ignore the resulting value
   |     +++++++
 ```
 
-三点补充。**带消息**（`#[must_use = "..."]`）比光秃秃的 `#[must_use]` 有用得多：消息会进诊断，直接说明为什么。**位置不止类型**：Reference 列的允许位置是「Struct、Enumeration、Union、Function、Trait」，1.98 上**方法**同样有效（实测诊断是 `unused return value of \`Token::issue\` that must be used`），给 builder 的终端方法、「拿到就要用」的方法加它收益最大；而 `Result` **本身已经**带了这个属性（std 源码写的是 `#[must_use = "this \`Result\` may be an \`Err\` variant, which should be handled"]`），你自己加它的价值在于覆盖**不是** `Result` 的返回值。最后**有一个例外**：`Result<(), E>` 在 `E` 是无值类型（uninhabited）时不触发 lint，`ControlFlow<B, ()>` 同理，因为那种值根本构造不出来。Reference 还补了一条边界：「A `#[non_exhaustive]` type from an external crate is not considered uninhabited for this purpose, because it may gain constructors in the future.」下面这段带着 `#![deny(unused_must_use)]` 也能编译，说明确实没有警告：
+三点补充。**带消息**（`#[must_use = "..."]`）比光秃秃的 `#[must_use]` 有用得多：消息会进诊断，直接说明为什么。**位置不止类型**：Reference 列的允许位置是「Struct、Enumeration、Union、Function、Trait」，1.98 上**方法**同样有效（实测诊断是 ``unused return value of `Token::issue` that must be used``），给 builder 的终端方法、「拿到就要用」的方法加它收益最大；而 `Result` **本身已经**带了这个属性（std 源码写的是 ``#[must_use = "this `Result` may be an `Err` variant, which should be handled"]``），你自己加它的价值在于覆盖**不是** `Result` 的返回值。最后**有一个例外**：`Result<(), E>` 在 `E` 是无值类型（uninhabited）时不触发 lint，`ControlFlow<B, ()>` 同理，因为那种值根本构造不出来。Reference 还补了一条边界：「A `#[non_exhaustive]` type from an external crate is not considered uninhabited for this purpose, because it may gain constructors in the future.」下面这段带着 `#![deny(unused_must_use)]` 也能编译，说明确实没有警告：
 
   ```rust
   #![deny(unused_must_use)]
