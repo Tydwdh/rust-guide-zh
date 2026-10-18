@@ -7,12 +7,14 @@
 
 `mdbook serve --open` 预览 → 按 §4 模板写章 → 章节接进 `src/SUMMARY.md`（草稿条目接上链接）→ 跑 §3 校验链 → 交叉审校（§6）→ 用户验收 → 票内 `## Answer` → `Status: resolved`。
 
+> 一轮多章并行（一票一个写作者子代理）走 §8 批次协议。
+
 ## 1. 示例组织（混合制）
 
 | 场景 | 放哪 | 怎么写 |
 |---|---|---|
 | 短片段（≤15 行，服务叙述） | 章内内联 | 直接写 ```` ```rust ```` 块。**非 Rust 的片段（伪代码/输出/目录树）必须标 `text`/`console`/`toml`…** —— 裸栅栏会被当 Rust 编译测试 |
-| 「读者看 3 行、实际是完整程序」 | `src/snippets/<章号>/foo.rs` | `{{#rustdoc_include ../snippets/ch04/foo.rs:3}}`；文件须保持完整可编译 |
+| 「读者看 3 行、实际是完整程序」 | `snippets/<章号>/foo.rs`（仓库根） | `{{#rustdoc_include ../snippets/ch04/foo.rs:3}}`；文件须保持完整可编译 |
 | 实战项目 | `examples/<项目名>/`（workspace 成员） | 章内 `{{#include}}` 关键片段 + 一句「完整代码在 `examples/…`，跑 `cargo run -p …`」 |
 
 硬规则：
@@ -38,7 +40,8 @@ mdbook build 2>&1 | tee .book-build.log
 grep -q ERROR .book-build.log && { echo "build 日志有 ERROR"; exit 1; }
 
 # 2) 章内代码块（失败 exit 101，可靠门禁）
-mdbook test
+mdbook test                      # 全量
+mdbook test -c <章>              # 只测一章（并行批次自验用；参数 = SUMMARY 里该章的 src 相对路径或标题）
 
 # 3) 示例 crate（workspace 就位后）
 cargo test --manifest-path examples/Cargo.toml
@@ -95,6 +98,8 @@ mdbook build
 
 ## 6. 写作票 DoD（加严版）
 
+> 并行批次：步骤 1–3 由写作者完成并记录在票里；步骤 4–5 由协调者/用户执行，之后才写 `## Answer` 与 `Status: resolved`（见 §8）。
+
 1. **成稿**：按 §4 模板写完，含练习与答案。
 2. **自证**：跑 §3 校验链全绿，把命令与结果写进票。
 3. **自查**：对照本文件逐项过（模板 / 术语 / 报错呈现 / 示例组织）。
@@ -110,3 +115,20 @@ mdbook build
 - `[build] create-missing = false` 已设：SUMMARY 指向缺失文件会报错（默认 true 会静默建空文件）。
 - `[output]` 表多于一个（如 linkcheck2）时，HTML 输出挪到 `book/html/`（部署路径同步改）。
 - `mdbook test` 失败 exit 101（可门禁）；它**不**校验 `[output.html]`。
+- `mdbook test -c <章>` 只认 **SUMMARY 里已挂的章**；参数是 src 相对路径（`ch01-….md`，不是 `src/ch01-….md`）或章标题，找不到就报 `ERROR Chapter not found`。
+
+## 8. 并行写作批次（批次协议）
+
+一轮多章并行时：**一票一个写作者子代理**；协调者不写稿，负责预置与集成。
+
+协调者（开写前 / 收尾）：
+- 预置：建好各章占位文件、把 `SUMMARY.md` 草稿条目全部接上链接（`create-missing = false` 下条目指的文件必须先存在）。
+- 收尾：跑全量链（§3 的 1–4 步）→ 交叉审校（§6.4）→ 统一提交。
+
+写作者（每票一人）：
+- **独占写**：本票的章文件、`snippets/chNN/`、本票文件 `.scratch/rust-guide/issues/NN-*.md`。
+- **禁写（只读）**：`src/SUMMARY.md`、`book.toml`、`WRITING.md`、`GLOSSARY.md`、`README.md`、地图与其他票 —— 防止同文件互相覆盖；术语新词在票里回报，协调者统一并表。
+- **禁止** `git`（协调者统一提交）；**禁止** `mdbook build` / `mdbook serve`（`book/` 竞态）；自验只用 `mdbook test -c <本章>`。
+- 运行输出必须真跑真粘；探针与临时编译放 `.scratch/tmp-<票号>/`（已 gitignore），收尾删除。
+- 只写本章范围；指向别章写一句「（第 N 章展开）」。
+- 收尾：票 `Status:` 置 `claimed`；追加 `## Comments` 一条（文件 / 自验命令与结果 / 实测过的输出清单 / 遗留不确定 / 新增术语 / 衔接提示 / 图示需求）。**不写** `## Answer`、**不置** `resolved`。

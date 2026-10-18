@@ -4,18 +4,18 @@
 
 # 第一篇 基础篇
 
-- [第 1 章 起步：工具链与第一个程序]()
-- [第 2 章 读懂编译器：报错的解剖与修复路径]()
-- [第 3 章 语言基础：变量、类型、函数与控制流]()
-- [第 4 章 所有权、借用与切片]()
-- [第 5 章 结构体、枚举与模式匹配]()
-- [第 6 章 集合与字符串]()
-- [第 7 章 错误处理：Result、panic 与自定义错误]()
-- [第 8 章 模块、包与依赖]()
-- [第 9 章 泛型与 trait 入门]()
-- [第 10 章 迭代器与闭包]()
-- [第 11 章 测试与调试]()
-- [项目 1：命令行小工具]()
+- [第 1 章 起步：工具链与第一个程序](ch01-getting-started.md)
+- [第 2 章 读懂编译器：报错的解剖与修复路径](ch02-reading-the-compiler.md)
+- [第 3 章 语言基础：变量、类型、函数与控制流](ch03-language-basics.md)
+- [第 4 章 所有权、借用与切片](ch04-ownership-borrowing-slices.md)
+- [第 5 章 结构体、枚举与模式匹配](ch05-structs-enums-patterns.md)
+- [第 6 章 集合与字符串](ch06-collections-strings.md)
+- [第 7 章 错误处理：Result、panic 与自定义错误](ch07-error-handling.md)
+- [第 8 章 模块、包与依赖](ch08-modules-packages.md)
+- [第 9 章 泛型与 trait 入门](ch09-generics-traits-intro.md)
+- [第 10 章 迭代器与闭包](ch10-iterators-closures.md)
+- [第 11 章 测试与调试](ch11-testing-debugging.md)
+- [项目 1：命令行小工具](project1-cli-tool.md)
 
 # 第二篇 类型与 trait 主干
 

@@ -3,3 +3,9 @@ book/
 
 # 校验链临时日志
 .book-build.log
+
+# cargo 产物（examples/ workspace）
+target/
+
+# 协作/探针临时目录
+.scratch/tmp-*/
