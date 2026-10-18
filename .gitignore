@@ -9,3 +9,7 @@ target/
 
 # 协作/探针临时目录
 .scratch/tmp-*/
+
+# rustc/cargo 就地编译的二进制产物（防呆：snippets/ 只放源码）
+*.exe
+*.pdb

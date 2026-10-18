@@ -532,9 +532,9 @@ fn main() {
 
 ## 延伸阅读
 
-- The Book 第 9 章《Error Handling》：<https://doc.rust-lang.org/1.98.0/book/ch09-00-error-handling.html>（9.1 讲展开/abort 与回溯读法，9.3 讲 panic 取舍指南）
-- The Rust Reference，try 传播表达式（`?` 的语义与 `Try` 现状）：<https://doc.rust-lang.org/1.98.0/reference/expressions/operator-expr.html#the-try-propagation-expression>
-- `std::result::Result` API：<https://doc.rust-lang.org/1.98.0/std/result/enum.Result.html>
-- `std::option::Option`（`ok_or` / `ok_or_else`）：<https://doc.rust-lang.org/1.98.0/std/option/enum.Option.html>
-- `std::error::Error`（supertrait、`source()`、消息写法准则）：<https://doc.rust-lang.org/1.98.0/std/error/trait.Error.html>
-- Cargo 手册，`[profile]` 的 `panic` 设置：<https://doc.rust-lang.org/1.98.0/cargo/reference/profiles.html#panic>
+- The Book 第 9 章《Error Handling》：<https://doc.rust-lang.org/book/ch09-00-error-handling.html>（9.1 讲展开/abort 与回溯读法，9.3 讲 panic 取舍指南）
+- The Rust Reference，try 传播表达式（`?` 的语义与 `Try` 现状）：<https://doc.rust-lang.org/reference/expressions/operator-expr.html#the-try-propagation-expression>
+- `std::result::Result` API：<https://doc.rust-lang.org/std/result/enum.Result.html>
+- `std::option::Option`（`ok_or` / `ok_or_else`）：<https://doc.rust-lang.org/std/option/enum.Option.html>
+- `std::error::Error`（supertrait、`source()`、消息写法准则）：<https://doc.rust-lang.org/std/error/trait.Error.html>
+- Cargo 手册，`[profile]` 的 `panic` 设置：<https://doc.rust-lang.org/cargo/reference/profiles.html#panic>

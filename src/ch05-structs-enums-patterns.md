@@ -667,7 +667,7 @@ println!("{}", s.can_retry());   // true
 
 ## 延伸阅读
 
-- The Book：[第 5 章 Structs](https://doc.rust-lang.org/1.98.0/book/ch05-00-structs.html)、[第 6 章 Enums and Pattern Matching](https://doc.rust-lang.org/1.98.0/book/ch06-00-enums.html)——口径参照，不逐段对应。
-- Reference：[Patterns](https://doc.rust-lang.org/1.98.0/reference/patterns.html)（模式全集与绑定模式）、[Enumerations](https://doc.rust-lang.org/1.98.0/reference/items/enumerations.html)、[Match expressions](https://doc.rust-lang.org/1.98.0/reference/expressions/match-expr.html)。
-- 标准库：[`std::option::Option`](https://doc.rust-lang.org/1.98.0/std/option/enum.Option.html)——注意它自己就 derive 了一长串能力。
-- Edition Guide：[let chains（2024）](https://doc.rust-lang.org/1.98.0/edition-guide/rust-2024/let-chains.html)、[match ergonomics 的 edition 2024 变更](https://doc.rust-lang.org/1.98.0/edition-guide/rust-2024/match-ergonomics.html)。
+- The Book：[第 5 章 Structs](https://doc.rust-lang.org/book/ch05-00-structs.html)、[第 6 章 Enums and Pattern Matching](https://doc.rust-lang.org/book/ch06-00-enums.html)——口径参照，不逐段对应。
+- Reference：[Patterns](https://doc.rust-lang.org/reference/patterns.html)（模式全集与绑定模式）、[Enumerations](https://doc.rust-lang.org/reference/items/enumerations.html)、[Match expressions](https://doc.rust-lang.org/reference/expressions/match-expr.html)。
+- 标准库：[`std::option::Option`](https://doc.rust-lang.org/std/option/enum.Option.html)——注意它自己就 derive 了一长串能力。
+- Edition Guide：[let chains（2024）](https://doc.rust-lang.org/edition-guide/rust-2024/let-chains.html)、[match ergonomics 的 edition 2024 变更](https://doc.rust-lang.org/edition-guide/rust-2024/match-ergonomics.html)。

@@ -21,6 +21,7 @@
 
 - **被测块里绝不出现外部 crate 的 `use`**：`-L` 只认 `extern crate`，2018+ 的 `use` 需要隐藏行垫片（03 实测）。要引用配套 crate 时：放进 `rust,ignore` 块展示。
 - **`{{#include}}` / `{{#rustdoc_include}}` 的内容参与 `mdbook test`**（预处理器先跑；rustdoc 按 doctest 规则自动包 `fn main`，实测坏片段会让整章测试失败）—— 片段不能独立编译就整块标 `rust,ignore`，别指望 include 躲测试。
+- **测试相关代码块不被 `mdbook test` 检查**（1.98 实测：`#[test] fn` 与 `#[cfg(test)] mod tests` 块体内的类型错误仍 exit 0，假绿）—— 测试类演示必须同时放进**可跑 crate**（`snippets/` 或 `examples/`），用 `cargo test` 真跑并把输出粘进正文。
 - 样板噪音用隐藏行 `# `：渲染时默认收起（mdbook 的 `book.js` 给含隐藏行的块加 `hide-boring`，读者可用眼睛按钮展开）—— 别把不想被读者看到的内容放进去。
 - 要展示 mdBook 指令本身时写 `\{{#…}}` —— 行内代码里也会展开（03 实测踩过）。
 - 以 `#` 开头的展示内容不要放进 `rust` 块（会被当隐藏行吃掉），用 `text`。
@@ -94,7 +95,7 @@ mdbook build
 
 - 第二人称「你」；句子短；直接 —— 不卖萌、不文学化比喻、不用 emoji。
 - 代码注释用中文；标识符永远英文。术语按 `GLOSSARY.md`（首现「中文（English）」，之后中文为主）。
-- 章末「延伸阅读」只放官方一手来源；不点名任何现有中文资源（04 决定）。
+- 章末「延伸阅读」只放官方一手来源；**链接不钉版本**（用 `https://doc.rust-lang.org/book/…`、`…/std/…` 这类稳定入口；版本敏感的事实写在正文里，如「以 Rust 1.98 为例」）。不点名任何现有中文资源（04 决定）。
 - 常见误解走暗线：在叙述里纠偏，不设专门装置。
 
 ## 6. 写作票 DoD（加严版）
@@ -118,6 +119,8 @@ mdbook build
 - `[output]` 表多于一个（linkcheck2 已启用）：HTML 输出在 `book/html/`（预览/部署路径同步）。
 - `mdbook test` 失败 exit 101（可门禁）；它**不**校验 `[output.html]`。
 - `mdbook test -c <章>` 只认 **SUMMARY 里已挂的章**；参数是 src 相对路径（`ch01-….md`，不是 `src/ch01-….md`）或章标题，找不到就报 `ERROR Chapter not found`。
+- `compile_fail,E····`（校验具体错误码）是 **nightly-only**（实测 stable 1.98 不校验、静默通过）→ 正文统一用稳定的 `rust,compile_fail`，错误码放进紧跟的输出块与叙述里。
+- 含 `#[test]` / `#[cfg(test)]` 的块**不被编译**（cfg 排除，假绿）→ 测试类演示要配可跑 crate + `cargo test` 证据（见 §1 硬规则）。
 
 ## 8. 并行写作批次（批次协议）
 
