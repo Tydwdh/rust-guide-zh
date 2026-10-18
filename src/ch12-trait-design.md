@@ -10,7 +10,7 @@
 - 怎么表达「要实现 A 就必须先实现 B」？这就是父 trait（supertrait）。
 - 我发布的 trait，怎么阻止下游 crate 实现它？这就是密封 trait（sealed trait）。
 - 我想给 `Vec<T>` 加一个方法，但 `Vec` 不是我定义的——能做吗？这就是扩展 trait（extension trait）。
-- 编译器为什么有时干脆不让我写某条 `impl`？这就是一致性（coherence）与孤儿规则的细节。
+- 编译器为什么有时干脆不让我写某条 `impl`？这就是一致性（coherence）与孤儿规则（orphan rule）的细节。
 
 读完这一章，你能对上面五个问题各给出一个判断，并且知道判断依据落在语言里的哪条规则上；见到 E0117、E0210、E0119 时，能立刻说出是规则里的哪一句被违反了。
 
@@ -18,14 +18,14 @@
 
 把 trait 想成一张**由实现者填写的表格**。trait 的声明决定表格有哪些格子；`impl` 就是一份填好的表。
 
-`Iterator` 的表里有一格叫 `Item`：对 `Counter` 这个类型，这一格只能填一次，因为一个迭代器只有一种元素类型。`Add` 的表里有**两**格：右操作数 `Rhs` 和结果 `Output`。如果 `Meters` 既想和 `Meters` 相加、又想和 `f64` 相加，那么「右操作数」这一格就必须允许填多种答案。
+`Iterator` 的表里有一格叫 `Item`：对 `Counter` 这个类型（The Book 第 20 章的计数器例子），这一格只能填一次，因为一个迭代器只有一种元素类型。`Add` 的表里有**两**格：右操作数 `Rhs` 和结果 `Output`。如果 `Meters` 既想和 `Meters` 相加、又想和 `f64` 相加，那么「右操作数」这一格就必须允许填多种答案。
 
 于是第一个设计判据是：**这个抽象对每个类型是否只可能有一种解释？**
 
 - 只有一种 → 用关联类型。它把答案钉在类型上：`Counter` 是 `Iterator<Item = u32>`，没有第二种说法。
 - 可能有多种 → 用泛型参数。它把答案变成 trait 名字的一部分：`Meters: Add<Meters>` 与 `Meters: Add<f64>` 是两条互不冲突的契约。
 
-第二个设计问题是**裁决**。`impl` 可以分布在整个依赖图里的任何 crate。`x + y` 或 `v.len()` 出现时，编译器必须能唯一确定调用哪一份实现。一致性（coherence）就是「每个 (trait, 类型) 组合只有一份实现」这条全局纪律，孤儿规则是它最外在的那道检查。
+第二个设计问题是**裁决**。`impl` 可以分布在整个依赖图里的任何 crate。`x + y` 或 `v.len()` 出现时，编译器必须能唯一确定调用哪一份实现。一致性就是「每个 (trait, 类型) 组合只有一份实现」这条全局纪律，孤儿规则是它最外在的那道检查。
 
 代价很直接：你没法像 Python 那样给任何类型打补丁（monkey patch），也没法随随便便为「所有类型」实现一个外部 trait。换来的东西是：行为在编译期就确定，改依赖不会偷偷改变语义。
 
@@ -71,7 +71,7 @@ pub trait Add<Rhs = Self> {
 - **关联类型可以自带边界。** 声明写成 `type Detail: Display;` 之后，任何拿到 `T: Report` 的函数体都能直接 `format!("{}", x.report())`，不必在每处 `where` 里重复 `T::Detail: Display`。这是「把契约写在一处」的另一个例子。
 - **泛型参数的代价落在使用处。** `Meters: Add<Meters>` 与 `Meters: Add<f64>` 并存之后，`m + 5.0` 依赖字面量被推断成 `f64`；推断不出来时，你得用类型标注或 turbofish 把答案写出来。关联类型没有这个问题——答案是类型的一部分，不需要每次挑。
 
-最后，「一次只能有一种解释」不是建议，是语言强制的：给同一个类型写两份关联类型不同的 `impl`，会得到 E0119（见本章末报错现场第二例）。
+最后，「一次只能有一种解释」不是建议，是语言强制的：给同一个类型写两份关联类型不同的 `impl`，会被判为重叠，报 E0119——报错现场第二例是同一类冲突的另一种形态（blanket impl 与专门实现撞车）。
 
 ### 父 trait（supertrait）：前提条件，不是继承
 
@@ -90,13 +90,13 @@ pub trait Add<Rhs = Self> {
 
 trait 对象与父 trait 的关系这里只留一句：以 `dyn Circle` 为边界时，父 trait 的方法一样可用；把 `&dyn Circle` 转成 `&dyn Shape` 的向上转型（upcasting）从 1.86 起稳定。细节在第 13 章。
 
-### sealed trait：让外部不能实现你的 trait
+### 密封 trait（sealed trait）：让外部不能实现你的 trait
 
 问题出在发布之后。你写了 `pub trait Greet`，下游任何 crate 都能 `impl Greet for MyType`。某天你发现该加一个没有默认实现的方法——这会破坏所有下游实现。SemVer 上这是破坏性变更，可你只是「加了个方法」。
 
 修法是**密封（seal）**：让 trait 的可命名性与可实现性分开。trait 本身公开，下游能命名、能当边界；但实现者集合被封死在本 crate 内。
 
-```rust,ignore
+```rust
 mod private {
     pub trait Sealed {}
 }
@@ -118,7 +118,7 @@ crate greet（假设库名就叫 greet）
 几条容易踩的细节：
 
 - **这是编译期强制，不是文档约定。** 外部 crate 尝试实现会得到 E0277，外加一条 rustc 专门为这个模式写的 note（报错现场第三例）。
-- **和 `pub(crate) trait` 不是一回事。** `pub(crate)` 的 trait 外部根本看不见，连 `fn f<G: Greet>(g: &G)` 都写不出来。sealed 要的正是「看得见、用得上，但只有我能实现」。
+- **和 `pub(crate) trait` 不是一回事。** `pub(crate)` 的 trait 外部根本看不见，连 `fn f<G: Greet>(g: &G)` 都写不出来。密封要的正是「看得见、用得上，但只有我能实现」。
 - **它管的是实现者，不是使用者。** 下游照样可以 `fn describe<G: Greet>(g: &G)`。
 - **全局 blanket impl 有同样的封锁效果，但更粗暴。** 你写下 `impl<T: Debug> Describe for T` 的那一刻，下游就再也无法 `impl Describe for Point`——跨 crate 会报 E0119，理由节选如下，而且这条 impl 会把你自己的外部类型全部卷进来：
 
@@ -131,7 +131,7 @@ crate greet（假设库名就叫 greet）
 
 标准库自己也这么干。`std` 源码里有一个私有模块，注释原文是：*"This trait being unreachable from outside the crate prevents outside implementations of our extension traits. This allows adding more trait methods in the future."*——大意是：这个 trait 在 crate 外部不可达，从而阻止外部实现我们的扩展 trait，这让我们以后还能加方法。
 
-代价要说清：对下游而言，sealed trait 只是「一组封闭类型的标签」，不能拿来自定义类型。所以只在两种情况下用——实现者集合确实封闭（所有合法实现都由你提供），或者这个契约的正确性要求实现者必须由你控制。如果你能承诺「以后新增的方法一律带默认实现」，那就不需要密封。
+代价要说清：对下游而言，密封 trait 只是「一组封闭类型的标签」，不能拿来自定义类型。所以只在两种情况下用——实现者集合确实封闭（所有合法实现都由你提供），或者这个契约的正确性要求实现者必须由你控制。如果你能承诺「以后新增的方法一律带默认实现」，那就不需要密封。
 
 ### 扩展 trait（extension trait）：给外部类型加方法
 
@@ -161,7 +161,7 @@ error[E0116]: cannot define inherent `impl` for a type outside of the crate wher
 
 但**可以**定义自己的 trait，再实现给外部类型——这条 impl 里 trait 是「本地的」，孤儿规则满足。这就是扩展 trait：
 
-```rust,ignore
+```rust
 trait VecExt<T> {
     fn second(&self) -> Option<&T>;
 }
@@ -183,7 +183,7 @@ impl<T> VecExt<T> for Vec<T> {
 > [!TIP]
 > 覆盖越宽的 blanket impl，越接近「密封」：`impl<I: Iterator> IterExt for I` 之后，下游别想再为任何迭代器实现 `IterExt`。封死不总是缺点，但要知道自己签了什么。
 
-### coherence 与孤儿规则的细节
+### 一致性（coherence）与孤儿规则的细节
 
 孤儿规则（orphan rule）的表述是：
 
@@ -216,7 +216,7 @@ impl<T> VecExt<T> for Vec<T> {
 
 设计意图也说得通：`Box`/`&` 是透明的转发包装，不该挡住本地性；但它们一旦成为「通用覆盖器」，就会把下游的实现空间整个吞掉，所以不能。
 
-coherence 的另一半是「没有重叠实现」。同 crate 内两条 impl 覆盖到同一个具体类型即冲突（报错现场第二例）；跨 crate 的情形由孤儿规则预防——那条 impl 你根本写不出来。但要注意：你自己的 blanket impl 会替下游制造冲突，这一点在 sealed 与扩展 trait 两节都出现过。
+一致性的另一半是「没有重叠实现」。同 crate 内两条 impl 覆盖到同一个具体类型即冲突（报错现场第二例）；跨 crate 的情形由孤儿规则预防——那条 impl 你根本写不出来。但要注意：你自己的 blanket impl 会替下游制造冲突，这一点在「密封 trait」与「扩展 trait」两节都出现过。
 
 > [!WARNING]
 > 「trait 或类型有一个是本地」不等于「随便写」。`impl<T> MyTrait for T` 合法，但它意味着全宇宙的类型都被你这一条 impl 覆盖：你既封死了下游，也让自己以后无法为某个类型写更专门的实现（那是 E0119）。写 blanket impl 前先想清楚要不要留这个口子。
@@ -306,7 +306,7 @@ area = 3.1416, radius = 1.0000
 
 `UnitCircle` 分别写了 `impl Shape` 与 `impl Circle` 两段；`describe` 的边界只要求 `Circle`，函数体里却能调 `c.area()`——那是父 trait 的关联项可用。
 
-**3. sealed trait**（`snippets/ch12/sealed.rs`）：
+**3. 密封 trait**（`snippets/ch12/sealed.rs`）：
 
 ```rust
 {{#rustdoc_include ../snippets/ch12/sealed.rs}}
@@ -363,7 +363,9 @@ error[E0210]: type parameter `T` must be used as an argument to some local type 
 
 `Display` 是外部的，`T` 是类型参数——没有任何本地类型出现。报错把 `T` 标成 "uncovered type parameter"（未覆盖的类型参数），并给出了标准解法：让它当某个本地类型的参数。修法是 newtype：
 
-```rust,ignore
+```rust
+use std::fmt;
+
 struct Wrapper<T>(T);
 
 impl<T> fmt::Display for Wrapper<T> {
@@ -408,12 +410,12 @@ error[E0119]: conflicting implementations of trait `Describe` for type `Widget`
    | ^^^^^^^^^^^^^^^^^^^^^^^^ conflicting implementation for `Widget`
 ```
 
-`Describe` 是本地的，两条 impl 都合法地满足了孤儿规则——但它们重叠了：`Widget` 既被第一条 blanket impl 覆盖，又被第二条专门覆盖。coherence 要求每个 (trait, 类型) 组合唯一，于是冲突。修法是二选一：要么删掉 blanket impl，让每个类型自己写；要么保留 blanket impl，删掉特例（并接受「谁也别想再实现」这个后果）。**不要**试图让编译器替你分优先级——Rust 没有这个机制，专门化（specialization）至今仍不稳定。
+`Describe` 是本地的，两条 impl 都合法地满足了孤儿规则——但它们重叠了：`Widget` 既被第一条 blanket impl 覆盖，又被第二条专门覆盖。一致性要求每个 (trait, 类型) 组合唯一，于是冲突。修法是二选一：要么删掉 blanket impl，让每个类型自己写；要么保留 blanket impl，删掉特例（并接受「谁也别想再实现」这个后果）。**不要**试图让编译器替你分优先级——Rust 没有这个机制，专门化（specialization）至今仍不稳定。
 
 > [!WARNING]
 > 专门化（specialization）允许为 blanket impl 提供更具体的版本，但它**仍未稳定**，stable 1.98 上写 `default fn` 会报 E0658。别在 stable 项目里设计依赖它的 API。
 
-**三、sealed：父 trait 不可达。**
+**三、密封 trait：父 trait 不可达。**
 
 ```rust,compile_fail
 mod lib {
@@ -462,7 +464,9 @@ note: required by a bound in `Greet`
    = note: `Greet` is a "sealed trait", because to implement it you also need to implement `lib::private::Sealed`, which is not accessible; this is usually done to force you to use one of the provided types that already implement it
 ```
 
-这个最小复现只用了一个 crate：`MyGreeter` 在 `lib` 模块**外面**，而 `private` 模块在 `lib` 里面且不是 `pub`，所以它也够不到 `Sealed`。修法就是「不实现」——这正是设计意图：拿 `lib::English` 用就好。把同一份代码搬到真正的下游 crate（`greet` 与 `user` 两个包）后，报错的形状一模一样，只是类型路径前面多了 crate 名，并且末尾会多一条 `= help` 把你引向提供了实现的类型（下面是节选）：
+这个最小复现只用了一个 crate：`MyGreeter` 在 `lib` 模块**外面**，而 `private` 模块在 `lib` 里面且不是 `pub`，所以它也够不到 `Sealed`。修法就是「不实现」——这正是设计意图：拿 `lib::English` 用就好。
+
+把同一份代码搬到真正的下游 crate（`greet` 与 `user` 两个包）后，报错是同一形状，只是类型路径前面多了 crate 名。帮助信息则从「上游视角」换成了「下游视角」：单 crate 版在「父 trait 未实现」那条 help 之后跟的是 `help: this trait has no implementations, consider adding one`；跨 crate 版同一位置换成「the trait `greet::private::Sealed` is implemented for `English`」，直接点出哪个类型已经实现了它。末尾再多一条 `= help`，把使用者引向那个类型（下面是节选）：
 
 ```text
 error[E0277]: the trait bound `MyGreeter: greet::private::Sealed` is not satisfied
@@ -481,9 +485,9 @@ error[E0277]: the trait bound `MyGreeter: greet::private::Sealed` is not satisfi
 
 1. **关联类型 = 每个类型只有一个答案；泛型参数 = 同一类型可以有多个答案。** 对照 `Iterator::Item` 与 `Add<Rhs>`：先问「几种解释」，再问「是输入侧还是输出侧」，答案就出来了。
 2. **父 trait 是前提条件，不是继承。** 实现要分两次写；得到的好处是「以子 trait 为边界时，父 trait 的关联项可用」。`where Self: Shape` 是等价写法。
-3. **sealed trait 用 `pub trait X: private::Sealed` 实现**：外部看得见、当得了边界，但实现不了，因为父 trait 不可命名。rustc 会专门提示这是 "sealed trait"。全局 blanket impl 有同样的封死效果，但会连带吞掉所有类型。
+3. **密封 trait 用 `pub trait X: private::Sealed` 实现**：外部看得见、当得了边界，但实现不了，因为父 trait 不可命名。rustc 会专门提示这是 "sealed trait"（诊断原文）。全局 blanket impl 有同样的封死效果，但会连带吞掉所有类型。
 4. **扩展 trait 是孤儿规则的合法应用**：trait 本地，就能实现给外部类型。使用时 trait 必须进作用域；与固有方法同名时固有方法优先，要调 trait 里那份得写全限定路径。
-5. **coherence = 每个 (trait, 类型) 组合唯一实现。** trait 本地或类型本地就能写 impl；类型参数必须被本地类型覆盖（`impl<T> Display for T` 是 E0210，包一层 `Wrapper<T>` 就好）。`&`、`&mut`、`Box`、`Pin` 是基础类型构造器：本地性会穿透它们，而它们不能覆盖类型参数。
+5. **一致性 = 每个 (trait, 类型) 组合唯一实现。** trait 本地或类型本地就能写 impl；类型参数必须被本地类型覆盖（`impl<T> Display for T` 是 E0210，包一层 `Wrapper<T>` 就好）。`&`、`&mut`、`Box`、`Pin` 是基础类型构造器：本地性会穿透它们，而它们不能覆盖类型参数。
 
 ## 练习
 
@@ -517,11 +521,11 @@ C 报 **E0117**（"only traits defined in the current crate can be implemented f
 
 </details>
 
-**2. 解释。** 为什么 sealed 模式写 `pub trait Greet: private::Sealed`，而不是直接把 trait 声明成 `pub(crate) trait Greet`？
+**2. 解释。** 为什么密封 trait 要写成 `pub trait Greet: private::Sealed`，而不是直接把 trait 声明成 `pub(crate) trait Greet`？
 
 <details><summary>参考答案</summary>
 
-`pub(crate)` 让外部 crate 完全看不见这个 trait：既不能命名它，也不能写 `fn describe<G: Greet>(g: &G)`。而 sealed 的目标是「公开、可用，但只有我能实现」——`Greet` 必须是 `pub`，才能出现在你的公开 API 签名里、才能被下游当作边界使用。
+`pub(crate)` 让外部 crate 完全看不见这个 trait：既不能命名它，也不能写 `fn describe<G: Greet>(g: &G)`。而密封 trait 的目标是「公开、可用，但只有我能实现」——`Greet` 必须是 `pub`，才能出现在你的公开 API 签名里、才能被下游当作边界使用。
 
 封住实现入口靠的是父 trait：`private::Sealed` 在外部不可命名，于是外部写不出 `impl Sealed`，也就永远满足不了 `Greet` 的前提条件。可见性与可实现性由此分开。
 
@@ -545,7 +549,7 @@ C 报 **E0117**（"only traits defined in the current crate can be implemented f
 
 - The Rust Reference，Traits（父 trait、dyn 兼容性）：<https://doc.rust-lang.org/reference/items/traits.html>
 - The Rust Reference，Associated items（关联函数、类型、常量）：<https://doc.rust-lang.org/reference/items/associated-items.html>
-- The Rust Reference，Implementations（孤儿规则与 coherence）：<https://doc.rust-lang.org/reference/items/implementations.html>
+- The Rust Reference，Implementations（孤儿规则与一致性）：<https://doc.rust-lang.org/reference/items/implementations.html>
 - The Rust Reference，Type system attributes（`non_exhaustive`）：<https://doc.rust-lang.org/reference/attributes/type_system.html>
 - The Rust Reference，Diagnostic attributes（`#[diagnostic::on_unimplemented]`）：<https://doc.rust-lang.org/reference/attributes/diagnostics.html>
 - The Book 第 20 章「高级 trait」：<https://doc.rust-lang.org/book/ch20-02-advanced-traits.html>

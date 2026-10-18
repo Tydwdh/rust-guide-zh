@@ -453,7 +453,7 @@ checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
 
 依赖的来源默认是 crates.io；`[dependencies]` 也支持 `path`（本地目录）、`git`（仓库）等来源（Cargo 参考「Specifying Dependencies」）。
 
-两个大主题这里只预告：**features**（特性开关，Cargo 术语，本书保留英文）和**工作区（workspace）**（一个仓库里放多个包，共享 `target/`、统一 `cargo build`）—— 都在第 30 章。
+两个大主题这里只预告：**features**（条件编译开关，Cargo 术语，本书保留英文）和**工作区（workspace）**（一个仓库里放多个包，共享 `target/`、统一 `cargo build`）—— 都在第 30 章。
 
 ### 语言对照角
 

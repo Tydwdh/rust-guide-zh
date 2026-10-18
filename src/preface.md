@@ -68,7 +68,7 @@ fn main() {
 ```rust,compile_fail
 fn main() {
     let s = String::from("hello");
-    let t = s;                  // 所有权转移到 t
+    let t = s;                  // 所有权移动给 t
     println!("{s}");            // 错误：s 已经被移走
     println!("{t}");
 }
@@ -80,7 +80,7 @@ fn main() {
 error[E0382]: borrow of moved value: `s`
  --> main.rs:4:16
   |
-3 |     let t = s;                  // 所有权转移到 t
+3 |     let t = s;                  // 所有权移动给 t
   |             - value moved here
 4 |     println!("{s}");            // 错误：s 已经被移走
   |                ^ value borrowed here after move
@@ -100,6 +100,6 @@ error[E0382]: borrow of moved value: `s`
 | 标准库文档（std） | <https://doc.rust-lang.org/std/> | 类型、方法与 trait（行为契约），查 API 首选 |
 | The Cargo Book | <https://doc.rust-lang.org/cargo/> | 依赖与 workspace、构建、发布 |
 | The Rust Edition Guide | <https://doc.rust-lang.org/edition-guide/> | edition 改了什么、怎么迁移 |
-| Error Codes Index | <https://doc.rust-lang.org/error_codes/> | `error[E0382]` 编号的解释页 |
+| Error Codes Index | <https://doc.rust-lang.org/error_codes/> | `error[E0382]` 这类错误码的解释页 |
 
 准备就绪后，翻到第 1 章。

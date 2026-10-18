@@ -29,9 +29,9 @@ Status: claimed
     8. `Cow`：借用路径不分配、`to_mut()` 变 `Owned`（用 `matches!(.., Cow::Borrowed(_))` 断言）。
     9. `Deref`：`& String`/`&mut String`/`&&String` 都强转到 `&str`；泛型处**不强转**（`size_of_val` 量到 `String` 本体 24，`as_str()` 后 5）；同名方法外层遮蔽内层（`w.name() -> Wrapper`，`(*w).name() -> Inner`）；`*box` 可搬出、`*rc` 报 E0507。
     10. 报错现场：`Rc` 进线程 E0277、`Cell::get` 非 `Copy` E0599、`*rc` 搬出 E0507 —— 关键行均来自 1.98 真实诊断（正文按「最小复现放进 `src/main.rs`」给出行号，已核对与探针行号一致）。
-    11. **`Send`/`Sync` 总表取证**：11 行 × `Send`/`Sync` 两列全部取自本机 `share/doc/rust/html/std` 各类型页的 **Auto Trait Implementations** 段（提取脚本逐页解析），再用 `fn send<T: Send>()` / `fn sync<T: Sync>()` 断言做正反样本交叉验证（通过：`Box/i32`、`Arc/i32`、`Cell<i32>`（仅 Send）、`RefCell<i32>`（仅 Send）、`Mutex/i32`、`RwLock/i32`、`Cow<str>`、`OnceLock/LazyLock`、`sync::Weak`、`Mutex<RefCell<i32>>`、`Arc<Mutex<Cell<i32>>>`；拒绝：`Rc`、`rc::Weak`、`Cell`/`RefCell`/`UnsafeCell` 的 `Sync`、`Arc<RefCell<i32>>`、`RwLock<Cell<i32>>`、`&Cell<i32>`）。判据四条（`&T: Send ⟺ T: Sync` 等）取自 `std/marker/trait.Sync.html` 原文。
+    11. **`Send`/`Sync` 总表取证**：11 行 × `Send`/`Sync` 两列取自本机 `share/doc/rust/html/std` 各类型页的 `Send`/`Sync` 实现（脚本逐页解析并**按段归属**：`Rc`/`rc::Weak` 的 `!Send`/`!Sync`、`Arc`/`sync::Weak`、`Cell`/`RefCell`、`UnsafeCell` 的 `!Sync`、`Mutex`/`RwLock`/`OnceLock`、`LazyLock::Sync` 在 **Trait Implementations**；`Box`、`Cow` 的 Send+Sync、`UnsafeCell::Send`、`LazyLock::Send` 在 **Auto Trait Implementations**），再用 `fn send<T: Send>()` / `fn sync<T: Sync>()` 断言做正反样本交叉验证（通过：`Box/i32`、`Arc/i32`、`Cell<i32>`（仅 Send）、`RefCell<i32>`（仅 Send）、`Mutex/i32`、`RwLock/i32`、`Cow<str>`、`OnceLock/LazyLock`、`sync::Weak`、`Mutex<RefCell<i32>>`、`Arc<Mutex<Cell<i32>>>`；拒绝：`Rc`、`rc::Weak`、`Cell`/`RefCell`/`UnsafeCell` 的 `Sync`、`Arc<RefCell<i32>>`、`RwLock<Cell<i32>>`、`&Cell<i32>`）。判据四条（`&T: Send ⟺ T: Sync` 等）取自 `std/marker/trait.Sync.html` 原文。
   - **遗留 / 不确定**：
-    - **篇幅**：正文 **5994 汉字**（不含代码块；含代码块与中文串共 6501），落在票面 4500–6000 区间内。初稿 7266 汉字，经过两轮压缩（7266 → 6574 → 5994），全程只删冗余表述、**没有删掉任何票面要求项**：11 类类型 + `Send`/`Sync` 总表 + 4 个报错现场 + 3 道练习（带答案）+ 八节模板 + 可选的「语言对照角」全部保留。
+    - **篇幅**：正文 **6000 汉字**（不含代码块；含代码块与中文串共 6507），落在票面 4500–6000 区间内（审校修订后仍在内，见下一条）。初稿 7266 汉字，经过两轮压缩（7266 → 6574 → 5994），全程只删冗余表述、**没有删掉任何票面要求项**：11 类类型 + `Send`/`Sync` 总表 + 4 个报错现场 + 3 道练习（带答案）+ 八节模板 + 可选的「语言对照角」全部保留。
     - 未做 SVG：本章图示目前是 1 个 `text` ASCII 图（`Rc`/`Weak` 计数）+ 15 张表，未与票 22 的图示流程合流（见下方「图示需求」）。
     - 未跑 `mdbook build` 与 linkcheck2（批次协议禁止 `book/` 竞态）；延伸阅读 8 条链接按稳定入口给（不钉版本），断链由收尾统一 build 验证。
     - `Mutex<T>` 的大小随平台而变，正文未给具体字节数（避免写死 Windows 值）。
@@ -58,3 +58,15 @@ Status: claimed
     3. **`Ref`/`RefMut` guard 的借用区间**：`borrow()`/`borrow_mut()` 到 guard 被 drop 之间的区间条，冲突处标 panic，用来解释「guard 的作用域就是借用本身」（对应报错现场二）。
     4. **四格矩阵**（共享×线程）：`Rc`/`Arc` × `Cell`/`RefCell`/`Mutex`/`RwLock` 的 2×2 定位图，可与章末 `Send`/`Sync` 总表互为表里。
     5. 可选：`Box<[T]>`/`Box<str>`/`Rc<str>` 的「瘦指针 vs 胖指针（地址+长度）」对比条。
+
+- 2026-10-18 审校修订（reviewer `RvCh17`：1 blocker + 4 major + 4 minor，全部落地；只动本章文件与本票）
+  - **1（blocker）`Cell::update` 语义**：方法表由「用 `f(&mut T)` 就地改」改为「把当前值交给 `f`，用返回值替换（`FnOnce(T) -> T`；1.88 起）」。核实：`std/cell/struct.Cell.html` 的签名为 `pub fn update(&self, f: impl FnOnce(T) -> T)`（1.88.0 稳定），与同章示例 `k.update(|v| v * 10)` 一致。
+  - **2（major）表格出处**：表格前一句改为「多数写在 Trait Implementations 段，`Box`、`Cow`、`UnsafeCell` 的 `Send`、`LazyLock` 的 `Send` 写在 Auto Trait Implementations 段」。**11×2 数值未动**（reviewer 复核全对）。
+  - **3（major）`&mut String` 那一格缺证据**：示例改为 `let mut m = String::from("world");` + `takes_str(&mut m)`（本机实测编译通过、输出仍 `5`、无 warning），现在三条强转路径都有真实代码。
+  - **4（major）`List` 布局说法**：删掉「判别字段 4 字节 + 4 字节填充」，改为「`i32` 4 字节 + 4 字节填充 + 8 字节 `Box` 指针；`Nil` 折进 `Box` 的空指针 niche，没有独立判别字段」。证据（本机实测）：`Box<u64>` = 8、`Option<Box<u64>>` = 8、`enum { T(u64, Box<u64>), N }` = 16（若真用独立判别字段会是 24）。
+  - **5（major，协调者裁定）术语统一**：全文 5 处「自动强转」→「**解引用强转**」（含小节标题、小结、延伸阅读），与 `GLOSSARY.md` 及 ch04/ch18 对齐；「自动解引用（autoderef）」按裁定作为另一概念保留。
+  - **6（minor）`Deref` 理由**：删「头号理由」，改为「列进三条理由之一（另两条：解引用可能意外失败、承诺公开 API 代价太大）」——核实 `std/ops/trait.Deref.html` 确是三条并列。
+  - **7（minor）`LazyLock` WARNING**：接收者按 `&`/`&mut` 区分（`force`/`get` 取 `&`，`get_mut`/`force_mut` 取 `&mut`），版本按方法标注（`force` 1.80.0；`get`/`get_mut`/`force_mut` 1.94.0），「不是新坑」限定到 `force`。核实：各方法页版本徽标与签名（`force(this: &LazyLock<T, F>)`、`get_mut(this: &mut LazyLock<T, F>)`）。
+  - **8（minor）E0507 的 `help` 不可照抄**：补一句「它建议的 `r.clone()` 换的是句柄，照抄会报 E0308（`expected String, found Rc<String>`）；要拿 `String` 得写 `(*r).clone()`」。实测：`let t: String = r.clone();` → E0308。
+  - **复跑自验**：`mdbook test -c ch17-smart-pointers.md` → **exit 0**（25 个被测块不变：19 `rust` + 4 `compile_fail` + 2 `should_panic`）。正文 **6000 汉字**（含代码块与中文串 6507），仍在票面 4500–6000 内——修订新增的必要说明已用同量级删减抵消。
+  - 按批次协议：未写 `## Answer`、未置 `resolved`。

@@ -94,7 +94,7 @@ define internal void @_RINvCsrVwfFJZ6TP_4show4showmEB2_(i32 %0) …
 
 这就是**零成本抽象（zero-cost abstraction）**的含义：你写泛型，拿到的运行时代码与手写三份一样——没有类型标签、没有查表、没有额外跳转。代价不在运行时，而在别处：每一组具体类型都要生成一份代码，用到的类型越多，二进制越大，编译时间与指令缓存（I-cache）的压力也跟着涨。
 
-对比另一条路：`Box<dyn Trait>` 把「具体类型」藏到运行时，只有一份代码，但每次调用都要经虚函数表（vtable）间接跳转、顺着指针追一次数据。泛型是「多份代码、零间接」，trait 对象是「一份代码、一次间接」。这是个真取舍，第 13 章展开。
+对比另一条路：`Box<dyn Trait>` 把「具体类型」藏到运行时，只有一份代码，但每次调用都要经 vtable 间接跳转、顺着指针追一次数据。泛型是「多份代码、零间接」，trait 对象是「一份代码、一次间接」。这是个真取舍，第 13 章展开。
 
 > [!WARNING]
 > 别把单态化当成运行时多态：机器码里没有「这次调用用的是哪个类型」这种隐含信息，也不能在运行时按类型分支。类型参数在编译期就被填实了。（`std::any::TypeId` 是显式请求类型标识的另一条路，需要 `T: 'static`。）
@@ -227,7 +227,7 @@ impl Summary for Comment {
 
 `impl Summary for Comment` 是契约的兑现处：`author` 必须给，`summarize` 省略就等于采用默认实现；想改行为就把它写出来覆盖掉。调用方——无论是具体的 `Comment`，还是边界为 `T: Summary` 的泛型函数——看到的只是契约里的方法。
 
-trait 里还可以有关联类型、常量、关联函数等成员，本章只用方法。关联类型与 trait 设计的取舍在第 12 章，const 泛型与 GAT 在第 15 章。
+trait 里还可以有关联类型、常量、关联函数等关联项，本章只用方法。关联类型与 trait 设计的取舍在第 12 章，const 泛型与 GAT 在第 15 章。
 
 ### 边界怎么写
 
@@ -346,13 +346,13 @@ fn version_label() -> impl std::fmt::Display {
 | `Debug` | `{:?}`、`{:#?}` | 能 | 调试打印、测试断言、`dbg!` |
 | `Display` | `{}` | **不能** | 面向用户的输出、`to_string()` |
 | `Clone` | `.clone()` | 能 | 显式复制（深浅由实现决定） |
-| `Copy` | 赋值/传参即复制（转移不失效） | 能（字段都 `Copy`、无 `Drop`，还要连 `Clone` 一起 derive） | 小整数型数据 |
+| `Copy` | 赋值/传参即复制（移动不失效） | 能（字段都 `Copy`、无 `Drop`，还要连 `Clone` 一起 derive） | 小整数型数据 |
 | `PartialEq` | `==`、`!=` | 能 | 比较、`assert_eq!` |
 | `PartialOrd` | `<`、`>`、排序 | 能（按字段声明顺序逐字段比较） | 排序、取最大 |
 | `From` | `T::from(x)` | 不能 | 类型转换的入口 |
 | `Into` | `x.into()`，由 `From` 自动获得 | 不能 | 接受「能转成 X」的参数 |
 
-`derive` 你在第 5 章已经见过：它让编译器按字段逐个生成实现，生成的正是一段 `impl`——`#[derive(Debug)]` 展开出来就是 `impl Debug for Version { … }`。能做到的事都很机械：每个字段都能 `Debug`，整个结构体就能 `Debug`；`PartialEq`、`PartialOrd` 同理。`Copy`/`Clone` 第 4 章讲移动时见过：`Copy` 意味着赋值不再转移所有权，所以它要求所有字段都 `Copy`（这也是「大数组别随便 `derive Copy`」的原因）。另外 `Copy` 是 `Clone` 的子 trait（`pub trait Copy: Clone`）：只写 `#[derive(Copy)]` 会报 E0277，两个要一起 derive。
+`derive` 你在第 5 章已经见过：它让编译器按字段逐个生成实现，生成的正是一段 `impl`——`#[derive(Debug)]` 展开出来就是 `impl Debug for Version { … }`。能做到的事都很机械：每个字段都能 `Debug`，整个结构体就能 `Debug`；`PartialEq`、`PartialOrd` 同理。`Copy`/`Clone` 第 4 章讲移动时见过：`Copy` 意味着赋值不再移动所有权，所以它要求所有字段都 `Copy`（这也是「大数组别随便 `derive Copy`」的原因）。另外 `Copy` 是 `Clone` 的子 trait（`pub trait Copy: Clone`）：只写 `#[derive(Copy)]` 会报 E0277，两个要一起 derive。
 
 `Display` 必须手写——第 5 章预告过这一点，原因就在这里：「怎么显示」是人的决定，不是字段的机械组合。所以「实现 trait」不总是打一行 `derive` 就算完；自己写 `impl` 与 `derive` 生成的 `impl`，在语言里地位完全相同。
 

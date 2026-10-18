@@ -40,9 +40,10 @@
 
 ```text
 生命周期检查的三层（从外到内）
-  1. 借用检查：借用区间 + 别名规则              → 第 4 章
-  2. 子类型 / 型变：长的能不能当短的用             → 16.1 / 16.2
-  3. 析构检查：析构点必须严格晚于被借用的数据      → 16.4
+  1. 借用检查：借用区间 + 别名规则                  → 第 4 章
+  2. 子类型 / 型变：长的能不能当短的用               → 16.1 / 16.2
+  3. 析构检查：被借用的数据必须严格比持有者活得久
+             （持有者的析构点要落在借用区间里）      → 16.4
 
 HRTB（16.3）与前两层正交：它说的是「一个签名同时对全部 'a 成立」，
 既不涉及方向，也不涉及析构。三者的关系可以记成：
@@ -113,7 +114,7 @@ fn assign<T>(input: &mut T, val: T) {
 }
 ```
 
-`assign` 的签名制造了一个类型等式约束：`*input` 的类型必须与 `val` 完全一致。如果 `&mut T` 对 `T` 协变，那么把 `&world`（`&'world str`）写进一个 `&'static str` 的位置就会被允许——`world` 先被释放，`hello` 随后被使用，典型的 use-after-free。编译器拒绝它（完整报错见「报错现场」现场 2）：
+`assign` 的签名制造了一个类型等式约束：`*input` 的类型必须与 `val` 完全一致。如果 `&mut T` 对 `T` 协变，那么把 `&world`（`&'world str`）写进一个 `&'static str` 的位置就会被允许——`world` 先被析构，`hello` 随后被使用，典型的 use-after-free。编译器拒绝它（完整报错见「报错现场」现场 2）：
 
 ```rust,compile_fail
 fn assign<T>(input: &mut T, val: T) {
@@ -134,7 +135,7 @@ fn main() {
 
 > we destroyed the only thing in the universe that remembered it lived for longer
 
-译文：那个「记得它活得更久」的唯一记录者已经被销毁了。按值移动时，长寿那个「身份」随移动一起消失，剩下的只有更短的约束；而 `&mut T` 只是借用，多方仍可能记得原来那个更长的类型，所以不能降级。
+译文：那个「记得它活得更久」的唯一记录者已经被析构了。按值移动时，长寿那个「身份」随移动一起消失，剩下的只有更短的约束；而 `&mut T` 只是借用，多方仍可能记得原来那个更长的类型，所以不能降级。
 
 #### 为什么 `fn(T)` 对 `T` 逆变
 
@@ -390,7 +391,7 @@ error: lifetime may not live long enough
   |                 let's call the lifetime of this reference `'1`
 ```
 
-闭包的类型是**推断**出来的：这里没有任何「期望签名」告诉编译器它该是 `for<'a>`，于是它被推断成某个具体的生命周期，调用两次不同寿命的字符串就不行了。补救办法是给它一个期望签名——写个只做标注的辅助函数：
+闭包的类型是**推断**出来的：这里没有任何「期望签名」告诉编译器它该是 `for<'a>`，于是它被推断成某个具体的生命周期，调用两次生命周期不同的字符串就不行了。补救办法是给它一个期望签名——写个只做标注的辅助函数：
 
 ```rust
 fn annotate<F>(f: F) -> F
@@ -440,7 +441,7 @@ alpha gamma
 
 > Implementing `Drop` lets the `Inspector` execute some arbitrary code during its death. This means it can potentially observe that types that are supposed to live as long as it does actually were destroyed first.
 
-译文：实现 `Drop` 意味着这个类型在「死亡」时可以执行任意代码，于是它可能观察到「本应活到和自己一样久的类型其实先被销毁了」。而且这个问题只对带生命周期参数的类型出现：
+译文：实现 `Drop` 意味着这个类型在「死亡」时可以执行任意代码，于是它可能观察到「本应活到和自己一样久的类型其实先被析构了」。而且这个问题只对带生命周期参数的类型出现：
 
 > If they aren't generic, then the only lifetimes they can harbor are `'static`, which will truly live forever.
 
@@ -564,11 +565,11 @@ dropck 这一侧有个现代结论值得记住：**如果一个类型已经写�
 
 > adding an extra `_owns_T: PhantomData<T>` field is thus *superfluous* and accomplishes nothing
 
-理由来自 RFC 1238：`impl<T> Drop for Vec<T>` 的存在本身就让编译器认为「它拥有 `T`」——因为在析构实现里可能用到 `T`。所以自己写容器时，不再需要模仿老式 `Vec` 的写法；`PhantomData` 在该处的价值回到型变与 auto trait。
+理由来自 RFC 1238：`impl<T> Drop for Vec<T>` 的存在本身就让编译器认为「它拥有 `T`」——因为在析构实现里可能用到 `T`。所以自己写集合、或写自家这类泛型类型时，不再需要模仿老式 `Vec` 的写法；`PhantomData` 在该处的价值回到型变与 auto trait。
 
-一手证据就在标准库源码里：`Unique<T>` 带着一个这样的字段，注释写着 “this marker has no consequences for variance, but is necessary for dropck to understand that we logically own a `T`”（本机 1.98 的 `library/core/src/ptr/unique.rs:35`）；`RawVec<T, A>` 里也是同一手笔（`library/alloc/src/raw_vec/mod.rs:75`）。
+一手证据就在标准库源码里：`Unique<T>` 带着一个这样的字段，注释写着 “this marker has no consequences for variance, but is necessary for dropck to understand that we logically own a `T`”（本机 1.98：`struct Unique` 的定义从 `library/core/src/ptr/unique.rs:35` 开始，这条注释在 37–38 行）；`RawVec<T, A>` 里也是同一手笔（`library/alloc/src/raw_vec/mod.rs:75`）。
 
-这句注释解决的是 16.4 那个 `#[may_dangle]` 的「例外的例外」：`Vec` 的 `Drop` 声明了 `#[may_dangle] T`，但 `#[may_dangle]` 会在参数**以拥有的方式被字段持有**时自动失效（有 drop glue 的 `T` 仍需被正确析构），`PhantomData<T>` 正是用来声明「我们逻辑上拥有一个 `T`」的。Nomicon 的 `phantom-data` 页把这条推导写得很完整。
+这句注释解决的是 16.4 那个 `#[may_dangle]` 的「例外的例外」：`Vec` 的 `Drop` 声明了 `#[may_dangle] T`，但 `#[may_dangle]` 会在参数**以拥有的方式被字段持有**时自动失效——只要 `T` 带着 drop glue，它仍需被正确析构（drop glue 指编译器自动生成的递归析构代码：一个类型即使没写 `Drop`，只要字段需要析构就带得有它）。`PhantomData<T>` 正是用来声明「我们逻辑上拥有一个 `T`」的。Nomicon 的 `phantom-data` 页把这条推导写得很完整。
 
 ### 16.6 省略规则的精确表
 
@@ -817,7 +818,7 @@ error[E0597]: `world` does not live long enough
    |     - `world` dropped here while still borrowed
 ```
 
-**定位路径**：类型标注 `&'static str` 是第一标记点（「要求 `world` 被借用为 `'static`」），`&world` 是第二标记点，`}` 上的一笔说明 `world` 在这里被释放却仍被借用。`assign` 本身没问题，问题是 `&mut T` 对 `T` 不变：`T` 被钉死为 `&'static str`，导致实参 `&world` 必须满足 `'static`。
+**定位路径**：类型标注 `&'static str` 是第一标记点（「要求 `world` 被借用为 `'static`」），`&world` 是第二标记点，`}` 上的一笔说明 `world` 在这里被析构却仍被借用。`assign` 本身没问题，问题是 `&mut T` 对 `T` 不变：`T` 被钉死为 `&'static str`，导致实参 `&world` 必须满足 `'static`。
 
 **修法**：看你要什么。要让 `hello` 真正存下短命引用，就把它的类型改成能表达的关系（用泛型函数或 `&mut &'a str`，别再写死 `'static`）；如果只是想在局部用一下，写成 `&mut &'w str` 或干脆传值。
 
@@ -898,7 +899,7 @@ error[E0392]: lifetime parameter `'a` is never used
 | `E0637` | `` `&` without an explicit lifetime name cannot be used here `` | HRTB | 报错位置是不是 trait 参数里的 `&str` |
 | `E0392` | `lifetime parameter 'a is never used` | `PhantomData` 占位 | 参数是否只在裸指针或 `PhantomData` 之外无处出现 |
 | `E0106` | `missing lifetime specifier` | 省略规则 | 输入里生命周期是否「恰有一个」 |
-| `E0599` | `method not found`（且 impl 带 `for<'a>`） | 闭包没有期望签名 | 闭包是不是先被 `let` 绑定了 |
+| `E0599` | ``no method named `run` found for struct `FirstWord<…>` ``（且 impl 带 `for<'a>`） | 闭包没有期望签名 | 闭包是不是先被 `let` 绑定了/装进结构体字段了 |
 
 ## 小结
 
@@ -933,16 +934,25 @@ where
 }
 ```
 
-**题 3.** 预测下面程序的析构顺序（写出名字序列），并解释：如果把 `Holder` 的 `impl Drop` 删掉，为什么原本「不安全」的例子反而能编译？
+**题 3.** 下面这个程序能编译。回答三问：它的析构顺序是什么？为什么 `data` 必须声明在 `bag` 之前？如果把 `data` 挪回 `Bag` 内部（现场 1 的 `World` 形态）会怎样，此时再删掉 `Holder` 的 `impl Drop` 又会怎样？
 
-```rust,ignore
+```rust
 struct Holder<'a>(&'a u8);
+
 impl<'a> Drop for Holder<'a> {
-    fn drop(&mut self) { println!("{}", self.0); }
+    fn drop(&mut self) {
+        println!("drop Holder({})", self.0);
+    }
 }
+
 struct Bag<'a> {
     holder: Option<Holder<'a>>,
-    data: Box<u8>,
+}
+
+fn main() {
+    let data = Box::new(1);
+    let mut bag = Bag { holder: None };
+    bag.holder = Some(Holder(&data));
 }
 ```
 
@@ -960,17 +970,14 @@ struct Bag<'a> {
 
 不能靠自己的 `<'a>` 解决，是因为函数签名里的 `<'a>` 是**调用方**选择的：调用方传入 `'static` 时，`'a` 就被钉成 `'static`，函数体里那个局部 `String` 显然满足不了。`for<'a>` 放在 trait 约束里，表达的是「对**每一个** `'a` 都成立」，于是函数体可以拿自己造的短命值去调用。实测报错是 `E0597`，关键行是 `` argument requires that `s` is borrowed for `'a` ``——配上 `` lifetime `'a` defined here ``，正好说明 `'a` 是外部给的。
 
-**题 3.** 顺序与 16.4 的表一致：先按逆序析构局部变量，字段/元组按声明顺序。若写作
+**题 3.** 实测输出只有一行：`drop Holder(1)`。顺序与 16.4 的表一致——
 
-```rust,ignore
-let data = Box::new(1);
-let mut bag = Bag { holder: None, data };
-bag.holder = Some(Holder(&bag.data));
-```
+1. 局部变量逆序析构：`bag` 比 `data` 晚声明，所以 `bag` 先走，连带析构它的字段 `holder`（`Option<Holder<'a>>` 里的那个值），于是打印 `drop Holder(1)`；
+2. 然后才轮到 `data`。
 
-那么 `data` 比 `bag` 更早声明、更晚析构，借用与析构的关系是安全的；如果反过来把 `data` 放进 `Bag` 内部（像现场 1 那样），`bag` 的字段 `data` 可能在 `holder` 之前被释放，而 `holder` 的析构可能读到它就报 `E0597`。
+`data` 必须声明在 `bag` 之前，是因为 `bag.holder` 借用了 `data`，而这个借用就写在 `Bag<'a>` 的类型参数里；`Holder` 又实现了 `Drop`，于是 dropck 要求被借用的数据**严格**比持有者活得久——「局部变量逆序析构」正好保证持有者先走。
 
-删掉 `impl Drop` 后能编译，是因为 dropck 的保守性建立在「析构函数里可能有任意代码」的假设上：没有 `Drop` 实现，就没有「析构时访问借用」的可能，检查自然不需要提出「严格活得更久」的要求。（注意这不代表「没有 `Drop` 就永远安全」——只代表这一层检查不再适用。）
+把 `data` 挪回 `Bag` 内部（现场 1 的 `World` 形态）会得到同一条 `E0597`：那时借用指向的是被析构者自己的字段，`holder` 可能先于 `data` 被析构。在这个形态下再删掉 `Holder` 的 `impl Drop`，代码又能编译——dropck 的保守性建立在「析构函数里可能有任意代码」的假设上：没有 `Drop` 实现，就没有「析构时访问借用」的可能，这一层检查不再需要提出「严格活得更久」的要求。（这不代表「没有 `Drop` 就一定安全」，只说明这项检查不适用。）
 </details>
 
 ## 延伸阅读
@@ -980,4 +987,4 @@ bag.holder = Some(Holder(&bag.data));
 - 标准库：`PhantomData`（<https://doc.rust-lang.org/std/marker/struct.PhantomData.html>）、`Drop`（<https://doc.rust-lang.org/std/ops/trait.Drop.html>）、`RefCell`（<https://doc.rust-lang.org/std/cell/struct.RefCell.html>）
 - 版本与发布说明：<https://doc.rust-lang.org/stable/releases.html>（本章引用的 1.91 模式绑定析构顺序、1.98 `&mut` 缩短两条都在这里）
 - RFC：dropck 的 `#[may_dangle]`（<https://github.com/rust-lang/rfcs/blob/master/text/1327-dropck-param-eyepatch.md>）、非参数化 dropck（<https://github.com/rust-lang/rfcs/blob/master/text/1238-nonparametric-dropck.md>）、析构顺序（<https://github.com/rust-lang/rfcs/blob/master/text/1857-stabilize-drop-order.md>）
-- 报错码逐条解释：把编号换成 `E0597`、`E0308`、`E0637`、`E0392`、`E0106`（<https://doc.rust-lang.org/error_codes/E0597.html>）
+- 报错码逐条解释：把错误码换成 `E0597`、`E0308`、`E0637`、`E0392`、`E0106`（<https://doc.rust-lang.org/error_codes/E0597.html>）

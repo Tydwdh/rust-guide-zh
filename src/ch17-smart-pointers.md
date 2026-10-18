@@ -16,9 +16,9 @@
 - 用 `Weak` 剪断引用环，并解释不剪为什么会泄漏；
 - 说清 `RefCell` 的借用检查在运行期是怎么做的、越界时 panic 长什么样、什么时候该改用 `try_borrow`；
 - 用 `Cell` 的 `get`/`set`/`take`/`replace` 写一个「只有 `&self` 也能改」的类型；
-- 判断 `Deref` 自动强转会不会发生、`*x` 到底得到什么，并看懂 `Send`/`Sync` 在这些类型上的分布。
+- 判断 `Deref` 解引用强转会不会发生、`*x` 到底得到什么，并看懂 `Send`/`Sync` 在这些类型上的分布。
 
-本章只讲这些类型的用法与语义：`thread` 与 `Send`/`Sync` 的系统讲解、channel 在第 19 章；原子与内存序在第 20 章；`UnsafeCell` 背后的别名模型在第 35 章。
+本章只讲这些类型的用法与语义：`thread`、`Send`/`Sync` 的系统讲解与 channel 在第 19 章，原子与内存序在第 20 章，别名模型在第 35 章。
 
 ## 为什么这样设计
 
@@ -29,10 +29,10 @@
 | 方案 | 谁决定何时释放 | 代价 |
 |---|---|---|
 | 垃圾回收（Java、Go、Python） | 运行时（GC） | 停顿、额外内存、你无法预知释放时机 |
-| 手动管理（C、C++） | 你 | 忘释放就泄漏；释放两次或提前释放就是未定义行为 |
+| 手动管理（C、C++） | 你 | 忘释放就泄漏；释放两次或提前释放即未定义行为 |
 | 所有权（Rust 默认） | 编译器插入的 `Drop` | 类型系统上的约束 |
 
-Rust 默认方案的好处是释放点由**静态的**所有权规则唯一确定，不需要运行时记账；代价是规则太硬——「两个节点互相当父子」在类型层面根本写不出来。本章的类型都是在某条静态规则的边界上开一个**受控**口子：`Rc`/`Arc` 把计数放到堆上，让多个句柄共享同一份数据；`Cell`/`RefCell`/`Mutex` 把「可变必须独占」的检查挪到运行期或锁上；`Box` 不开任何口子，只是把值搬到堆上。
+Rust 默认方案的好处是析构点由**静态的**所有权规则唯一确定，不需要运行时记账；代价是规则太硬——「两个节点互相当父子」在类型层面根本写不出来。本章的类型都是在静态规则的边界上开一个**受控**口子：`Rc`/`Arc` 把计数放到堆上，让多个句柄共享同一份数据；`Cell`/`RefCell`/`Mutex` 把「可变必须独占」的检查挪到运行期或锁上；`Box` 不开任何口子，只是把值搬到堆上。
 
 ### 「智能指针」在 Rust 里就是 Deref + Drop
 
@@ -115,9 +115,9 @@ sum = 3
 size_of::<List>() = 16
 ```
 
-`List` 的大小是 16 字节：判别字段 4 字节加 4 字节填充，再加一个 8 字节的指针。如果没有 `Box`，`Cons` 的第二个字段就是 `List` 自身，大小会无限展开。
+`List` 的大小是 16 字节：`i32` 占 4 字节，加 4 字节填充，再加 8 字节的 `Box` 指针——`Nil` 折进 `Box` 的空指针 niche，没有独立的判别字段（实测 `Option<Box<u64>>` 是 8 字节；`enum { T(u64, Box<u64>), N }` 若用独立判别字段会占 24 字节，实测 16）。如果没有 `Box`，`Cons` 的第二个字段就是 `List` 自身，大小会无限展开。
 
-**`Box<T>` 的指针开销就是一个机器字**（本机 1.98、x86_64 下实测）：
+**`Box<T>` 的指针开销就是一个机器字**（1.98、x86_64 实测）：
 
 | 类型 | `size_of` |
 |---|---|
@@ -169,9 +169,9 @@ b 看到的内容：共享的字符串
 - **计数清零时释放**：上面 `drop(a); drop(b);` 之后 `w.upgrade()` 变成 `None`。
 - **`Weak` 不参与放行**：只有强引用归零，内容才被 drop。
 
-`Arc<T>` 是 `Rc<T>` 的原子版本（Arc = Atomically Reference Counted），唯一差别很关键：`Rc` 的计数是普通整数，`Arc` 的是原子操作。std 的 `Send` 文档把理由写得很明确——两个线程同时 clone 同一份数据的 `Rc`，计数更新就撞车，那就是未定义行为；`Arc` 用原子操作（有点开销），所以可以 `Send`。Nomicon 更短：Rc isn't Send or Sync (because the refcount is shared and unsynchronized)。
+`Arc<T>` 是 `Rc<T>` 的原子版本（Arc = Atomically Reference Counted），唯一差别很关键：`Rc` 的计数是普通整数，`Arc` 的是原子操作。std 的 `Send` 文档把理由写得很明确——两个线程同时 clone 同一份数据的 `Rc`，计数更新就撞车，那是未定义行为；`Arc` 用原子操作（有点开销），所以可以 `Send`。Nomicon 更短：Rc isn't Send or Sync (because the refcount is shared and unsynchronized)。
 
-**结论**：单线程一律用 `Rc`，跨线程才付 `Arc` 的原子代价。C++ 的 `shared_ptr` 没有这个选择——它的计数就是原子的（见语言对照角）。
+**结论**：单线程用 `Rc`，跨线程才付 `Arc` 的原子代价；C++ 的 `shared_ptr` 没这个选择，计数天然原子（见语言对照角）。
 
 ### Weak\<T\>：不增加强引用的那条边
 
@@ -250,14 +250,14 @@ drop a
 要点：
 
 - 用 `Rc::downgrade(&rc)` 拿到 `Weak`；想用先 `upgrade()`，它返回 `Option<Rc<T>>`——**弱引用随时可能失效**，这个 `Option` 就是处理它的地方。
-- 谁该是弱边？**看方向**：谁「天然活得更久」，谁持强引用。典型是父指针：父目录强引用子目录，子目录只留 `Weak`。本章「动手看看」的目录树就这么写。
-- `Weak::new()` 造的是「不指向任何分配」的弱引用，`upgrade()` 永远返回 `None`，适合当占位初值。
+- 谁该是弱边？**看方向**：谁「天然活得更久」谁持强引用。典型是父指针：父目录强引用子目录，子目录只留 `Weak`（「动手看看」的目录树就这么写）。
+- `Weak::new()` 造的是「不指向任何分配」的弱引用，`upgrade()` 永远返回 `None`，适合当占位值。
 
 `Arc` 也有对应的 `std::sync::Weak`，语义一致，只是计数是原子的。
 
 ### Cell\<T\>：值进，值出
 
-`Cell<T>` 解决的是最窄的问题：**我只有 `&self`，但要换掉里面的值**。做法是彻底回避引用——你永远拿不到 `&T`，只能把值搬进搬出。std 文档的定位是：适合复制/移动成本低的简单类型（如数字），能用 `Cell` 就别用 `RefCell`。
+`Cell<T>` 解决的是最窄的问题：**我只有 `&self`，但要换掉里面的值**。做法是彻底回避引用——你永远拿不到 `&T`，只能把值搬进搬出。std 文档的定位是：适合复制/移动成本低的简单类型（如数字），能用它就别用 `RefCell`。
 
 ```rust
 use std::cell::Cell;
@@ -308,7 +308,7 @@ hits = 2
 | `set(v)` | — | 换上新值，旧值被 drop |
 | `replace(v)` | — | 换上新值，**返回**旧值 |
 | `take()` | `T: Default` | 把值拿走，留下 `T::default()` |
-| `update(f)` | — | 用 `f(&mut T)` 就地改（1.88 起稳定） |
+| `update(f)` | — | 把当前值交给 `f`，用返回值替换（`FnOnce(T) -> T`；1.88 起） |
 | `into_inner()` | — | 消耗 `Cell`，把值取出来 |
 
 `get()` 要求 `Copy` 不是刁难：它必须复制一份出来，否则同一时刻就有两个所有者。所以 `Cell<String>` 上写 `.get()` 会编译失败（报错现场三），该用 `take()` 或 `replace()`。
@@ -358,7 +358,7 @@ try_borrow_mut -> Err(BorrowMutError)
 - 不想 panic 就用 `try_borrow()` / `try_borrow_mut()`，返回 `Result<_, BorrowError>` / `Result<_, BorrowMutError>`；std 的方法文档也这么建议（For a non-panicking variant, use `try_borrow`）。「失败可以被处理」的场合该选它。
 - `RefCell<T>` 不会让「两个 `&mut` 同时存在」变成 UB，它只是 panic。代价是多一个借用计数：实测 `RefCell<u64>` 是 16 字节，`RefCell<String>` 是 32 字节。
 
-`Rc<RefCell<T>>` 是单线程里最常见的组合：`Rc` 提供共享，`RefCell` 提供可变。std 文档给的正是这个用法，并顺手警告：没让上一个借用先离开作用域，下一次借用就会造成 dynamic thread panic，这是使用 `RefCell` 的主要危险。
+`Rc<RefCell<T>>` 是单线程里最常见的组合：`Rc` 提供共享，`RefCell` 提供可变。std 文档给的正是这个用法，并警告：上一个借用没先离开作用域，下一次借用就会造成 dynamic thread panic——用 `RefCell` 的主要危险。
 
 > [!WARNING]
 > `RefCell` 的 panic 是**运行期**的：编译器不会替你挡住它，测试没跑到那条路径就看不出来。看到 `Rc<RefCell<T>>` 时先问：所有借用的作用域能一眼看清吗？看不清就别用它。
@@ -407,8 +407,8 @@ counter = 4000
 四个要点：
 
 - **`Arc<Mutex<T>>` 是共享可变状态的默认答案**（第 19 章展开）：`Arc` 管「多个人持有同一份」，`Mutex` 管「同一时刻只有一个人在改」。持锁期间给的是独占访问，所以 `Mutex<T>: Sync` 只要求 `T: Send`，**不要求 `T: Sync`**。
-- **guard 就是锁的生命周期**。`lock()` 返回 `MutexGuard<'_, T>`，它实现 `Deref`/`DerefMut`，所以能直接 `*guard += 1`；guard 被 drop 时自动解锁。你不需要（也无法）手工解锁。
-- **中毒只值一句**：持锁期间 panic 会把锁标记为「中毒」，之后 `lock()` 返回 `Err(PoisonError)`；中毒只是建议性的，`PoisonError::into_inner()` 能把 guard 取回来。所以绝大多数代码里 `.unwrap()` 是对的——它把「某个线程在临界区崩了」传播出去，而不是悄悄放过。
+- **guard 就是锁的生命周期**。`lock()` 返回 `MutexGuard<'_, T>`，它实现 `Deref`/`DerefMut`，所以能直接 `*guard += 1`；guard 被 drop 时自动解锁，不需要（也无法）手工解锁。
+- **中毒只值一句**：持锁期间 panic 会把锁标记为「中毒」，之后 `lock()` 返回 `Err(PoisonError)`；中毒只是建议性的，`PoisonError::into_inner()` 能把 guard 取回来。所以绝大多数代码里 `.unwrap()` 是对的——它把「某个线程在临界区崩了」传出去，而不是悄悄放过。
 - **`RwLock` 的读锁可并存**，因此读多写少才划算；它的 `Sync` 要求 `T: Send + Sync`，比 `Mutex` 严（多个线程会同时拿着 `&T`）。1.92 起 `RwLockWriteGuard::downgrade` 能把写锁降级为读锁（写成 `RwLockWriteGuard::downgrade(guard)`）。
 
 > [!NOTE]
@@ -416,7 +416,7 @@ counter = 4000
 
 ### OnceLock 与 LazyLock：只初始化一次的全局
 
-配置、正则、静态查找表这类「只写一次」的值，标准库自带支持：`OnceCell`/`LazyCell` 是单线程版，`OnceLock`（1.70 起）/ `LazyLock`（1.80 起）带锁、可以直接放进 `static`；`LazyLock` 实现了 `Deref`，`*CONFIG` 就足以触发初始化。
+配置、正则、静态查找表这类「只写一次」的值，标准库自带支持：`OnceCell`/`LazyCell` 是单线程版，`OnceLock`（1.70）/`LazyLock`（1.80）带锁、可放进 `static`；`LazyLock` 实现了 `Deref`，`*CONFIG` 就能触发初始化。
 
 ```rust
 use std::sync::LazyLock;
@@ -445,7 +445,7 @@ UFCS 取引用：loaded.toml
 `LazyLock` 实现了 `Deref`，所以 `*CONFIG` 就足以触发初始化。
 
 > [!WARNING]
-> `force`/`get`/`get_mut`/`force_mut` 不能用方法语法调用：标准库把它们声明成显式接收者 `this: &LazyLock<T, F>`，而 stable 上「带名字的 `this` 接收者」只是关联函数——`lazy.force()` 报 E0599（this is an associated function, not a method），得写 `LazyLock::force(&CONFIG)` 或走 `Deref`。`force` 从 1.80 起就是这个形式，不是新坑。
+> `force`/`get`/`get_mut`/`force_mut` 不能用方法语法调用：它们的接收者是显式写的 `this: &LazyLock<T, F>`（`force`/`get`）或 `this: &mut LazyLock<T, F>`（`get_mut`/`force_mut`），而带名字的 `this` 接收者在 stable 上只是关联函数——`lazy.force()` 报 E0599（this is an associated function, not a method），得写 `LazyLock::force(&CONFIG)` 或走 `Deref`（`*CONFIG`）。版本：`force` 从 1.80 起就是这样（不是新坑），`get`/`get_mut`/`force_mut` 1.94 才稳定。
 
 ### Cow：写时克隆
 
@@ -485,17 +485,17 @@ c = "abc123!"，是借用吗 false
 
 - `Cow<'a, B>` 只有两个变体：`Borrowed(&'a B)` 和 `Owned(<B as ToOwned>::Owned)`；它实现了 `Deref<Target = B>`，所以读的时候像 `&str` 一样用。
 - `to_mut()` 是分水岭：当前是 `Borrowed` 就先 **clone** 成 `Owned` 再返回 `&mut`，已经是 `Owned` 就直接返回。`into_owned()` 类似，要的是所有权。
-- 值得用的场合是**「大多数调用不需要改」**——函数返回值、结构体字段、配置项。如果每次都要改，`Cow` 只是把一次 clone 换成一次枚举分支，不如直接要 `String`。
+- 值得用的场合是**「大多数调用不需要改」**——函数返回值、结构体字段、配置项；每次都要改就不如直接要 `String`（`Cow` 只是把一次 clone 换成一个枚举分支）。
 
-顺带一提：想要 `Rc`/`Arc` 版的写时克隆，标准库给了 `Rc::make_mut` 和 `Arc::make_mut`。
+想要 `Rc`/`Arc` 版的写时克隆，标准库给了 `Rc::make_mut` 和 `Arc::make_mut`。
 
-### Deref 与 DerefMut：自动强转的来路与边界
+### Deref 与 DerefMut：解引用强转的来路与边界
 
 前面所有类型「用起来像它包的东西」，靠的都是 `Deref`。这一节讲清它到底做了什么、什么时候不生效。
 
-**`*x` 是什么**。std 文档的原文是：In immutable contexts, `*v` (where `T` is neither a reference nor a raw pointer) is equivalent to `*Deref::deref(&v)`.——即不可变上下文里，当 `T` 既不是引用也不是裸指针时，`*v` 等价于 `*Deref::deref(&v)`；可变上下文走 `DerefMut`。`*` 不是魔法，它只是调了一次你自己实现的 `deref`。
+**`*x` 是什么**。std 文档的原文是：In immutable contexts, `*v` (where `T` is neither a reference nor a raw pointer) is equivalent to `*Deref::deref(&v)`.——即不可变上下文里，当 `T` 既不是引用也不是裸指针时，`*v` 等价于 `*Deref::deref(&v)`；可变上下文走 `DerefMut`。`*` 不是魔法，它只调了一次你自己实现的 `deref`。
 
-**自动强转（deref coercion）**发生在有明确类型要求的**位置**上。Rust Reference 列出的规则之一是：`&T` 或 `&mut T` 能转成 `&U`，条件是 `T: Deref<Target = U>`。实测一下边界：
+**解引用强转（deref coercion）**发生在有明确类型要求的**位置**上。Rust Reference 列出的规则之一是：`&T` 或 `&mut T` 能转成 `&U`，条件是 `T: Deref<Target = U>`。实测一下边界：
 
 ```rust
 fn takes_str(s: &str) -> usize {
@@ -510,8 +510,8 @@ fn main() {
     let s = String::from("hello");
     println!("&String 传给 &str：{}", takes_str(&s));
 
-    let m = String::from("world");
-    println!("&mut String 传给 &str：{}", takes_str(&m));
+    let mut m = String::from("world");
+    println!("&mut String 传给 &str：{}", takes_str(&mut m));
 
     let r = &&s;
     println!("&&String 也能传：{}", takes_str(r));
@@ -572,9 +572,9 @@ w.name() -> Wrapper
 (*w).name() -> Inner
 ```
 
-外层自己的方法先被找到，`Inner` 的同名方法**被遮蔽**：`w.name()` 永远调不到它，必须写 `(*w).name()`。std 的 `Deref` 文档把这条列为「不该实现 `Deref`」的头号理由——类型若有和 `Target` 同名的方法、或强转会让人意外，就别实现它；要「换个视角看内部数据」，用 `AsRef`/`Borrow`。
+外层自己的方法先被找到，`Inner` 的同名方法**被遮蔽**：`w.name()` 永远调不到它，必须写 `(*w).name()`。std 的 `Deref` 文档把这条列进「不该实现 `Deref`」的三条理由之一（另两条：解引用可能意外失败、承诺公开 API 代价太大）——类型若有和 `Target` 同名的方法、或强转会让人意外，就别实现它；要「换个视角看内部数据」，用 `AsRef`/`Borrow`。
 
-**最后一条边界：`*` 能不能把值搬出来。** 字符串字面量那种例子容易让人以为 `*` 总是复制或移动，其实不是：
+**最后一条边界：`*` 能不能把值搬出来。** `*` 并不总是复制或移动：
 
 ```rust
 fn main() {
@@ -603,7 +603,7 @@ Box<[i32]> 长度 3
 - `&mut T` 是 `Send`，当且仅当 `T` 是 `Send`；
 - `&T` 与 `&mut T` 都是 `Sync`，当且仅当 `T` 是 `Sync`。
 
-下面是本章各类型的自动实现（每一格取自 1.98 的 rustdoc 自动 trait 实现列表；`T` 指内层类型）：
+下面是本章各类型的实现，每一格取自 1.98 各类型页的 `Send`/`Sync` 实现——多数写在 Trait Implementations 段，`Box`、`Cow`、`UnsafeCell` 的 `Send`、`LazyLock` 的 `Send` 写在 Auto Trait Implementations 段（`T` 指内层类型）：
 
 | 类型 | `Send` | `Sync` | 为什么 |
 |---|---|---|---|
@@ -625,7 +625,7 @@ Box<[i32]> 长度 3
 2. **`Arc<T>` 两个约束都要满足 `T: Send + Sync`**，这是最容易记错的一格：`Arc` 生来被多方持有，`&T` 必然出现在别的线程（要 `Sync`），而最后一个句柄可能在任意线程 drop（要 `Send`）。
 3. **`Mutex<T>` 的 `Sync` 只要 `T: Send`**：锁保证同一时刻只有一个访问者，内层不必 `Sync`。所以 `Mutex<RefCell<i32>>` 能编译。
 
-这张表最实用的用法是当「换件清单」：报错说某类型 `cannot be sent/shared between threads safely` 时，找它所在的格，换成「跨线程」那一列。`Rc` 换 `Arc`，`Rc<RefCell<T>>` 换 `Arc<Mutex<T>>`（读多写少时 `Arc<RwLock<T>>`）。
+这张表最实用的用法是当「换件清单」：报错说某类型 `cannot be sent/shared between threads safely` 时，找它所在的格，换成「跨线程」那一列——`Rc` 换 `Arc`，`Rc<RefCell<T>>` 换 `Arc<Mutex<T>>`。
 
 ## 动手看看
 
@@ -664,15 +664,15 @@ src 的强引用数 = 3
 
 最后三行最该带走。`Rc::strong_count(&src)` 是 3：握着 `src` 的有三处——`root.children` 里的一份、局部变量 `src`、`Rc::clone` 出来的 `same_src`。`root` 与 `src` 都 drop 之后，局部 `util` 还活着（它自己也是一个强引用），但它指向的父目录已释放，于是 `util.parent.upgrade()` 返回 `None`，`path()` 顺着父指针往上走也拿到 `None`，退化成 `"/"`。
 
-**弱引用不会报错，只会告诉你「那头没了」**。所以用 `Weak` 的代码必须把 `upgrade()` 的 `Option` 当正常情况处理——和 `RefCell` 的 panic 相对，这里没有崩溃，只有「安静地退化」这种更难查的 bug。
+**弱引用不会报错，只会告诉你「那头没了」**。所以用 `Weak` 的代码必须把 `upgrade()` 的 `Option` 当正常情况处理——和 `RefCell` 的 panic 相对，这里不会 panic，只有「安静地退化」这种更难查的 bug。
 
 ## 报错现场
 
-下面四条是最容易撞上的。行号列号按「最小复现放进 `src/main.rs`」给出，无关输出已删；编译器 1.98。
+下面四条最容易撞上。行号列号按「最小复现放进 `src/main.rs`」给出，无关输出已删；编译器 1.98。
 
 ### 现场一：`Rc` 进不了线程（E0277）
 
-把单线程的共享类型丢给线程，是最常见的一次试错：
+把单线程的共享类型丢给线程，是最常见的试错：
 
 ```rust,compile_fail
 use std::rc::Rc;
@@ -748,7 +748,7 @@ fn main() {
 }
 ```
 
-1.98 实测输出（首行是带线程号的 panic 头，第二行才是要记住的）：
+1.98 实测输出（首行是带线程号的 panic 头，第二行才是要记的）：
 
 ```text
 thread 'main' (29588) panicked at src/main.rs:7:15:
@@ -777,7 +777,7 @@ fn main() {
 现在 15
 ```
 
-另一种是换成 `try_borrow`：
+或者换成 `try_borrow`：
 
 ```rust
 use std::cell::RefCell;
@@ -797,10 +797,10 @@ fn main() {
 拿到 5
 ```
 
-**什么时候用哪个**：借用冲突属于「代码逻辑坏了」时用 `borrow` + panic（测试会立刻发现）；属于「外部输入决定的正常分支」时用 `try_borrow` + 处理 `Err`。判据与第 7 章 panic 和 `Result` 的取舍一样。
+**用哪个**：借用冲突属于「代码逻辑坏了」时用 `borrow` + panic（测试立刻发现）；属于「外部输入决定的正常分支」时用 `try_borrow` + 处理 `Err`（判据同第 7 章）。
 
 > [!TIP]
-> 更隐蔽的变体：`if let Some(&first) = c.borrow().first() { c.borrow_mut().push(first); }` 同样 panic。原因不在 `borrow_mut`，而在 `if let`——`c.borrow()` 的临时值会一直活过整个 `then` 块（edition 2024 对该作用域的调整只影响 `else` 分支）。练习 2 分析它并给出修法。
+> 更隐蔽的变体：`if let Some(&first) = c.borrow().first() { c.borrow_mut().push(first); }` 同样 panic。原因不在 `borrow_mut` 而在 `if let`——`c.borrow()` 的临时值会一直活过整个 `then` 块（edition 2024 对该作用域的调整只影响 `else` 分支）。练习 2 有分析和修法。
 
 ### 现场三：`Cell::get` 要求 `Copy`（E0599）
 
@@ -825,7 +825,7 @@ error[E0599]: the method `get` exists for struct `Cell<String>`, but its trait b
             `String: Copy`
 ```
 
-`get` 必须复制一份给你，所以内层得是 `Copy`。换方法就好：拿走用 `take()`，换新值并取出旧值用 `replace()`（都不要求 `Copy`）。
+`get` 必须复制一份给你，所以内层得是 `Copy`。换方法就好：拿走用 `take()`，换新值并取旧值用 `replace()`。
 
 ### 现场四：`*rc` 搬不出内容（E0507）
 
@@ -856,7 +856,9 @@ help: consider cloning the value if the performance cost is acceptable
 9 +     let t: String = r.clone();
 ```
 
-编译器把两条路都写出来了，取哪条取决于你要「句柄」还是「内容」：`r.clone()` 复制**句柄**（多一个所有者，内容共享），`(*r).clone()` 复制**内容**；确定是最后一个句柄时，`Rc::try_unwrap(r)` 能把内容原样取出。`Box` 是唯一允许 `*b` 直接搬走的智能指针，因为堆上那块内存只有它知道。
+编译器把两条路都写出来了，取哪条取决于你要「句柄」还是「内容」：`r.clone()` 复制**句柄**（多一个所有者，内容共享），`(*r).clone()` 复制**内容**；确定是最后一个句柄时 `Rc::try_unwrap(r)` 能把内容原样取出。`Box` 是唯一允许 `*b` 直接搬走的智能指针，因为堆上那块内存只有它知道。
+
+那条 `help` 要留心：它建议的 `r.clone()` 换的是**句柄**，照抄会报 E0308（`expected String, found Rc<String>`）——它不是能直接抄的修法；要拿 `String` 得写 `(*r).clone()`。
 
 ## 小结
 
@@ -865,12 +867,12 @@ help: consider cloning the value if the performance cost is acceptable
 - `Rc::clone` 只加计数；`Weak` 不计入强引用，用来剪断引用环，但必须处理 `upgrade() == None`。
 - `Cell` 只搬值（`get` 要 `Copy`、`take` 要 `Default`、`replace` 换出旧值）；`RefCell` 把别名规则挪到运行期，冲突即 panic，可预期时用 `try_borrow`——**guard 的作用域就是借用本身**。
 - `Mutex<T>` 是跨线程的 `RefCell`，guard 即锁；持锁 panic 会「中毒」，`.unwrap()` 是传播它的正常做法。
-- `Deref` 自动强转只发生在类型明确的位置（泛型参数处不会），方法解析「先近后远」故外层同名方法遮蔽内层；`*box` 能搬出内容，`*rc` 不能。
+- `Deref` 解引用强转只发生在类型明确的位置（泛型参数处不会发生），方法解析「先近后远」故外层同名方法遮蔽内层；`*box` 能搬出内容，`*rc` 不能。
 - `Rc` 既非 `Send` 也非 `Sync`；`Cell`/`RefCell` 在 `T: Send` 时是 `Send`，但都不是 `Sync`。跨线程按分布表换件：`Rc<RefCell<T>>` → `Arc<Mutex<T>>`。
 
 ## 练习
 
-**1. 预测编译结果。** 下面两段代码只差一个类型，哪段能编译、哪段不能？不能的那段报的是哪个 trait 的错？
+**1. 预测编译结果。** 下面两段只差一个类型：哪段能编译、哪段不能？不能的那段报的是哪个 trait 的错？
 
 ```rust,compile_fail
 use std::rc::Rc;
@@ -907,7 +909,7 @@ note: required because it's used within this closure
 note: required by a bound in `spawn`
 ```
 
-原因在**闭包捕获了什么**：`move ||` 把 `m`（`Rc<i32>`）搬进闭包体，而 `thread::spawn` 要求 `F: Send + 'static`，于是要求 `Rc<i32>: Send`。缺的是 `Send` 而非 `Sync`——正对应 `Rc` 那一格的「否/否」：非原子计数让它连「整块搬过去」都不安全，因为另一个线程还能 clone 同一个分配。`Arc<i32>` 能过，是因为 `i32: Send + Sync` 都满足。
+原因在**闭包捕获了什么**：`move ||` 把 `m`（`Rc<i32>`）搬进闭包体，而 `thread::spawn` 要求 `F: Send + 'static`，于是要求 `Rc<i32>: Send`。缺的是 `Send` 而非 `Sync`——正对应 `Rc` 那一格的「否/否」：非原子计数让它连「整块搬过去」都不安全（另一个线程还能 clone）。`Arc<i32>` 能过，因为 `i32: Send + Sync` 都满足。
 
 常见误区：`Rc` 不能跨线程**不是因为「共享」本身**，而是因为那个计数器没有同步；`Arc` 的原子计数就是为此付的价钱。
 
@@ -972,7 +974,7 @@ fn main() {
 
 <details><summary>参考答案</summary>
 
-`T: Sync` 的定义是「`&T` 可以跨线程传」（std 文档原文：a type `T` is `Sync` if and only if `&T` is `Send`）。
+`T: Sync` 的定义是「`&T` 可以跨线程传」（std 原文：a type `T` is `Sync` if and only if `&T` is `Send`）。
 
 而它们的意义就是「拿着 `&Cell<T>` 就能改里面的值」——`Cell::set` 与 `RefCell::borrow_mut` 的接收者都是 `&self`。若实现了 `Sync`，两个线程就能各拿一个 `&Cell<T>` 同时 `set`（或各拿 `RefMut`）而**毫无同步**，那正是数据竞争、即未定义行为，所以必须 `!Sync`。
 
@@ -990,12 +992,12 @@ fn main() {
 
 ## 延伸阅读
 
-- The Book 第 15 章《Smart Pointers》（`Box`、`Deref`、`Drop`、`Rc`、`RefCell` 的入门版）：<https://doc.rust-lang.org/book/ch15-00-smart-pointers.html>
+- The Book 第 15 章《Smart Pointers》（`Box`/`Deref`/`Drop`/`Rc`/`RefCell` 入门）：<https://doc.rust-lang.org/book/ch15-00-smart-pointers.html>
 - `std::cell` 模块文档（四种 cell 的对照、什么时候该用内部可变性）：<https://doc.rust-lang.org/std/cell/index.html>
 - `std::rc`（`Rc`/`Weak`、`strong_count`/`downgrade`）：<https://doc.rust-lang.org/std/rc/index.html>
 - `std::sync`（`Arc`/`Mutex`/`RwLock`/`OnceLock`/`LazyLock` 全在这页）：<https://doc.rust-lang.org/std/sync/index.html>
 - `std::borrow::Cow`（`to_mut`/`into_owned`）：<https://doc.rust-lang.org/std/borrow/enum.Cow.html>
-- `std::ops::Deref`（自动强转的定义，以及「什么时候不该实现 `Deref`」的清单）：<https://doc.rust-lang.org/std/ops/trait.Deref.html>
+- `std::ops::Deref`（解引用强转的定义，以及「什么时候不该实现 `Deref`」的清单）：<https://doc.rust-lang.org/std/ops/trait.Deref.html>
 - `std::marker::Send` 与 `std::marker::Sync`（判据与引用类型的对应关系）：<https://doc.rust-lang.org/std/marker/trait.Send.html>、<https://doc.rust-lang.org/std/marker/trait.Sync.html>
 - The Rust Reference：内部可变性（<https://doc.rust-lang.org/reference/interior-mutability.html>）、方法调用表达式里的自动解引用顺序（<https://doc.rust-lang.org/reference/expressions/method-call-expr.html>）、类型强转清单（<https://doc.rust-lang.org/reference/type-coercions.html>）
 - The Nomicon：`Send`/`Sync` 与 `unsafe impl`（<https://doc.rust-lang.org/nomicon/send-and-sync.html>）、锁中毒（<https://doc.rust-lang.org/nomicon/poisoning.html>）

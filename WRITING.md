@@ -124,6 +124,7 @@ mdbook build
 - `mdbook test -c <章>` 只认 **SUMMARY 里已挂的章**；参数是 src 相对路径（`ch01-….md`，不是 `src/ch01-….md`）或章标题，找不到就报 `ERROR Chapter not found`。
 - `compile_fail,E····`（校验具体错误码）是 **nightly-only**（实测 stable 1.98 不校验、静默通过）→ 正文统一用稳定的 `rust,compile_fail`，错误码放进紧跟的输出块与叙述里。
 - 含 `#[test]` / `#[cfg(test)]` 的块**不被编译**（cfg 排除，假绿）→ 测试类演示要配可跑 crate + `cargo test` 证据（见 §1 硬规则）。
+- **方括号文本会被 linkcheck2 当成潜在链接**（`[…]`、`[class.virtual]`、以及被嵌套反引号断开的代码 span 里的 `[...]`）→ 引文省略号写 `\[…\]`，条款编号等用行内代码，代码 span 里含反引号时用**双反引号**包住（第 13/18 章实测踩过）。
 
 ## 8. 并行写作批次（批次协议）
 

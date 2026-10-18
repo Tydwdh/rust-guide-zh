@@ -41,3 +41,20 @@ Status: claimed
   1. 「同一处语法、两处相反的角色」：APIT（调用者选类型 → 函数）与 RPIT（函数选类型 → 调用者）的左右方向对照图。
   2. 捕获集合示意：`fn evens(xs: &'a [u32]) -> impl Iterator<Item = u32>` 的作用域内参数与 `use<..>` 筛选结果，2021 vs 2024 两列勾/叉对比（可附「多捕 → 调用者约束紧」的箭头）。
   3. RPIT / `Box<dyn>` / enum 三条路的分派方式与分配代价对照图（表格已能说清，属可选）。
+
+- 2026-10-18 审校修回（RvCh14：2 blocker + 4 major + 8 minor；协调者转达）：
+  - **blocker 1**（表「调用者能要求什么」）：`-> Box<dyn Trait>` 一格改为「只有签名里显式写出来的那些（如 `dyn Trait + Send`）」，表下补 auto trait 的定义（此处理论首现）与两侧对照，引实测关键行 ``error[E0277]: `dyn Foo` cannot be sent between threads safely`` 与 ``= help: the trait `Send` is not implemented for `dyn Foo` ``。新探针：`Box<dyn Foo>` 交给 `fn needs_send<T: Send>` 编译失败，`Box<dyn Foo + Send>` 通过（输出 `ok`）。
+  - **blocker 2**（AFIT 小节结尾 + 练习 3 修法二）：`Box<dyn Future<…> + Send + '_>` 改为 `Pin<Box<dyn Future<…> + Send + '_>>`；删掉「不动 trait」「不必让实现者承担 `Send` 义务」两句，改为「把 future 装箱进 `Pin<Box<…>>`；代价是每次调用一次堆分配」；补一行说明：裸 `Box<dyn Future>` 因 `!Unpin` 连 `.await` 都用不了（实测 ``error[E0277]: `dyn Future<Output = Vec<u8>> + Send` cannot be unpinned`` 与 ``= note: required for `Box<dyn Future<Output = Vec<u8>> + Send>` to implement `Future``）。**真跑验证**：`.scratch/tmp-25b/src/main.rs`（`Pin<Box<dyn Future>>` 版 trait + 一个 `Box::pin` + `Waker::noop()` + `Context::from_waker` 的极简 `block_on`）驱动 `async fn run_it(l) { l.load().await }` → `rustc --edition 2024` rc=0，运行输出 `[1, 2, 3]`；章内练习答案的代码块也随 `mdbook test` 编译通过。
+  - **major 3**：`type_name_of_val` 的输出改为真实前缀 `main::values::{{closure}}`（`rustc --crate-name main` 实测），并加「前缀是 crate 名，随 crate 名与模块路径变化」。
+  - **major 4**（报错现场 §6）：按真实输出重抄：`--> src/main.rs:8:27`、`fn generic` 在第 1 行、`the expected/found opaque type` 两行、caret 落在 `d` 下、两行 `= note:`。
+  - **major 5**：编译器 help 逐字改回 `2 +     fn run(&self) -> impl std::future::Future<Output = u32> + Send;`，并注明「编译器写全路径，2024 prelude 已有 `Future`，本书示例用简称」，同时补回被跳过的 `| required by a bound introduced by this call` 与 `note: required by a bound in needs_send` 段。
+  - **major 6**：GLOSSARY 的 `_Avoid_: 隐藏类型` 由协调者修；正文用词不动，仍在首现处补了「隐藏类型（hidden type，即不透明类型背后那个具体类型）」。
+  - **minor 7**：Repo 的 `use<..>` 摘录补上真实的 E0309（含 span、`T: 'a` 的 help）作为第一条错误，`T: 'a` 的解释随之前移。
+  - **minor 8**：lint 改为规范名 `impl_trait_overcaptures`（注明 CLI 也接受连字符），并补一个可编译的 `fn f<'a>(x: &'a ()) -> impl Sized { *x }` 代码块 + 真实 edition 2021 输出（含 `--> src/main.rs:1:6`、`^^`、`= note: requested on the command line with `-W impl-trait-overcaptures``）。
+  - **minor 9**：「生命周期参数要写在类型与 const 参数之前」。
+  - **minor 10**：关联类型位置的 `> [!WARNING]` 改为「以最小复现 `type Out = impl Iterator<Item = u32>;` 为例」，并说明本机最小复现只报 1 条 E0658 + issue #63063 note（不同写法会连带出 `E0562` 等）。
+  - **minor 11**：练习 2 答案改用真实诊断类型：`std::iter::Once<u32>` 与 `Map<std::ops::Range<{integer}>, {closure@src/main.rs:5:20: 5:23}>`（并说明 `{integer}` 的来历）。
+  - **minor 12**：所有诊断摘录重抄为**真实输出的连续片段**（E0107 补 `note: function defined here` 段、pick 补 `expected because of this`、E0038 补 `-->` 与 trait 上下文两行、E0597 补 `6/7/8/9` 行与 `- `a` dropped here…` 收尾、E0562 补 issue #63065 note、overcaptures 补 `-->`+`^^` 与 CLI note）；一处无法完整展示的（`capture` 的第二条 help、`b` 的第二条 E0597）在块外用「（…略。）」注明。复核方式：脚本把章内 12 个诊断块的每一行与真实 rustc 输出逐行比对（全部逐字命中），并验证每块都是真实输出的连续片段（允许 `...` 省略），**0 处跨位置拼接**；另校验 5 条行内引用的关键行也在真实输出中命中。
+  - **minor 13**：「第 21 章的执行器正是这么要求的」。
+  - **minor 14**：新术语首现处补齐：隐藏类型（hidden type）、精确捕获（precise capturing，也就是 `use<..>`）、RPITIT 全称 `return-position impl Trait in trait`、AFIT 展开 `` `async fn in trait` ``、auto trait 的一句定义。
+  - 复跑结果：`mdbook test -c ch14-impl-trait-opaque.md` → exit 0；注入必失败块得 `test result: FAILED. 32 passed; 1 failed; 0 ignored`（随后还原并复跑 exit 0），当前章内共 32 个受测块（21 `rust` + 11 `rust,compile_fail`）+ 23 个 `text` 块，0 ignored；汉字 4398 → 4781（仍在 4000–5500）。

@@ -48,7 +48,9 @@ fn evens(xs: &[u32]) -> impl Iterator<Item = u32> {
 | 分派方式 | 静态：单态化后直接调用、可内联 | 动态：查 vtable |
 | 额外分配 | 无 | 每次装箱一次堆分配 |
 | 一个位置能装几种类型 | 一种（所有返回路径必须同一具体类型） | 任意多种 |
-| 调用者能要求什么 | 写出来的 trait 约束，外加透传的 auto trait（见后） | 同左 |
+| 调用者能要求什么 | 写出来的 trait 约束，外加具体类型透传过来的 auto trait | 只有签名里显式写出来的那些（如 `dyn Trait + Send`） |
+
+auto trait（自动 trait：`Send`、`Sync` 这类由编译器为每个类型自动推导的 trait）在两侧行为不同：`impl Trait` 会把隐藏类型的 auto trait 带出来，`dyn Trait` **不会**——它只承认写在类型里的那些。把 `Box<dyn Foo>` 交给 `fn needs_send<T: Send>(_: T)`，实测关键行是 ``error[E0277]: `dyn Foo` cannot be sent between threads safely`` 与 ``= help: the trait `Send` is not implemented for `dyn Foo` ``；写成 `Box<dyn Foo + Send>` 才能通过（第 13 章讲过 auto trait 在 trait 对象类型里的位置）。`impl Trait` 一侧的透传细节见「不透明的边界」。
 
 （`dyn` 一侧的兼容性规则见第 13 章。）
 
@@ -58,7 +60,7 @@ fn evens(xs: &[u32]) -> impl Iterator<Item = u32> {
 
 这也解释了两者的另一处差别。`fn make<T: Trait>() -> T` 里返回类型由**调用者**决定，`fn make() -> impl Trait` 里由**函数**决定。想让调用者挑实现，用泛型参数（第 9、12 章）；想让函数自己挑实现、把选择留在库内部，用 RPIT。
 
-还要记住边界：RPIT 藏掉的是**名字与身份**，不是行为。调用者仍然按你写出来的约束使用返回值；函数内部把隐藏类型换成一个满足同样约束的类型，调用方通常不用改——这正是 RPIT 在 API 设计里的主要卖点（例外是 auto trait，见「不透明的边界」）。
+还要记住边界：RPIT 藏掉的是**名字与身份**，不是行为。调用者仍然按你写出来的约束使用返回值；函数内部把隐藏类型（hidden type，即不透明类型背后那个具体类型）换成一个满足同样约束的类型，调用方通常不用改——这正是 RPIT 在 API 设计里的主要卖点（例外是 auto trait，见「不透明的边界」）。
 
 ## 机制与规则
 
@@ -181,7 +183,7 @@ true
 - **类型与 const 参数**：所有 edition 都自动捕获。Edition Guide 的说法是「In all editions, all in-scope type and const generic parameters are captured implicitly when the `use<..>` bound is not present.」固有 `impl` 的外层泛型参数也算「作用域内」。
 - **生命周期参数**：这就是 2024 改动的那一半。
 
-2021 及更早，普通函数与固有 `impl` 里的方法只捕获「出现在返回类型约束里的」生命周期。隐藏类型偷偷用了某个生命周期时，你得用 `+ '_`、`+ 'a`，或者社区那套 `Captures<..>` 戏法，把它「说出来」。2024 起无条件捕获**作用域内的全部**生命周期参数，与 trait 内 RPIT、RPITIT、AFIT 的行为拉齐（后者在所有 edition 都是全捕获）。
+2021 及更早，普通函数与固有 `impl` 里的方法只捕获「出现在返回类型约束里的」生命周期。隐藏类型偷偷用了某个生命周期时，你得用 `+ '_`、`+ 'a`，或者社区那套 `Captures<..>` 戏法，把它「说出来」。2024 起无条件捕获**作用域内的全部**生命周期参数，与 RPITIT（return-position impl Trait in trait）和 AFIT（`async fn in trait`）的行为拉齐——两者在所有 edition 都是全捕获（详见「trait 里的 RPIT 与 `async fn`」）。
 
 这次改动的收益，看本章开头那个签名就够了：它在 edition 2024 下直接编译通过，在 2021 下报错：
 
@@ -202,7 +204,7 @@ error[E0700]: hidden type for `impl Iterator<Item = u32>` captures lifetime that
 捕获是双向的：捕多了也出错（见「报错现场」第 1 条）。**捕获集合越宽，调用者受到的约束越多；越窄，隐藏类型能借用的东西越少。**
 
 > [!NOTE]
-> 史前写法：在 1.82 有精确捕获之前，社区靠两条戏法把生命周期「塞进」隐藏类型。一条是 **`Captures<..>` 戏法**——自己定义一个 `pub trait Captures<T: ?Sized> {}` 加一个全覆盖实现，再把它写进返回类型的约束；另一条是 **outlives 戏法**——给返回类型加 `+ 'a`，同时给相关类型参数加 `T: 'a`。Edition Guide 的原话是：「With the `use<..>` bound syntax, the `Captures` trick is no longer needed and can be replaced with the following in all editions.」outlives 戏法的额外代价是给调用者强加了一个本不需要的 `T: 'a`。两条戏法今天都还能编译，但新代码应当写 `use<..>`。
+> 史前写法：在 1.82 引入精确捕获（precise capturing，也就是 `use<..>`）之前，社区靠两条戏法把生命周期「塞进」隐藏类型。一条是 **`Captures<..>` 戏法**——自己定义一个 `pub trait Captures<T: ?Sized> {}` 加一个全覆盖实现，再把它写进返回类型的约束；另一条是 **outlives 戏法**——给返回类型加 `+ 'a`，同时给相关类型参数加 `T: 'a`。Edition Guide 的原话是：「With the `use<..>` bound syntax, the `Captures` trick is no longer needed and can be replaced with the following in all editions.」outlives 戏法的额外代价是给调用者强加了一个本不需要的 `T: 'a`。两条戏法今天都还能编译，但新代码应当写 `use<..>`。
 
 ### `use<..>`：精确捕获
 
@@ -243,11 +245,11 @@ fn main() {}
 `use<..>` 的规则不多，但几条容易撞：
 
 - **只能出现一个** `use<..>`，且**必须列出作用域内全部类型与 const 参数**（生命周期可以少列）。漏了就报 `` error: `impl Trait` must mention all type parameters in scope in `use<...>` ``。
-- 生命周期参数要写在类型参数前面；单个被省略的生命周期可以写成 `use<'_>`，例如 `fn f(x: &str) -> impl Iterator<Item = u32> + use<'_>`。
+- 生命周期参数要写在类型与 const 参数之前；单个被省略的生命周期可以写成 `use<'_>`，例如 `fn f(x: &str) -> impl Iterator<Item = u32> + use<'_>`。
 - **不能与参数位置的 `impl Trait` 同时出现在一个签名里**：APIT 的参数是匿名的，没法写进 `use<..>`（实测报的正是上面那条「must mention all type parameters」）。
 - 在 trait 定义里还必须把 `Self` 一起列上（`use<'a, T, Self>`），因为 trait 的 `Self` 也在作用域内。trait 内的 `use<..>` 自 1.87 起可用。
 
-这几条约束里最容易忘的是 `Self`：
+这几条约束里最容易忘的是 `Self`。实测会按顺序连报两条错误：
 
 ```rust,compile_fail
 trait Repo<T> {
@@ -258,18 +260,32 @@ fn main() {}
 ```
 
 ```text
+error[E0309]: the parameter type `T` may not live long enough
+ --> src/main.rs:2:45
+  |
+2 |     fn items<'a>(&'a self) -> impl Iterator<Item = &'a T> + use<'a, T>;
+  |                                             ^^^^^^^^--^^
+  |                                             |       |
+  |                                             |       the parameter type `T` must be valid for the lifetime `'a` as defined here...
+  |                                             ...so that the reference type `&'a T` does not outlive the data it points at
+  |
+help: consider adding an explicit lifetime bound
+  |
+2 |     fn items<'a>(&'a self) -> impl Iterator<Item = &'a T> + use<'a, T> where T: 'a;
+  |                                                                        +++++++++++
+
 error: `impl Trait` must mention the `Self` type of the trait in `use<...>`
  --> src/main.rs:2:31
   |
 1 | trait Repo<T> {
   | ------------- `Self` type parameter is implicitly captured by this `impl Trait`
 2 |     fn items<'a>(&'a self) -> impl Iterator<Item = &'a T> + use<'a, T>;
-  |                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   |
   = note: currently, all type parameters are required to be mentioned in the precise captures list
 ```
 
-补上 `Self`，顺便满足 `&'a T` 需要的 `T: 'a`：
+第一条是 `&'a T` 要求 `T: 'a`（隐藏类型要用 `&'a T`，就得让 `T` 活到 `'a`），第二条才是 `Self` 没被列出。两条一起处理：
 
 ```rust
 trait Repo<T> {
@@ -282,22 +298,37 @@ fn main() {}
 ```
 
 > [!WARNING]
-> `impl Trait` 出现在**关联类型位置**（`type Out = impl Iterator<Item = u32>;`）仍不稳定：Rust 1.98 报 `` error[E0658]: `impl Trait` in associated types is unstable ``。需要「带关联类型的迭代器」时，目前只有 GAT（第 15 章）与 `Box<dyn Iterator>` 两条路。
+> `impl Trait` 出现在**关联类型位置**仍不稳定。以最小复现 `type Out = impl Iterator<Item = u32>;`（写在 `impl` 里）为例，Rust 1.98 报 `` error[E0658]: `impl Trait` in associated types is unstable ``，并附一条指向 issue #63063 的 note（换一种写法还会连带出 `E0562` 之类的错误）。需要「带关联类型的迭代器」时，目前只有 GAT（第 15 章）与 `Box<dyn Iterator>` 两条路。
 
-**迁移提示**：从 2021 迁到 2024 时，`cargo fix --edition` 会启用 `impl-trait-overcaptures` lint（属于 `rust-2024-compatibility` 组，默认 allow）。它能在 2021 下提前指出「这个 `impl Trait` 到 2024 会多捕生命周期」，并常自动补上 `use<>`：
+**迁移提示**：`impl_trait_overcaptures` lint（下划线是规范名，命令行上也接受连字符写法）属于 `rust-2024-compatibility` 组，默认 allow，`cargo fix --edition` 会启用它。它在 2021 下就能指出「这个 `impl Trait` 到 2024 会多捕生命周期」，并常自动补上 `use<>`：
+
+```rust
+fn f<'a>(x: &'a ()) -> impl Sized {
+    *x
+}
+```
+
+上面这段在 2024 下合法；换成 edition 2021、加 `-W impl_trait_overcaptures` 编译，输出是（已略去一条 `f` 未使用的 dead_code 警告）：
 
 ```text
 warning: `impl Sized` will capture more lifetimes than possibly intended in edition 2024
- --> src/main.rs:3:24
+ --> src/main.rs:1:24
   |
-3 | fn f<'a>(x: &'a ()) -> impl Sized {
+1 | fn f<'a>(x: &'a ()) -> impl Sized {
   |                        ^^^^^^^^^^
+  |
 note: specifically, this lifetime is in scope but not mentioned in the type's bounds
+ --> src/main.rs:1:6
+  |
+1 | fn f<'a>(x: &'a ()) -> impl Sized {
+  |      ^^
   = note: all lifetimes in scope will be captured by `impl Trait`s in edition 2024
   = warning: this changes meaning in Rust 2024
+  = note: for more information, see <https://doc.rust-lang.org/edition-guide/rust-2024/rpit-lifetime-capture.html>
+  = note: requested on the command line with `-W impl-trait-overcaptures`
 help: use the precise capturing `use<...>` syntax to make the captures explicit
   |
-3 | fn f<'a>(x: &'a ()) -> impl Sized + use<> {
+1 | fn f<'a>(x: &'a ()) -> impl Sized + use<> {
   |                                   +++++++
 ```
 
@@ -362,6 +393,11 @@ error[E0038]: the trait `Job` is not dyn compatible
   |               ^^^^^^^ `Job` is not dyn compatible
   |
 note: for a trait to be dyn compatible it needs to allow building a vtable
+      for more information, visit <https://doc.rust-lang.org/reference/items/traits.html#dyn-compatibility>
+ --> src/main.rs:2:14
+  |
+1 | trait Job {
+  |       --- this trait is not dyn compatible...
 2 |     async fn run(&self) -> u32;
   |              ^^^ ...because method `run` is `async`
   = help: consider moving `run` to another trait
@@ -381,12 +417,19 @@ warning: use of `async fn` in public traits is discouraged as auto trait bounds 
   |
 2 |     async fn greet(&self) -> String;
   |     ^^^^^
+  |
+  = note: you can suppress this lint if you plan to use the trait only in your own code, or do not care about auto traits like `Send` on the `Future`
   = note: `#[warn(async_fn_in_trait)]` on by default
+help: you can alternatively desugar to a normal `fn` that returns `impl Future` and add any desired bounds such as `Send`, but these cannot be relaxed without a breaking API change
+  |
+2 -     async fn greet(&self) -> String;
+2 +     fn greet(&self) -> impl std::future::Future<Output = String> + Send;
+  |
 ```
 
 ### AFIT 的 `Send` 坑
 
-把 AFIT 和「要求 `Send`」的代码放在一起，就是本章最值得记住的那个坑（第 21 章之后的执行器正是这么要求的）：
+把 AFIT 和「要求 `Send`」的代码放在一起，就是本章最值得记住的那个坑（第 21 章的执行器正是这么要求的）：
 
 ```rust,compile_fail
 trait Job {
@@ -408,13 +451,23 @@ error[E0277]: `impl Future<Output = u32>` cannot be sent between threads safely
   |
 8 |     needs_send(j.run());
   |     ---------- ^^^^^^^ `impl Future<Output = u32>` cannot be sent between threads safely
+  |     |
+  |     required by a bound introduced by this call
   |
   = help: the trait `Send` is not implemented for `impl Future<Output = u32>`
+note: required by a bound in `needs_send`
+ --> src/main.rs:5:18
+  |
+5 | fn needs_send<F: Send>(_: F) {}
+  |                  ^^^^ required by this bound in `needs_send`
 help: `Send` can be made part of the associated future's guarantees for all implementations of `Job::run`
   |
 2 -     async fn run(&self) -> u32;
-2 +     fn run(&self) -> impl Future<Output = u32> + Send;
+2 +     fn run(&self) -> impl std::future::Future<Output = u32> + Send;
+  |
 ```
+
+（编译器写的是全路径 `std::future::Future`；2024 的 prelude 里已经有 `Future`，所以本书正文与示例都写简称。）
 
 原因：trait 里的 `async fn` 只承诺「返回某个 `Future<Output = u32>`」，没承诺它是 `Send`。泛型代码不能凭空假设实现者的 future 能跨线程。编译器给的修法就是把返回位置显式写出来，把 `Send` 写进契约：
 
@@ -446,7 +499,7 @@ ok
 两个细节：
 
 - 这里**不需要** `+ '_`。trait 里的 RPIT 在所有 edition 都会捕获作用域内的生命周期参数，返回类型已经绑定在 `&self` 上。
-- 代价是「一刀切」：trait 上写了 `Send`，**所有**实现都必须给出 `Send` 的 future。只想对部分实现加要求时，要么另加约束（第 12 章的关联类型），要么退回 `Box<dyn Future<Output = T> + Send + '_>`（有分配，但不用改 trait 里其它方法的语义）。
+- 代价是「一刀切」：trait 上写了 `Send`，**所有**实现都必须给出 `Send` 的 future。只想对部分实现加要求时，要么另加约束（第 12 章的关联类型），要么退回 `Pin<Box<dyn Future<Output = T> + Send + '_>>`（future 装箱、有分配，换来「不必改 trait 其它方法的语义」，第 13 章同一口径）。
 
 ### 不透明的边界
 
@@ -496,8 +549,10 @@ fn main() {
 输出（Rust 1.98 实测）：
 
 ```text
-core::iter::adapters::map::Map<core::ops::range::Range<u32>, src/main.rs::values::{{closure}}>
+core::iter::adapters::map::Map<core::ops::range::Range<u32>, main::values::{{closure}}>
 ```
+
+（前缀 `main` 是 crate 名，会随 crate 名与模块路径变化。）
 
 但别把它当 API。std 文档对 `type_name` 的说明是：「This is intended for diagnostic use. The exact contents and format of the string returned are not specified, other than being a best-effort description of the type.」并且「The returned string must not be considered to be a unique identifier of a type as multiple types may map to the same type name.」
 
@@ -563,8 +618,15 @@ error: lifetime may not live long enough
   |         -- lifetime `'a` defined here
 4 |     capture(x)
   |     ^^^^^^^^^^ returning this value requires that `'a` must outlive `'static`
+  |
 help: consider changing `impl Sized + 'static`'s explicit `'static` bound to the lifetime of argument `x`
+  |
+3 - fn test<'a>(x: &'a ()) -> impl Sized + 'static {
+3 + fn test<'a>(x: &'a ()) -> impl Sized + 'a {
+  |
 ```
+
+（后面还有一条「给这个引用加显式 `'static`」的 help，略。）
 
 定位路径：报错在 `test` 的**调用点**，根因在 `capture` 的**签名**。2024 下 `capture` 的返回类型捕获了 `'a`，哪怕隐藏类型 `()` 根本用不到它。这不是借用检查器在挑剔：`capture` 返回的值**有可能**借用 `'a`（比如你以后把隐藏类型改成 `&'a ()`），所以签名必须按最宽的口径处理。修法两种：把 `capture` 的返回类型写成 `impl Sized + use<>`（明确不捕获），或把 `test` 的返回类型放宽成 `+ 'a`。
 
@@ -588,6 +650,8 @@ error[E0308]: `if` and `else` have incompatible types
   |
 2 |     if flag { 1u32 } else { "hello" }
   |               ----          ^^^^^^^ expected `u32`, found `&str`
+  |               |
+  |               expected because of this
   |
 help: you could change the return type to be a boxed trait object
   |
@@ -625,10 +689,18 @@ error[E0597]: `a` does not live long enough
   |
 2 |     let a = vec![1u32, 2];
   |         - binding `a` declared here
+...
 5 |         a.iter().copied()
   |         ^ borrowed value does not live long enough
-  |         opaque type requires that `a` is borrowed for `'static`
+6 |     } else {
+7 |         b.iter().copied()
+  |         ----------------- opaque type requires that `a` is borrowed for `'static`
+8 |     }
+9 | }
+  | - `a` dropped here while still borrowed
 ```
+
+（`b` 会再报一条同类的 E0597，略。）
 
 定位路径：这个函数**没有生命周期参数**，2024 的「捕获作用域内全部生命周期」也就无从捕起——返回的不透明类型要求 `'static`，而 `a`、`b` 活不到那么久。修法：把数据从参数借进来，让生命周期成为签名的一部分：
 
@@ -648,7 +720,7 @@ fn main() {
 
 实测输出 `[1, 2]`。另一条路是让函数返回拥有的数据（`collect` 成 `Vec` 再返回）。
 
-这条错误也是「惰性求值」的边界：迭代器可以惰性，但它借用的数据必须活得比它久。要么让调用者把数据借进来（生命周期进签名，零拷贝），要么把数据收集成拥有所有权的容器（一次分配）。
+这条错误也是「惰性求值」的边界：迭代器可以惰性，但它借用的数据必须活得比它久。要么让调用者把数据借进来（生命周期进签名，零拷贝），要么把数据收集成拥有所有权的集合（一次分配）。
 
 ### 4. AFIT 的 future 不满足 `Send`（E0277）
 
@@ -675,6 +747,7 @@ error[E0562]: `impl Trait` is not allowed in the type of variable bindings
   |            ^^^^^^^^^^^^^^^^^^^^
   |
   = note: `impl Trait` is only allowed in arguments and return types of functions and methods
+  = note: see issue #63065 <https://github.com/rust-lang/rust/issues/63065> for more information
 ```
 
 字段类型（`struct S { it: impl Iterator<Item = u32> }`）报同样的 E0562，`= note:` 行不变。需要「把迭代器存进结构体」时，用 `Box<dyn Iterator<Item = u32>>`、具名类型，或者泛型参数 `struct S<I: Iterator<Item = u32>> { it: I }`。
@@ -697,15 +770,20 @@ fn main() {
 
 ```text
 error[E0308]: mismatched types
-  --> src/main.rs:9:34
-   |
- 5 | fn generic<T: 'static>() -> impl PartialEq + std::fmt::Debug {
-   |                             -------------------------------- the expected opaque type
+ --> src/main.rs:8:27
+  |
+1 | fn generic<T: 'static>() -> impl PartialEq + std::fmt::Debug {
+  |                             --------------------------------
+  |                             |
+  |                             the expected opaque type
+  |                             the found opaque type
 ...
- 9 |     println!("{:?}", c == d);
-   |                                 ^ expected `u8`, found `i8`
-   |
-   = note: distinct uses of `impl Trait` result in different opaque types
+8 |     println!("{:?}", c == d);
+  |                           ^ expected `u8`, found `i8`
+  |
+  = note: expected opaque type `impl PartialEq + Debug` (`u8`)
+             found opaque type `impl PartialEq + Debug` (`i8`)
+  = note: distinct uses of `impl Trait` result in different opaque types
 ```
 
 定位路径：不透明类型是「每个泛型实例化各一份」。`generic::<u8>()` 与 `generic::<i8>()` 的返回类型互不相同，哪怕函数体返回的都是 `u32`。想比较两者，就得先擦除类型（`Box<dyn Trait>`）或把它们转成同一具体类型再比。
@@ -728,7 +806,14 @@ error[E0107]: function takes 0 generic arguments but 1 generic argument was supp
   |
 6 |     show::<u32>(1);
   |     ^^^^------- help: remove the unnecessary generics
+  |     |
+  |     expected 0 generic arguments
   |
+note: function defined here, with 0 generic parameters
+ --> src/main.rs:1:4
+  |
+1 | fn show(arg: impl std::fmt::Debug) {
+  |    ^^^^
   = note: `impl Trait` cannot be explicitly specified as a generic argument
 ```
 
@@ -790,7 +875,7 @@ fn requires_send<F: Send>(_: F) {}
 
 **1.** 语义上「几乎等价」（Reference 说 APIT 是「syntactic sugar」），但有两点实际差别。其一，`b` 的类型参数有名字，调用点可以写 `b::<u32>(1)`；`a` 不行——实测报 `` error[E0107] ... = note: `impl Trait` cannot be explicitly specified as a generic argument ``。其二，两种写法之间的切换会改变泛型实参个数，对调用方是可见变化。所以：需要显式指定类型、或想让读者看出「这里有个类型参数」时选 `b`；否则 `a` 更短，也省掉了给参数起名。
 
-**2.** 编译失败，报 ``error[E0308]: `if` and `else` have incompatible types``（以 Rust 1.98 为例）。两支的具体类型不同：`std::iter::Once<u32>` 与 `Map<Range<u32>, {closure@...}>`，而 `impl Iterator` 只绑定一个隐藏类型。修法：两边统一成同一具体类型（例如都用 `std::iter::once`，或都用同一个 `map` 闭包），或改成 `Box<dyn Iterator<Item = u32>>`，或自定义 enum 并手写 `Iterator`。
+**2.** 编译失败，报 ``error[E0308]: `if` and `else` have incompatible types``（以 Rust 1.98 为例）。两支的具体类型不同，实测诊断写的是 `std::iter::Once<u32>` 与 `Map<std::ops::Range<{integer}>, {closure@src/main.rs:5:20: 5:23}>`（`0..3` 的元素类型此时还没定下来，所以显示 `{integer}`），而 `impl Iterator` 只绑定一个隐藏类型。修法：两边统一成同一具体类型（例如都用 `std::iter::once`，或都用同一个 `map` 闭包），或改成 `Box<dyn Iterator<Item = u32>>`，或自定义 enum 并手写 `Iterator`。
 
 **3.** 问题在 `requires_send(f)`：`async fn load` 只承诺返回某个 `Future<Output = Vec<u8>>`，没承诺 `Send`，所以报 ``error[E0277]: `impl Future<Output = Vec<u8>>` cannot be sent between threads safely``。
 
@@ -802,15 +887,19 @@ trait Loader {
 }
 ```
 
-修法二，不动 trait，改在需要多态的地方要求装箱的 future（future 类型被擦除，`Send` 写在 trait 对象上）：
+修法二，把 future 装箱进 `Pin<Box<…>>`，`Send` 写在 trait 对象类型上：
 
 ```rust
+use std::pin::Pin;
+
 trait Loader {
-    fn load(&self) -> Box<dyn Future<Output = Vec<u8>> + Send + '_>;
+    fn load(&self) -> Pin<Box<dyn Future<Output = Vec<u8>> + Send + '_>>;
 }
 ```
 
-前者零分配但要求所有实现都 `Send`；后者每次调用一次堆分配，但不必让实现者承担 `Send` 义务。两个修法都实测编译通过。
+`Pin` 不能省：`dyn Future` 是 `!Unpin`，裸的 `Box<dyn Future<…>>` 连 `.await` 都用不了（实测：``error[E0277]: `dyn Future<Output = Vec<u8>> + Send` cannot be unpinned``，并附带 ``= note: required for `Box<dyn Future<Output = Vec<u8>> + Send>` to implement `Future``）；`Pin<Box<dyn Future<…>>>` 自己就实现了 `Future`，`.await` 正常工作（第 21、22 章把这条链路讲全）。
+
+取舍：修法一零分配，但要求**所有**实现都给出 `Send` 的 future；修法二每次调用一次堆分配，换来「不在 trait 层面强加 `Send`」。两种写法都实测编译通过，修法二的 `.await` 路径也实测跑通（`Pin<Box<dyn Future>>` + 一个用 `Waker::noop()` 的极简 `block_on`，取值得到 `[1, 2, 3]`）。
 
 </details>
 

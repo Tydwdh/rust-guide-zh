@@ -18,7 +18,7 @@
 - 判断一个 trait 能不能变成 `dyn Trait`（**dyn 兼容性（dyn compatibility）**规则），不能时知道两种修法；
 - 说清 `&dyn`、`Box<dyn>`、`Arc<dyn>` 各自适合什么场景，以及它们的共同内存形状；
 - 说清 vtable 是什么，动态分发的代价具体落在哪条机器指令上；
-- 用向上转型（upcasting）在 supertrait 之间移动 trait 对象；
+- 用向上转型（upcasting）在父 trait（supertrait）之间移动 trait 对象；
 - 在两个惯用例上直接用起来：`Box<dyn Error>` 与 `&mut dyn Iterator`；
 - 用一份清单在「泛型 / `impl Trait` / `dyn`」之间做选择。
 
@@ -51,7 +51,7 @@ show::<f64>  ─┘    直接调用                  vtable 指针 → 方法槽
 - **没有接收者的关联函数**：调用点手上只有一个数据指针，凭什么找到实现？
 - **返回 `impl Trait` / `async fn`**：返回类型是隐藏的，同样没法固定返回值形状。
 
-一句话：**dyn 兼容的意思，是「这个 trait 的全部可调用成员，都能靠一根数据指针加一张固定槽位的表表达」**。
+一句话：**dyn 兼容的意思，是「这个 trait 的全部可调用方法，都能靠一根数据指针加一张固定槽位的表表达」**。
 
 这也解释了本章的核心手法。给方法加 `where Self: Sized`，不是在「绕过规则」，而是明确告诉编译器：这个方法不参与动态分发，请把它从 vtable 里剔出去。于是整个 trait 重新变成 dyn 兼容，而那些方法仍能对具体类型使用。标准库的 `Iterator` 就是这么设计的：`next` 在表里，`map`、`filter` 这些要求 `Self: Sized` 的适配器不在表里。
 
@@ -59,7 +59,7 @@ show::<f64>  ─┘    直接调用                  vtable 指针 → 方法槽
 
 **Java：接口调用天生是「动态」的。** Java 的所有引用类型都带运行期类型信息，任何实现接口的引用都能直接当接口用，语言层面不需要「dyn 兼容性」这类规则。JVM 规范里，接口方法调用是一条专门的指令：
 
-> *invokeinterface* invokes an interface method, searching the methods implemented by the particular run-time object to find the appropriate method to invoke.
+> *invokeinterface* invokes an interface method, searching the methods implemented by the particular run-time object to find the appropriate method.
 >
 > —— *The Java Virtual Machine Specification* §2.11.8
 
@@ -73,7 +73,7 @@ Rust 的差别在于：Rust 有单态化，泛型与 `dyn` 是两条真实的、
 
 > The interpretation of the call of a virtual function depends on the type of the object for which it is called (the dynamic type), whereas the interpretation of a call of a non-virtual member function depends only on the type of the pointer or reference denoting that object (the static type).
 
-Rust 的 `dyn` 有三处不同：trait 实现写在类型声明之外，类型不必属于某条继承链；trait 对象比普通指针多带一个 vtable 指针，但**被指向的对象本体不会因此变大**（下面有实测）；能不能向上转型由 supertrait 关系决定，而不是由继承树决定。
+Rust 的 `dyn` 有三处不同：trait 实现写在类型声明之外，类型不必属于某条继承链；trait 对象比普通指针多带一个 vtable 指针，但**被指向的对象本体不会因此变大**（下面有实测）；能不能向上转型由父 trait 关系决定，而不是由继承树决定。
 
 ## 机制与规则
 
@@ -83,8 +83,8 @@ Reference 一句话概括：能当 trait 对象基 trait 的，才是 dyn 兼容
 
 | 规则 | 反例 | 1.98 报错里的关键说法 |
 | --- | --- | --- |
-| 所有 supertrait 也必须 dyn 兼容 | `trait B: A`，而 `A` 有泛型方法 | 诊断会指到 supertrait 里出问题的那一行 |
-| 不能要求 `Self: Sized`（不能以 `Sized` 为 supertrait） | `trait NeedsSized: Sized` | ``...because it requires `Self: Sized` `` |
+| 所有父 trait 也必须 dyn 兼容 | `trait B: A`，而 `A` 有泛型方法 | 诊断会指到父 trait 里出问题的那一行 |
+| 不能要求 `Self: Sized`（不能以 `Sized` 为父 trait） | `trait NeedsSized: Sized` | ``...because it requires `Self: Sized` `` |
 | 不能有关联常量 | `const VERSION: u32` | ``...because it contains associated const `VERSION` `` |
 | 不能带泛型参数的关联类型（GAT） | `type Item<'a> where Self: 'a;` | ``...because it contains generic associated type `Item` `` |
 | 关联函数要么可分发，要么显式 `where Self: Sized` | `fn put<T>(&self, v: T)` / `fn default_name() -> String` | ``...because method `put` has generic type parameters`` / ``...because associated function `default_name` has no `self` parameter`` |
@@ -125,7 +125,7 @@ fn main() {
 
 （`Pin` 那一档是异步里的常客，第 21、22 章再碰。）
 
-还有一条容易误会的：`dyn Trait` 自己**已经**实现了 `Trait` 和它的全部 supertrait，这是编译器内建的。Reference 的原话是「Trait objects implement the base trait, its auto traits, and any supertraits of the base trait.」你不用、也不能手写这个实现——写 `impl Shape for dyn Shape` 会得到 E0371：``the object type `(dyn Shape + 'static)` automatically implements the trait `Shape` ``。
+还有一条容易误会的：`dyn Trait` 自己**已经**实现了 `Trait` 和它的全部父 trait，这是编译器内建的。Reference 的原话是「Trait objects implement the base trait, its auto traits, and any supertraits of the base trait.」你不用、也不能手写这个实现——写 `impl Shape for dyn Shape` 会得到 E0371：``the object type `(dyn Shape + 'static)` automatically implements the trait `Shape` ``。
 
 ### 关联类型要写实
 
@@ -169,7 +169,7 @@ fn main() {
 
 这个错误没有错误码，但信息很直白（完整输出见「报错现场」第三例）：`the `map` method cannot be invoked on a trait object`。
 
-同样的道理让 `Box<dyn Iterator<Item = u32>>` 上可以直接写 `.map(...)`：标准库也为 `Box<I>`（`I: Iterator + ?Sized`）实现了 `Iterator`，而 `Box` 这个外壳是 Sized 的。**「dyn 不满足 `Self: Sized`」说的是 trait 对象本身，不包括指向它的那层指针。**
+同样的道理让 `Box<dyn Iterator<Item = u32>>` 上可以直接写 `.map(...)`：标准库也为 `Box<I>`（`I: Iterator + ?Sized`）实现了 `Iterator`（源码里的完整签名是 `impl<I: Iterator + ?Sized, A: Allocator> Iterator for Box<I, A>`，`A` 是分配器参数，日常写 `Box<I>` 用的就是它的默认值），而 `Box` 这个外壳是 Sized 的。**「dyn 不满足 `Self: Sized`」说的是 trait 对象本身，不包括指向它的那层指针。**
 
 ### trait 对象的边界怎么拼
 
@@ -183,7 +183,7 @@ dyn Trait + 'static
 dyn Trait + Send + 'static
 ```
 
-不允许的：两个非 auto trait（`dyn A + B` 不行——想要就得定义一个同时是两者 supertrait 的 trait）、`?Sized` 这类 opt-out 边界、`use<..>`。auto trait 的顺序不重要，`dyn Trait + Send + UnwindSafe` 与 `dyn Trait + UnwindSafe + Send` 是同一个类型。
+不允许的：两个非 auto trait（`dyn A + B` 不行——想要就得定义一个同时是两者父 trait 的 trait）、`?Sized` 这类 opt-out 边界、`use<..>`。auto trait 的顺序不重要，`dyn Trait + Send + UnwindSafe` 与 `dyn Trait + UnwindSafe + Send` 是同一个类型。
 
 生命周期有个好用的默认规则（Reference 的「default trait object lifetimes」）：**类型位置**上，没有生命周期边界的 trait 对象默认是 `'static`，所以 `Box<dyn Foo>` 与 `Box<dyn Foo + 'static>` 是同一个类型；而在 `&'a T` 这种要求 `T: 'a` 的位置，`&'a dyn Foo` 等价于 `&'a (dyn Foo + 'a)`。写函数签名时通常不用手写；但如果你要把 trait 对象存进结构体、或对它做 `downcast_ref`（要求 `T: 'static`），这层默认就会浮出水面。
 
@@ -312,9 +312,9 @@ fn main() {
 
 三条补充：
 
-- **supertrait 的方法本来就能直接调用。** `pet.name()` 用的是 `Animal` 的方法，而 `pet` 是 `dyn Pet`：`dyn Pet` 的 vtable 里本来就包含 supertrait 的方法。向上转型解决的不是「能不能调」，而是「能不能把它当 `dyn Animal` 传出去、存起来」。
-- **可以顺手丢掉 auto trait**：`Box<dyn Pet + Send>` → `Box<dyn Animal>` 合法（规则原文里明确写了 "This allows dropping auto traits"）。反过来，只有当 auto trait 是基 trait 的 supertrait 时才能加：给定 `trait T: U + Send {}`，`dyn T` → `dyn T + Send` 与 `dyn U + Send` 都允许。
-- **只能沿 supertrait 方向，不能横向**。两个互不相关的 trait 之间转型会被拒绝。1.98 的最小复现报 E0605：``non-primitive cast: `&dyn Shape` as `&dyn Named` ``，附带一句「an `as` expression can only be used to convert between primitive types or to coerce to a specific trait object」。
+- **父 trait 的方法本来就能直接调用。** `pet.name()` 用的是 `Animal` 的方法，而 `pet` 是 `dyn Pet`：`dyn Pet` 的 vtable 里本来就包含父 trait 的方法。向上转型解决的不是「能不能调」，而是「能不能把它当 `dyn Animal` 传出去、存起来」。
+- **可以顺手丢掉 auto trait**：`Box<dyn Pet + Send>` → `Box<dyn Animal>` 合法（规则原文里明确写了 "This allows dropping auto traits"）。反过来，只有当 auto trait 是基 trait 的父 trait 时才能加：给定 `trait T: U + Send {}`，`dyn T` → `dyn T + Send` 与 `dyn U + Send` 都允许。
+- **只能沿父 trait 方向，不能横向**。两个互不相关的 trait 之间转型会被拒绝。1.98 的最小复现报 E0605：``non-primitive cast: `&dyn Shape` as `&dyn Named` ``，附带一句「an `as` expression can only be used to convert between primitive types or to coerce to a specific trait object」。
 
 ### 选型清单
 
@@ -410,7 +410,7 @@ Arc 向上转型后：dog
 丢掉 Send 之后：dog
 ```
 
-五个场景一次过：`dyn Pet` 直接调 supertrait 方法、`Box<dyn Pet>` → `Box<dyn Animal>`、引用形式的隐式强转、`Arc` 形式、以及顺手丢掉 `Send`。
+五个场景一次过：`dyn Pet` 直接调父 trait 方法、`Box<dyn Pet>` → `Box<dyn Animal>`、引用形式的隐式强转、`Arc` 形式、以及顺手丢掉 `Send`。
 
 ## 报错现场
 
@@ -447,13 +447,15 @@ error[E0038]: the trait `Store` is not dyn compatible
 note: for a trait to be dyn compatible it needs to allow building a vtable
   --> e0038.rs:2:8
    |
+ 1 | trait Store {
+   |       ----- this trait is not dyn compatible...
  2 |     fn put<T>(&self, value: T);
    |        ^^^ ...because method `put` has generic type parameters
    = help: consider moving `put` to another trait
    = help: only type `VecStore` implements `Store`; consider using it directly instead.
 ```
 
-（省略了 `note` 里指向 Reference 的说明行。）定位路径：报错先指出**使用处**（`Box<dyn Store>`），再把「哪条规则被违反」指回 trait 定义里的具体方法——看 `...because` 那句就够，不用读整段。
+（把上面那段代码存成 `e0038.rs` 编译即得这份输出，里面的路径与行号跟它一一对应；`note:` 里指向 Reference 的第二行、以及末尾的汇总行略去，缩进照实。）定位路径：报错先指出**使用处**（`Box<dyn Store>`），再把「哪条规则被违反」指回 trait 定义里的具体方法——看 `...because` 那句就够，不用读整段。
 
 修法有两条，报错里的 `help` 也提示了两条：
 
@@ -530,10 +532,10 @@ error: the `map` method cannot be invoked on a trait object
 ## 小结
 
 - trait 对象是**擦掉类型、留下行为**的 DST，永远待在胖指针后面：一个机器字指向数据，一个指向 vtable。
-- 能不能变 `dyn`，取决于 dyn 兼容性：supertrait 也要兼容、不能要求 `Self: Sized`、不能有关联常量或泛型关联类型、可分发方法不能带类型参数或用 `Self` 做接收者以外的类型、不能有隐藏的返回类型。
+- 能不能变 `dyn`，取决于 dyn 兼容性：父 trait 也要兼容、不能要求 `Self: Sized`、不能有关联常量或泛型关联类型、可分发方法不能带类型参数或用 `Self` 做接收者以外的类型、不能有隐藏的返回类型。
 - `where Self: Sized` 是「请把方法从 vtable 里剔出去」的声明，标准库的 `Iterator` 靠它同时做到「trait 可以 dyn」和「适配器依然好用」。被剔出去的方法在 trait 对象上调用不到，这是有意的。
 - 代价落在具体的指令上：一次 vtable 槽位取址加一次间接调用，且挡住内联等跨调用优化。选型口诀是**热点用泛型，边界用 `dyn`**；类型能被枚举穷举时，优先 `enum`。
-- 向上转型（1.86 起）让 `dyn Sub` 变成 `dyn Super`，还能顺手丢掉 auto trait；但只在 supertrait 方向上合法。
+- 向上转型（1.86 起）让 `dyn Sub` 变成 `dyn Super`，还能顺手丢掉 auto trait；但只在父 trait 方向上合法。
 - `Box<dyn Error>` 与 `&mut dyn Iterator` 是这套机制最日常的两个出口。
 
 ## 练习
@@ -574,13 +576,13 @@ let b = (*it).map(|x| x * 2).collect::<Vec<_>>();   // 第 2 行
 **1.** 逐个看：
 
 - `A`：可以。只有一个 `&self` 方法，无泛型参数、无关联常量、无 `Self` 返回值，符合全部规则。
-- `B`：可以。`A` 自己 dyn 兼容，所以 supertrait 条件满足；`tag` 也没有问题。
+- `B`：可以。`A` 自己 dyn 兼容，所以父 trait 条件满足；`tag` 也没有问题。
 - `C`：**不行**。`trait C: Sized` 等于要求 `Self: Sized`，1.98 的报错原话是 ``...because it requires `Self: Sized` ``。dyn 兼容性从定义上就排除了「实现者必须已知大小」。
 - `D`：**不行**，但不是因为 `make` 返回 `Self` 这一点——`fn make() -> Self` 同时是「没有接收者的关联函数」和「用 `Self` 做返回类型」。它会报 ``...because associated function `make` has no `self` parameter``。给 `make` 加 `where Self: Sized` 之后，`D` 就是 dyn 兼容的（`make` 从 vtable 里消失）。
 
 **2.** 第 1 行能编译，第 2 行不能。
 
-`it` 的类型是 `Box<dyn Iterator<Item = u32>>`。`Box<I>` 对任意 `I: Iterator + ?Sized` 都实现了 `Iterator`，而 `Box<_>` 本身是 Sized 的——`map` 的 `where Self: Sized` 约束落在 `Box<dyn Iterator<…>>` 上，满足。第 2 行 `*it` 解引用到 `dyn Iterator<Item = u32>`，这才是真正的 trait 对象；`map` 不在它的 vtable 里，编译器报 `the `map` method cannot be invoked on a trait object`，并把 `Self: Sized` 那一行指给你看。要点：**「dyn 不满足 `Self: Sized`」针对 trait 对象本身，不针对指向它的指针。**
+`it` 的类型是 `Box<dyn Iterator<Item = u32>>`。`Box<I>` 对任意 `I: Iterator + ?Sized` 都实现了 `Iterator`（源码实现还带分配器参数 `A: Allocator`），而 `Box<_>` 本身是 Sized 的——`map` 的 `where Self: Sized` 约束落在 `Box<dyn Iterator<…>>` 上，满足。第 2 行 `*it` 解引用到 `dyn Iterator<Item = u32>`，这才是真正的 trait 对象；`map` 不在它的 vtable 里，编译器报 `the `map` method cannot be invoked on a trait object`，并把 `Self: Sized` 那一行指给你看。要点：**「dyn 不满足 `Self: Sized`」针对 trait 对象本身，不针对指向它的指针。**
 
 **3.** 两种办法：
 

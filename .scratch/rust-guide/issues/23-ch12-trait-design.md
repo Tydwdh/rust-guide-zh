@@ -27,7 +27,7 @@ Status: claimed
   7. 跨 crate blanket impl 封死下游：库 `impl<T: Debug> Describe for T` + 下游 `impl Describe for Point` → E0119，note 原文 `conflicting implementation in crate \`blanket\`: - impl<T> Describe for T where T: Debug;`（正文已按节选粘成 `text`）。
   8. 英文引用逐字核对（脚本比对本机快照 HTML / std 源码）：Reference traits、implementations、glossary、Book ch20-02、std 源码 `mod sealed` 注释、std `Add` 文档段——全部命中，含 Book 的 `U+2019` 撇号。
 - 遗留：
-  - 「语言对照角」**未写**（票里为可选）：跨语言断言必须逐条核对对应语言一手文档，本轮预算优先给 coherence/sealed 的实测证据；若协调者要求补，最省力的对照点是「给已有类型补方法」——Java 只能在声明处 `implements`（要补方法得包适配器）、C++ 自由函数 + ADL、Python 运行时打补丁，正好对应扩展 trait 的存在理由。
+  - 「语言对照角」**未写**（票里为可选）：跨语言断言必须逐条核对对应语言一手文档，本轮预算优先给一致性/密封 trait 的实测证据；若协调者要求补，最省力的对照点是「给已有类型补方法」——Java 只能在声明处 `implements`（要补方法得包适配器）、C++ 自由函数 + ADL、Python 运行时打补丁，正好对应扩展 trait 的存在理由。
   - `Pin` 属于基础类型构造器只按 Reference 术语表转述，未做 `impl Display for Pin<Local>` 的编译验证（`Pin<P>` 的接收者/解引用限制让最小复现要多绕一步）。
   - `unsafe_impl` 无；`const trait`（1.98 std 源码里 `pub const trait Add`）只在 std 快照里见到，判为内部不稳定语法，未进正文。
 - 新术语（GLOSSARY 未收，待协调者并表）：
@@ -42,8 +42,21 @@ Status: claimed
   - cover / uncovered | 覆盖 / 未覆盖（孤儿规则语境；注意 GLOSSARY 在「遮蔽」条目下把「覆盖」标为 trait 实现的说法，请裁决是否给「覆盖」加语境限定）
   - fundamental type constructor | 基础类型构造器
   - dyn compatibility | dyn 兼容性（Reference 已把 object safety 改名；GLOSSARY 无 object safety 条目，第 13 章会用到）
-- 邻章衔接：第 9 章孤儿规则处写的「第 12 章展开」已兑现（coherence 细节 + newtype 作为「覆盖类型参数」的位置），E0117 指向「第 9 章报错现场」；`dyn`/对象安全只留 NOTE + 一句「upcasting 自 1.86 稳定」→ 第 13 章；`impl Trait`/RPIT → 第 14 章（未展开）；GAT/const 泛型 → 第 15 章（未展开）；API/SemVer → 第 18 章（只提 SemVer 一词）；`Deref` 让 newtype「像内部类型」→ 第 17 章（正文留了一句）。
+  - upcasting | 向上转型（正文出现一次：「把 `&dyn Circle` 转成 `&dyn Shape` 的向上转型（upcasting）从 1.86 起稳定」，指向第 13 章）
+  - orphan rule | 孤儿规则（**已在 GLOSSARY「泛型与 trait」区入驻，本票不新增**；按审校意见，正文首现处已补英文括注）
+- 邻章衔接：第 9 章孤儿规则处写的「第 12 章展开」已兑现（一致性细节 + newtype 作为「覆盖类型参数」的位置），E0117 指向「第 9 章报错现场」；`dyn`/对象安全只留 NOTE + 一句「向上转型（upcasting）自 1.86 稳定」→ 第 13 章；`impl Trait`/RPIT → 第 14 章（未展开）；GAT/const 泛型 → 第 15 章（未展开）；API/SemVer → 第 18 章（只提 SemVer 一词）。**更正（审校后）**：初稿此条曾写「`Deref` 让 newtype『像内部类型』→ 第 17 章（正文留了一句）」——正文里并无 `Deref`、无「第 17 章」，该句从未写入，现删除。
 - 图示需求（本轮未自画 SVG）：
-  - `### coherence 与孤儿规则的细节`：现在是一张四行表；若出图，想要 2×2 方格（trait 本地/外部 × 类型本地/外部），四格分别标「允许 / 允许 / E0117 / E0210」，并在角落标出「本地类型由 newtype 提供」。
-  - `### sealed trait`：现在是 `text` 树；若出 SVG，建议画模块可见性的三层——外部可命名（`pub trait Greet`）、外部不可命名（`mod private` → `trait Sealed`）、可实现区与不可实现区之间的那道墙。
+  - `### 一致性（coherence）与孤儿规则的细节`：现在是一张四行表；若出图，想要 2×2 方格（trait 本地/外部 × 类型本地/外部），四格分别标「允许 / 允许 / E0117 / E0210」，并在角落标出「本地类型由 newtype 提供」。
+  - `### 密封 trait（sealed trait）`：现在是 `text` 树；若出 SVG，建议画模块可见性的三层——外部可命名（`pub trait Greet`）、外部不可命名（`mod private` → `trait Sealed`）、可实现区与不可实现区之间的那道墙。
   - `### 关联类型还是泛型参数`：现在是三行表；可选一张「同一 trait 两种写法 → 一个类型能填几次表」的对照图（左：`type Item` 只有一格；右：`<Rhs>` 带参数，可多份）。
+- 2026-10-18 审校修订（RvCh12 的 8 × minor，逐条已改，只动了本票与 `src/ch12-trait-design.md`）：
+  1. `:99`（密封骨架）、`:164`（VecExt）、`:366`（newtype wrapper）三块 `rust,ignore` → `rust`，现纳入 `mdbook test`；wrapper 块同时补了 `use std::fmt;`（缺它第一次复跑 exit 101 / E0433）。练习块含 `/* ... */`，按原样保留 `ignore`。
+  2. 「sealed trait」→ 统一「密封 trait」；小标题保留一次英文括注（`### 密封 trait（sealed trait）：…`），编译器诊断原文（两处 `= note: … "sealed trait" …`）按原样保留。
+  3. 「coherence」→ 统一「一致性」；标题保留括注（`### 一致性（coherence）与孤儿规则的细节`），并删掉正文中重复的一次括注（原 `:28`）。
+  4. 「孤儿规则」首现（`:13`）补「（orphan rule）」。
+  5. 关联类型小节的交叉引用改为「会被判为重叠，报 E0119——报错现场第二例是同一类冲突的另一种形态（blanket impl 与专门实现撞车）」，不再把它指认为同一形态。
+  6. 跨 crate sealed 报错的描述改为「同一形状」，并点明帮助信息的差异：单 crate 版是 `help: this trait has no implementations, consider adding one`，跨 crate 版同位置是 `help: the trait \`greet::private::Sealed\` is implemented for \`English\``，末尾多一条 `= help` 列出实现者。
+  7. `Counter` 补出处：「（The Book 第 20 章的计数器例子）」。
+  8. 票内新术语补登「upcasting | 向上转型」；并注明「孤儿规则（orphan rule）」已在 GLOSSARY 入驻，本票不新增。
+  9. 更正初稿遗留里关于 `Deref`/第 17 章的错记（正文中并无该句，已删除，见「邻章衔接」条的更正说明）。
+  - 复跑：`mdbook test -c ch12-trait-design.md` → **exit 0**。当前 15 个 doctest = **14 passed**（5 个 `compile_fail` 正向断言 + 4 个 `{{#rustdoc_include}}` 片段 + 2 个 std 签名块 + 本次解禁的 3 块）/ **1 ignored**（练习块）。正文 4717 → **4828 汉字**（仍在 4000–5500 区间）。收尾前另修一处渲染问题：跨 crate sealed 那段原用单反引号内嵌 `\`` 转义，CommonMark 的代码段不处理反斜杠转义，会显示成字面反斜杠——已改成「」引用 + 单层行内代码；现在全文无 `\`` 嵌套。仍未写 `## Answer`、未置 `resolved`。

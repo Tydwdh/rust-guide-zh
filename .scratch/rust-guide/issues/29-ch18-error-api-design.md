@@ -64,3 +64,16 @@ Status: claimed
   - 修复前同口径统计：§18.7「三点补充」那段那一行会**泄漏 1 个 `[`**（`#[must_use` 的 `[` 掉出代码 span）并渲染出游离 `\`；修复后 **0 个 `[`、0 个 `\`**。
   - 全文复核：剥掉围栏代码块与行内代码 span 后，只剩 `[!NOTE]` / `[!WARNING]` 两个 mdbook admonition 标记（全书通用语法，mdbook 解析阶段即转换，未被算作链接）。
   探针目录 `.scratch/tmp-29-verify/` 已删除；本轮只改了 `src/ch18-error-api-design.md`。
+
+- 2026-10-18 交叉审校修回（reviewer RvCh18：1 blocker + 2 major + 7 minor，全部在本章）：10 条全修完，`mdbook test -c ch18-error-api-design.md` 仍 **exit 0**；正文汉字 5489（在 4000–5500 内）。本轮只改了 `src/ch18-error-api-design.md`。
+  1. 【blocker】C-BUILDER「五条骨架」→ **四条**（复核 api-guidelines 原文：① `TBuilder` ② 构造函数只收必填数据 ③ 配置方法返回 `self` 以便链式 ④ terminal 方法）。
+  2. 【major】`PhantomData` 零尺寸与三重身份的章号：`第 15 章` → **第 16 章 16.5 节**（核对 `src/ch16-lifetimes-advanced.md` §16.5「`PhantomData` 的三重身份」）。
+  3. 【major】跨 crate transcript 源码与报错行号不一致 → 按**实际编译过的两个文件**重录：`portlib/src/lib.rs` 7 行（`pub enum PortError` 在第 4 行）、`userapp/src/main.rs` 9 行（`match e` 在第 5 行），并补全 E0004 的 `= note: the matched value is of type …` 与 `help:` 两行。已写脚本比对「章内 `cat` 显示的文本」与「真编的源文件」→ **逐字一致**。
+  4. 【minor】`E0639` 拆两行：`struct` 上 = `cannot create non-exhaustive struct using struct expression`；结构体变体上 = `…variant using struct expression`（两个文案分别用独立 crate 实测）。
+  5. 【minor】`都必须实现` → `都应当实现`，并注明原文用的是 should “always implement”，本书按底线从严。
+  6. 【minor】The Book 引文 `it's` → 弯引号 `it’s`（核对该页：`it’s` 12 处、`it's best` 0 处）。
+  7. 【minor】去掉被反向引用的条目名，改引手册该节正文句 “It is a breaking change to change a function parameter or return type if the generic type constrains or changes the types previously allowed.”（手册的 `generalizing … with type mismatch` 讲的是**加**泛型约束，与「收紧」方向相反）。
+  8. 【minor】丢值诊断加限定语：「把这行写成 `write_all("abc");`（丢掉返回值、其余不变）……行号正对应上面第 8 行」。
+  9. 【minor】uninhabited 例外块去掉 2 空格缩进。其余带缩进的围栏都在编号列表项内部（§18.1 第 2 条、练习 2/3 与答案），是 CommonMark 要求的续行缩进，未动。
+  10. 【minor】补首现界定：`builder`、`语义化版本（SemVer）`、`sealed trait（密封 trait：靠父 trait 里一个外部无法命名的私有 trait 封住实现面）`；`typestate` 与「无值类型（uninhabited）」原本已有解释。
+  为回到篇幅上限（修回后一度 5603 汉字），同步压缩了 §18.1/18.2/18.3/18.5/18.6/18.7 与练习答案的措辞，**未删任何事实、引用与实测输出**；链接类残留复扫仍只剩 `[!NOTE]` / `[!WARNING]`。

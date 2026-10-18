@@ -108,7 +108,7 @@ move 捕获 = 3
 | `FnMut` | 可变借用闭包，调用后还能用 | 不会搬走捕获值的闭包 |
 | `Fn` | 共享借用闭包，调用后还能用 | 只读使用捕获值的闭包 |
 
-三者的关系是超 trait（标准库里的定义，省去不稳定约束与属性）：
+三者的关系是父 trait（标准库里的定义，省去不稳定约束与属性）：
 
 ```rust,ignore
 pub trait FnOnce<Args> { type Output; fn call_once(self, args: Args) -> Self::Output; }
@@ -569,7 +569,7 @@ fn main() {
 
 下图把「逐个穿过」和「每步建中间 `Vec`」两种执行方式并排：
 
-<svg viewBox="0 0 640 210" width="100%" role="img" aria-label="对比：迭代器链让每个元素逐个穿过全部步骤、只建一个结果容器，而每步先建中间 Vec 的写法要分配两条临时 Vec" xmlns="http://www.w3.org/2000/svg">
+<svg viewBox="0 0 640 210" width="100%" role="img" aria-label="对比：迭代器链让每个元素逐个穿过全部步骤、只建一个结果集合，而每步先建中间 Vec 的写法要分配两条临时 Vec" xmlns="http://www.w3.org/2000/svg">
 <line x1="318" y1="4" x2="318" y2="200" stroke="var(--quote-border)" stroke-width="1.5" stroke-dasharray="4 3" />
 <text x="0" y="16" font-size="14" fill="currentColor">迭代器链：逐个穿过</text>
 <text x="336" y="16" font-size="14" fill="currentColor">每步建中间 Vec：整批进出</text>
@@ -585,7 +585,7 @@ fn main() {
 <g font-size="12" fill="currentColor">
 <text x="0" y="102">元素 1 走完全程，元素 2 才进来</text>
 <text x="0" y="124">next() 一次只推进一格</text>
-<text x="0" y="146">结果容器只有 collect 建的那一个</text>
+<text x="0" y="146">结果集合只有 collect 建的那一个</text>
 <text x="0" y="174" opacity="0.7">适配器自身 0 次分配</text>
 </g>
 <g fill="currentColor" stroke="currentColor">
@@ -613,7 +613,7 @@ fn main() {
 <text x="336" y="198" font-size="12" fill="currentColor" opacity="0.7">两条临时 Vec 建好就丢，白跑两遍内存</text>
 </svg>
 
-看顺序：不是「先跑完全部 `map` 再跑 `filter`」，而是每个元素依次穿完整条链。所以链**不需要中间集合** —— 没有临时 `Vec` 被建出来又丢掉，`collect` 只建一个结果容器。这也是它和手写循环能编译成同一件事的原因。
+看顺序：不是「先跑完全部 `map` 再跑 `filter`」，而是每个元素依次穿完整条链。所以链**不需要中间集合** —— 没有临时 `Vec` 被建出来又丢掉，`collect` 只建一个结果集合。这也是它和手写循环能编译成同一件事的原因。
 
 ### 3. 组合实战：日志过滤，两种写法对照
 
@@ -636,7 +636,7 @@ $ ./log_stats
 ERROR 2 条，时间：09:02:03、09:02:04
 ```
 
-对照着看：`imperative` 用可变变量加 `push` 累积，`chained` 把同样的判断写成 `.map(parse).filter(…).collect()`，两边共用 `parse` —— 改写换掉的只是「控制流怎么表达」。`chained` 里 `errors` 是 `Vec<(&str, &str)>`，第二次遍历只取时间戳；元素多、字段大时可以用一次 `fold` 同时算出条数和时间戳，省掉中间 `Vec`（值不值得，第 29 章讲怎么量）。`parse` 里的 `unwrap` 成立是因为示例数据格式有保证；真实程序应当返回 `Option` / `Result`（第 7 章）。
+对照着看：`imperative` 用可变绑定加 `push` 累积，`chained` 把同样的判断写成 `.map(parse).filter(…).collect()`，两边共用 `parse` —— 改写换掉的只是「控制流怎么表达」。`chained` 里 `errors` 是 `Vec<(&str, &str)>`，第二次遍历只取时间戳；元素多、字段大时可以用一次 `fold` 同时算出条数和时间戳，省掉中间 `Vec`（值不值得，第 29 章讲怎么量）。`parse` 里的 `unwrap` 成立是因为示例数据格式有保证；真实程序应当返回 `Option` / `Result`（第 7 章）。
 
 ### 4. 零成本回顾
 
@@ -820,7 +820,7 @@ note: closure cannot be moved more than once as it is not `Copy` due to moving t
 
 - **C++**：捕获方式要显式写进方括号（`[&]` 按引用、`[=]` 按值、`[i, &v]` 混写），按值捕获要改得加 `mutable`；搬 move-only 对象进去用 C++14 的初始化捕获 `[p = std::move(p)]`。按引用捕获的 lambda 活过被引用对象就是悬垂引用（UB），编译器不拦；不捕获的 lambda 能隐式转成函数指针，这点和 Rust 一致。
 - **Java**：lambda 只能捕获 effectively final 的局部变量，捕获的是那份值（对象是引用的副本）；想在里面改外部计数器，得绕道数组或 `AtomicInteger`。
-- **Python**：闭包按变量捕获（后期绑定），`[lambda: i for i in range(3)]` 里的三个 lambda 都返回 2；寿命交给 GC，不存在悬垂。
+- **Python**：闭包按变量捕获（后期绑定），`[lambda: i for i in range(3)]` 里的三个 lambda 都返回 2；内存回收交给 GC，不存在悬垂。
 - **Rust**：不写捕获列表，编译器按闭包体的用法在共享借用 / 可变借用 / 拿走所有权里选最小一档（`move` 是「一律搬走」的开关）；因为捕获就是借用或移动，「闭包活过被捕获变量」是编译错误。
 
 **迭代器与惰性**

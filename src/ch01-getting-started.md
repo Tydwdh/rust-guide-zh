@@ -225,7 +225,7 @@ Hello, world!
 <text x="0" y="238" font-size="12" fill="currentColor" opacity="0.7">check 只留下指纹与增量缓存；build 与 run 额外产出 hello.exe，run 还替你执行它。</text>
 </svg>
 
-三个命令输出的动词也不同：`Checking` 表示只做分析，`Compiling` 表示真在生成机器码，`Finished` 是收尾。`Finished` 后面的 `dev` 是 **profile（构建配置）** 的名字，`[unoptimized + debuginfo]` 说明它是「不优化、带调试信息」的调试版——日常开发都跑在这一档，编译快，也方便调试。本章只讲 `check`、`build`、`run` 三个主命令，外加 `fmt`、`clippy` 两条辅助命令；cargo 的完整命令面（依赖特性、workspace、发布等）在第 30 章展开。
+三个命令输出的动词也不同：`Checking` 表示只做分析，`Compiling` 表示真在生成机器码，`Finished` 是收尾。`Finished` 后面的 `dev` 是 **profile（构建配置）** 的名字，`[unoptimized + debuginfo]` 说明它是「不优化、带调试信息」的调试版——日常开发都跑在这一档，编译快，也方便调试。本章只讲 `check`、`build`、`run` 三个主命令，外加 `fmt`、`clippy` 两条辅助命令；cargo 的完整命令面（依赖的 features、workspace、发布等）在第 30 章展开。
 
 交付时换成优化版：
 
@@ -386,7 +386,7 @@ error[E0601]: `main` function not found in crate `hello`
   = note: consider adding a `main` function to `src\main.rs`
 ```
 
-`note:` 不改变结论，它是补充上下文：这里告诉你缺的是什么（`main` 函数）、该放在哪（`src\main.rs`）。本章你只需要认得这几类行；错误的层次、`E` 开头的编号怎么查、怎样从报错反推设计，是第 2 章的内容。
+`note:` 不改变结论，它是补充上下文：这里告诉你缺的是什么（`main` 函数）、该放在哪（`src\main.rs`）。本章你只需要认得这几类行；错误的层次、`E` 开头的错误码怎么查、怎样从报错反推设计，是第 2 章的内容。
 
 ## 小结
 

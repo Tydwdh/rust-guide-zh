@@ -23,7 +23,7 @@
 
 但参数化一个值，和参数化一个类型，难度不同。类型参数只需要一个「符号」：比较两个类型是否相同，就是比较它们的符号是否一致。const 参数则要求编译器**求出值、再判断相等**——`Buf<3>` 与 `Buf<4>` 是不同的类型，判定依据是 `3 != 4`。这带来两条设计约束：
 
-- **参数类型必须是能在编译期比较相等的东西。** 1.51 稳定时的原话是「Only values of primitive integers, bool, or char types are currently permitted.」；1.98 的 reference 仍是这样一张清单：整数、`char`、`bool`。想用引用、结构体、数组当 const 参数，要在 nightly 上打开 `adt_const_params`。
+- **参数类型必须是能在编译期比较相等的东西。** 1.51 稳定时的原话是「Only values of primitive integers, bool, or char types are currently permitted.」；1.98 的 reference 仍是这样一张清单：整数、`char`、`bool`。想让别的类型当 const 参数，得在 nightly 上开对应的特性门，而且是分开的三条：结构体、枚举等自定义类型看 `adt_const_params`（#95174，配 `#[derive(ConstParamTy)]`）；数组 `[T; N]` 与 `()` 看 `min_adt_const_params`（#154042）；`str`、`[T]`、`&T` 看 `unsized_const_params`（#95174）。
 - **参数只能是「孤立的常量」。** 在类型位置写 `N + 1`，编译器要证明两个表达式算出的值相等，这是一个通用的约束求解问题。官方选择先支持最小可用集，把算术留给不稳定的 `generic_const_exprs`。
 
 记住这两条，本章后面的报错就都能预测：凡是编译器「求不出值」的写法，都会在 const 泛型上撞墙。
@@ -126,12 +126,12 @@ fn main() {}
 error[E0747]: type provided when a constant was expected
  --> src/main.rs:4:33
   |
-4 | fn foo<const N: usize>() -> Foo<N> { Foo }
+4 | fn foo<const N: usize>() -> Foo<N> {
   |                                 ^
   |
 help: if this generic argument was intended as a const parameter, surround it with braces
   |
-4 | fn foo<const N: usize>() -> Foo<{ N }> { Foo }
+4 | fn foo<const N: usize>() -> Foo<{ N }> {
   |                                 +   +
 ```
 
@@ -165,7 +165,7 @@ fn main() {
 
 函数与 `impl` 上写默认值是编译错误，报 `defaults for generic parameters are not allowed here`（1.98 实测）。
 
-### 边界：const 泛型算术仍不稳定
+### 边界：算术与非整数参数类型都还只有 nightly
 
 这是本章最需要记住的一条：**在类型或数组重复表达式里，const 参数只能孤立出现**。reference 的说法是，此时它「may only be used as a single segment path expression, possibly inside a block (such as `N` or `{N}`)」——不能与其他表达式组合。
 
@@ -190,12 +190,18 @@ error: generic parameters may not be used in const operations
 以 Rust 1.98 为例。注意报的是普通错误而不是「特性未稳定」——因为这段代码在 stable 上连门都进不去。
 
 > [!WARNING]
-> const 泛型算术至今仍是 nightly-only，要用 `#![feature(...)]` 打开，而且这些特性都被官方标为 incomplete（设计可能变）：
+> const 泛型的这两块「边界外」能力至今仍是 nightly-only，要用 `#![feature(...)]` 打开，而且这些特性都被官方标为 incomplete（设计可能变）：
 > - `generic_const_exprs`（tracking issue #76560）：允许签名里出现需要求值的泛型常量表达式，如 `[u8; N + 1]`。
 > - `min_generic_const_args`（#132980）：Unstable Book 的描述是「Enables the generic const args MVP (paths to type const items and constructors for ADTs and primitives).」——它是 `generic_const_exprs` 的最小化替代方案，路线不同。
-> - `adt_const_params`（#95174）：允许结构体、枚举等复杂类型当 const 参数。
+> - `adt_const_params`（#95174）、`min_adt_const_params`（#154042）、`unsized_const_params`（#95174）：放开「哪些类型能当 const 参数」。`adt_const_params` 管结构体、枚举等自定义类型（配 `#[derive(ConstParamTy)]`），`min_adt_const_params` 管数组 `[T; N]` 与 `()`，`unsized_const_params` 管 `str`、`[T]`、`&T`——三条互相独立，不要混成一条。
 >
-> 在 stable 1.98 上写 `#![feature(generic_const_exprs)]` 会直接得到 `error[E0554]: #![feature] may not be used on the stable release channel`。本章正文的所有示例都只用 stable 能力。
+> 在 stable 1.98 上写 `#![feature(generic_const_exprs)]` 会直接得到（原文）：
+>
+> ```text
+> error[E0554]: `#![feature]` may not be used on the stable release channel
+> ```
+>
+> 本章正文的所有示例都只用 stable 能力。
 
 `N + 1` 写不了，但在**需要求值**的上下文里就可以对 `N` 做运算——内联 const 块（inline const，1.79 起稳定）正是这样一个上下文。于是有个实用技巧：把断言放进 `const { ... }`，让它变成编译期检查。
 
@@ -229,6 +235,12 @@ error[E0080]: evaluation panicked: 数组不能为空
   |
 2 |     const { assert!(N > 0, "数组不能为空") };
   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ evaluation of `first::<0>::{constant#1}` failed here
+
+note: the above error was encountered while instantiating `fn first::<0>`
+ --> src/main.rs:7:20
+  |
+7 |     println!("{}", first::<0>([]));
+  |                    ^^^^^^^^^^^^^^
 ```
 
 以 Rust 1.98 为例。`N` 只是参数，`const { ... }` 会为每个实例化单独求值，所以断言变成了一条针对每个具体长度的编译期检查——比运行期的 `assert!` 更早一步。
@@ -279,10 +291,12 @@ fn main() {}
 
 ```text
 error[E0277]: the trait bound `Flag<B>: Enabled` is not satisfied
- --> src/main.rs:9:10
-  |
-9 |     need(Flag::<B>);
-  |     ---- ^^^^^^^^ unsatisfied trait bound
+  --> src/main.rs:10:10
+   |
+10 |     need(Flag::<B>);
+   |     ---- ^^^^^^^^^ unsatisfied trait bound
+   |     |
+   |     required by a bound introduced by this call
 ```
 
 以 Rust 1.98 为例。reference 明确写了这条规则：求解 trait 约束时**不考虑 const 参数的穷尽性**。所以别指望用 `bool` 或小整数 const 参数搭「类型级状态机」还让编译器替你穷尽匹配；要分派就为每个取值手工实现（或用 trait + 具体类型建模，见第 12 章）。
@@ -332,14 +346,22 @@ fn main() {}
 
 ```text
 error[E0477]: the type `S<'s>` does not fulfill the required lifetime
- --> src/main.rs:8:21
+ --> src/main.rs:9:21
   |
-8 |     type Item<'a> = &'a mut [u8];
+2 |     type Item<'a> where Self: 'a;
+  |     ------------- definition of `Item` from trait
+...
+9 |     type Item<'a> = &'a mut [u8];
   |                     ^^^^^^^^^^^^
   |
+note: type must outlive the lifetime `'a` as defined here
+ --> src/main.rs:9:15
+  |
+9 |     type Item<'a> = &'a mut [u8];
+  |               ^^
 help: copy the `where` clause predicates from the trait
   |
-8 |     type Item<'a> = &'a mut [u8] where Self: 'a;
+9 |     type Item<'a> = &'a mut [u8] where Self: 'a;
   |                                  ++++++++++++++
 ```
 
@@ -402,28 +424,36 @@ fn main() {}
 error[E0038]: the trait `LendingIterator` is not dyn compatible
  --> src/main.rs:6:24
   |
-6 | fn use_it(it: &mut dyn LendingIterator) { let _ = it.next(); }
+6 | fn use_it(it: &mut dyn LendingIterator) {
   |                        ^^^^^^^^^^^^^^^ `LendingIterator` is not dyn compatible
   |
-1 | trait LendingIterator { type Item<'a> where Self: 'a; fn next<'a>(&'a mut self) -> Option<Self::Item<'a>>; }
-  |       ---------------        ^^^^ ...because it contains generic associated type `Item`
+1 | trait LendingIterator {
+  |       --------------- this trait is not dyn compatible...
+2 |     type Item<'a> where Self: 'a;
+  |          ^^^^ ...because it contains generic associated type `Item`
+  = help: consider moving `Item` to another trait
 ```
 
 以 Rust 1.98 为例（中间省略的是指向 reference 的 note 行）。想动态分派，常见的做法是让 GAT 具体化（为需要的那几种生命周期各写一个关联类型），或者干脆放弃 `dyn`、用泛型 + 单态化。
 
-标准库里稳定可用的 GAT 案例不多，最显眼的一个是 async 的闭包 trait（1.85 稳定）：
+**标准库里没有稳定可用的公开 GAT。** 在 1.98 的 `core`/`alloc`/`std` 源码里按 `type <名字><'…` 扫一遍，带生命周期参数的关联类型只出现在 nightly 门控处：`core::str::pattern::Pattern::Searcher<'a>` 所在的 pattern API 整个模块是 `#![unstable]`；`AsyncFn` 家族的关联类型虽然所属 trait 从 1.85 起稳定，但那个关联类型本身与方法在 1.98 仍标 `#[unstable(feature = "async_fn_traits", issue = "none")]`（标准库文档页对它们标「nightly-only experimental API」）：
 
 ```rust,ignore
-// std::ops::AsyncFnMut 的签名（摘自 1.98 标准库文档）
-pub trait AsyncFnMut<Args>: AsyncFnOnce<Args> {
+// std::ops::AsyncFnMut 的声明（摘自 1.98 标准库文档）
+#[stable(feature = "async_closure", since = "1.85.0")]
+pub trait AsyncFnMut<Args>: AsyncFnOnce<Args>
+where
+    Args: Tuple,
+{
+    // 这个关联类型本身仍标 #[unstable(feature = "async_fn_traits")]
     type CallRefFuture<'a>: Future<Output = Self::Output>
     where
         Self: 'a;
-    // ...
+    // 其余的内容从略
 }
 ```
 
-`core::str::pattern::Pattern` 里也有 `type Searcher<'a>: Searcher<'a>;`，但整个 pattern API 仍是 nightly-only，正文不深入。`Iterator` 至今没有 GAT，也没有 `LendingIterator`（`core::async_iter::AsyncIterator` 的 `type Item;` 不带生命周期参数，且本身仍是 nightly-only）——想要借用式迭代，就按本章的写法自己定义。
+`Iterator` 至今没有 GAT，也没有 `LendingIterator`（`core::async_iter::AsyncIterator` 的 `type Item;` 不带生命周期参数，且本身仍是 nightly-only）——想要借用式迭代，就按本章的写法自己定义。
 
 ### 判断清单：什么时候值得用
 
@@ -442,7 +472,7 @@ pub trait AsyncFnMut<Args>: AsyncFnOnce<Args> {
 **GAT 值得用**，当：
 
 - 关联类型的值**借用 `self`**，且迭代器自己持有被借用的数据（本章的 `Lines`）；这是 GAT 的主场，纯 `Iterator` 表达不了。
-- 关联类型随**调用**变化：视图/游标类型、解析器借出的 token、`Pointer` 家族里的 `type Target<'a>` 之类。
+- 关联类型随**调用**变化：视图/游标（`type View<'a> = &'a [T]`）、解析器借出的 token（`type Token<'a> = &'a str`）、解码器每次取出的切片（`type Chunk<'a> = &'a [u8]`）。
 - 你要把「生命周期该由谁选」这件事明确交给调用方——GAT 的 `Item<'a>` 就是这个意思。
 
 **不要用**，当：
@@ -552,9 +582,14 @@ fn main() {}
 
 ```text
 error[E0477]: the type `S<'s>` does not fulfill the required lifetime
+ --> src/main.rs:9:21
+  |
+9 |     type Item<'a> = &'a mut [u8];
+  |                     ^^^^^^^^^^^^
+  |
 help: copy the `where` clause predicates from the trait
   |
-8 |     type Item<'a> = &'a mut [u8] where Self: 'a;
+9 |     type Item<'a> = &'a mut [u8] where Self: 'a;
   |                                  ++++++++++++++
 ```
 
@@ -563,10 +598,10 @@ help: copy the `where` clause predicates from the trait
 ## 小结
 
 - **泛型参数分三类**：类型、生命周期、const 值。const 参数进入值命名空间，但只允许整数、`char`、`bool`，因为在类型层面比较两个 const 参数靠的是**求值后判断相等**。
-- **const 泛型的价值是让长度/维度成为类型的一部分**：编译期就能拒绝「长度不匹配」，`[T; N]` 有关的类型运算由编译器算。代价是类型空间被展开，以及**算术仍是 nightly-only**（`generic_const_exprs` #76560、`min_generic_const_args` #132980、`adt_const_params` #95174）。
+- **const 泛型的价值是让长度/维度成为类型的一部分**：编译期就能拒绝「长度不匹配」，`[T; N]` 有关的类型运算由编译器算。代价是类型空间被展开；**算术**与**非整数参数类型**至今都是 nightly（算术：`generic_const_exprs` #76560、`min_generic_const_args` #132980；参数类型：`adt_const_params` #95174、`min_adt_const_params` #154042、`unsized_const_params` #95174）。
 - **写 const 实参**：字面量/单段路径优先，算式要包进 `{ }`，歧义时用花括号强制成 const；1.89 起可用 `_` 推断；默认值只写在类型定义上。
 - **GAT 解决的是「关联类型要借用 `self`」**：`type Item<'a> where Self: 'a`，`where` 是为了最大化 impl 的可用定义；impl 侧必须重复它，约束位置要显式给出生命周期或写 `for<'a>`。
-- **GAT 与 `dyn` 不兼容**（关联类型带泛型参数就不满足 dyn 兼容）；标准库稳定的 GAT 用例很少，`Iterator` 没有 GAT，借用式迭代要自己定义 trait。
+- **GAT 与 `dyn` 不兼容**（关联类型带泛型参数就不满足 dyn 兼容）；`Iterator` 没有 GAT，`LendingIterator` 也不存在，而标准库里现存的 GAT 全在 nightly 门控之下（`Pattern::Searcher<'a>`、`AsyncFn*::CallRefFuture<'a>`）——想用就自己定义 trait。
 - **判断标准**：长度/维度是类型语义的一部分时才上 const 泛型；数据归属在迭代器自身、且必须借出时才是 GAT 的主场。两者都要为「多一层复杂度」付出签名与约束的代价。
 
 ## 练习
@@ -623,7 +658,7 @@ impl<'a, T> Iterator for Drain<'a, T> {
 
 **1.** 第一块可以编译：`M` 是一个真正的常量（`const M: usize = 3;`），在类型位置是合法的单段路径，`A<M>` 就是 `A<3>`。第二块不能编译：作用域里有 `type N = u32;`，于是 `A<N>` 里的 `N` 被优先解释成**类型**，编译器报 E0747「type provided when a constant was expected」，并提示改成 `A<{ N }>`。对照记忆：**常量可以直接当 const 实参，参数在存在同名类型时需要花括号才不会被误读**。这条规则的边界值得实测一次：把 `type N = u32;` 删掉后，`A<N>` 反而能编译——没有歧义时它就按 const 实参解释；花括号是给歧义准备的，不是给参数准备的。
 
-**2.** 编译不过，关键行是 `type Item = &'a mut T;` 配 `fn next(&mut self)`。`'a` 是结构体字段的生命周期，而 `next` 借的是 `&mut self`（编译器内部叫 `'1`），二者不同：`self.items[...]` 取出的借用绑在 `'1` 上，却对外宣称是 `'a`，于是报「method was supposed to return data with lifetime `'a` but it is returning data with lifetime `'1`」这类 `lifetime may not live long enough`。想借出 `self` 的**内部状态**（这里是 `idx` 与 `items` 的组合），正是 GAT 的场景：把 `Item` 改成 `type Item<'b> = &'b mut T where Self: 'b;`，`next` 写成 `fn next<'b>(&'b mut self) -> Option<Self::Item<'b>>`。注意：这个例子还有第二层问题——真正的 `Vec::drain` 产出的 `&mut T` 指向的是被移出 `Vec` 的元素，若改为 `split_first_mut` 拿走所有权再分片，则属于「另造类型」的路线，用普通 `Iterator` 也能写。
+**2.** 编译不过，关键行是 `type Item = &'a mut T;` 配 `fn next(&mut self)`。`'a` 是结构体字段的生命周期，而 `next` 借的是 `&mut self`（编译器内部叫 `'1`），二者不同：`self.items[...]` 取出的借用绑在 `'1` 上，却对外宣称是 `'a`，于是报「method was supposed to return data with lifetime `'a` but it is returning data with lifetime `'1`」这类 `lifetime may not live long enough`。想借出 `self` 的**内部状态**（这里是 `idx` 与 `items` 的组合），正是 GAT 的场景：把 `Item` 改成 `type Item<'b> = &'b mut T where Self: 'b;`，`next` 写成 `fn next<'b>(&'b mut self) -> Option<Self::Item<'b>>`。注意：这个例子还有第二层问题——真正的 `Vec::drain` 产出的 `&mut T` 指向的是被移出 `Vec` 的元素，若改为 `split_first_mut` 拿走所有权再切片，则属于「另造类型」的路线，用普通 `Iterator` 也能写。
 
 **3.** （a）不该：固定类型就用普通关联类型，GAT 只会让签名和约束变复杂。（b）一般不该：如果被借用的数据来自调用方传入的切片，可以让 `Item` 的生命周期来自那个切片（`slice::ChunksMut` 的路线），普通 `Iterator` 就够。（c）该用：这正是 GAT 的主场——数据由迭代器持有，只有 `&mut self` 的借用能作为 `Item` 的来源，普通关联类型无法表达这种「每次调用借一次」的类型。
 

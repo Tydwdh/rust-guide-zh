@@ -40,7 +40,7 @@
 
 这条分工不是本书发明的：The Book 讲 panic 取舍时给的理由正是「让库的使用者自己决定怎么处理」——
 
-> it's best to return an error if you can so that the user of the library can decide what they want to do in that case.
+> it’s best to return an error if you can so that the user of the library can decide what they want to do in that case.
 
 打印日志、决定退出码、改全局状态，都是从这个理由推出来的：它们都是**使用者**的决定。
 
@@ -57,7 +57,7 @@
 
 ### 18.1 库与应用：错误类型该长什么样
 
-库这一侧，错误类型的底线要求是一句话能说清的：**任何出现在公开 `Result<T, E>` 里的 `E`，都必须实现 `std::error::Error`**。API Guidelines 把它写成条目 C-GOOD-ERR：
+库这一侧，错误类型的底线要求一句话能说清：**任何出现在公开 `Result<T, E>` 里的 `E`，都应当实现 `std::error::Error`**。API Guidelines 把它写成条目 C-GOOD-ERR（原文用的是 should “always implement”，本书按底线从严：这是错误能被 `?` 传播、能被上层枚举与日志复用所需的最低门槛）：
 
 > An error type is any type `E` used in a `Result<T, E>` returned by any public function of your crate. Error types should always implement the `std::error::Error` trait
 
@@ -86,7 +86,7 @@ impl Error for MissingKey {}
 三条容易漏的细节：
 
 1. **别拿 `()` 当错误类型**。API Guidelines 的措辞是「Never use `()` as an error type, even where there is no useful additional information for the error to carry」，理由有四条（不实现 `Error`、不实现 `Display`、`Debug` 没信息、没法给下游写 `From<()>`）。真要一个不带数据的错误，就用单元结构体。
-2. **错误类型要 `Send + Sync + 'static`**。Guidelines 要求错误类型实现 `Send` 和 `Sync`；这不是洁癖——`std::io::Error::new` 的签名是 `E: Into<Box<dyn Error + Sync + Send>>`，1.98 的文档里就是这么写的。库的错误类型一旦不是 `Send`，调用者就没法把它塞进跨线程的路径。校验方式是在库里加一行编译期断言：
+2. **错误类型要 `Send + Sync + 'static`**。Guidelines 要求错误类型实现 `Send` 和 `Sync`；这不是洁癖——`std::io::Error::new` 的签名就是 `E: Into<Box<dyn Error + Sync + Send>>`。错误类型一旦不是 `Send`，调用者就没法把它塞进跨线程路径。校验方式是在库里加一行编译期断言：
 
    ```rust
    # use std::error::Error;
@@ -255,7 +255,7 @@ impl PortError {
 # fn main() {}
 ```
 
-搭链的规则第 7 章已经引过，这里再点一次，因为它决定了错误类型**内部怎么存**：包装型错误的底层错误，要么由 `source()` 交出去，要么由 `Display` 渲染，**不能两处都来**（std 原文 "but not both"）。所以 `StoreError::Io(_)` 的 `Display` 只写「读写失败」，具体原因由 `source()` 提供。
+搭链的规则第 7 章引过，这里再点一次，因为它决定错误类型**内部怎么存**：底层错误要么由 `source()` 交出去，要么由 `Display` 渲染，**不能两处都来**（std 原文 "but not both"）。所以 `StoreError::Io(_)` 的 `Display` 只写「读写失败」，原因由 `source()` 提供。
 
 链条可以逐层问下去。写一个复用的小工具：
 
@@ -280,7 +280,7 @@ fn print_chain(err: &dyn Error) {
 # fn main() { print_chain(&E1); }
 ```
 
-`source()` 的签名是 `fn source(&self) -> Option<&(dyn Error + 'static)>`：返回的引用寿命跟着 `&self`，所以上面这个循环没有生命周期问题。
+`source()` 的签名是 `fn source(&self) -> Option<&(dyn Error + 'static)>`：返回的引用生命周期跟着 `&self`，所以上面这个循环没有生命周期问题。
 
 > [!WARNING]
 > 标准库有一个现成的链迭代器 `dyn Error::sources()`，但它在 1.98 上仍是 nightly-only 的实验 API（门 `error_iter`，issue #58520，文档标注 “This is a nightly-only experimental API”）。**stable 上必须自己写上面这个循环**，或者把 `source()` 的结果交给日志/序列化库去遍历。
@@ -312,20 +312,27 @@ warning: the `Err`-variant returned from this function is very large
 |---|---|---|
 | `enum` 上 | 匹配**必须**加通配分支；已存在的变体仍可构造 | `E0004` + note “`PortError` is marked as non-exhaustive, so a wildcard `_` is necessary to match exhaustively” |
 | 单元 / 元组变体上 | 该变体在外部**不可构造** | `E0603`：`unit variant A is private` / `tuple variant B is private` |
-| 结构体变体、`struct` 上 | 不可用结构体字面量构造（含函数式更新语法） | `E0639`：`cannot create non-exhaustive variant using struct expression` |
+| `struct` 上 | 不可用结构体字面量构造（含函数式更新语法） | `E0639`：`cannot create non-exhaustive struct using struct expression` |
+| 结构体变体上 | 同上 | `E0639`：`cannot create non-exhaustive variant using struct expression` |
 
 在枚举整体上标 `#[non_exhaustive]` 之后，外部匹配的样子（库与用户代码各一个文件，真跑）：
 
 ```text
 $ cat portlib/src/lib.rs
+// 库：第一天就把错误枚举标成 non_exhaustive
 #[non_exhaustive]
 #[derive(Debug)]
-pub enum PortError { Missing, BadNumber }
+pub enum PortError {
+    Missing,
+    BadNumber,
+}
 
 $ cat userapp/src/main.rs
 fn main() {
-    let e = portlib::PortError::Missing;   // 既有变体：可以构造
-    match e {                              // 匹配：必须留通配
+    // 既有变体照样能构造
+    let e = portlib::PortError::Missing;
+    // 但匹配必须留通配分支
+    match e {
         portlib::PortError::Missing => println!("缺端口"),
         portlib::PortError::BadNumber => println!("不是数字"),
     }
@@ -344,22 +351,28 @@ note: `PortError` defined here
   |
 4 | pub enum PortError {
   | ^^^^^^^^^^^^^^^^^^
+  = note: the matched value is of type `PortError`
   = note: `PortError` is marked as non-exhaustive, so a wildcard `_` is necessary to match exhaustively
+help: ensure that all possible cases are being handled by adding a match arm with a wildcard pattern or an explicit pattern as shown
+  |
+7 ~         portlib::PortError::BadNumber => println!("不是数字"),
+8 ~         _ => todo!(),
+  |
 ```
 
 这条 note 点明了机制：枚举的变体集合不是全部真相，所以必须留 `_` 兜底。
 
-什么时候该加？看 Cargo 手册 SemVer 章节的两条判定：给公开枚举加变体（枚举没标 `#[non_exhaustive]`）是 **major**——原文 “It is a breaking change to add a new enum variant if the enum does not use the `#[non_exhaustive]` attribute.”；事后把已有枚举补成 `#[non_exhaustive]` 同样是 **major**（它会让外部已有的穷尽匹配报错）。两条合起来只有一个结论，手册把它写成了缓解策略：
+什么时候该加？看 Cargo 手册 SemVer 章节的两条判定：给公开枚举加变体（没标 `#[non_exhaustive]`）是 **major**——原文 “It is a breaking change to add a new enum variant if the enum does not use the `#[non_exhaustive]` attribute.”；事后补 `#[non_exhaustive]` 同样是 **major**（会让外部已有的穷尽匹配报错）。两条合起来只有一个结论，手册把它写成了缓解策略：
 
 > Mark structs, enums, and enum variants as `#[non_exhaustive]` when first introducing them, rather than adding `#[non_exhaustive]` later on.
 
 **所以：公开错误枚举默认标 `#[non_exhaustive]`，从第一个版本开始。**
 
-代价要说清楚：调用者失去穷尽匹配的**编译器保护**——将来你加变体，他们的代码不会报错，只会在运行时走 `_` 兜底分支。这是明确的权衡：**便利留给你，漏处理的风险转给调用者**。另外 `#[non_exhaustive]` 只保护「加」不保护「删」：删变体、改变体字段仍然是 major。反过来说，库内部错误类型、以及要长期冻结变体集合的枚举（例如已被下游用 `match` 做完整状态机的协议类型），不必加它。
+代价要说清楚：调用者失去穷尽匹配的**编译器保护**——将来你加变体，他们的代码不会报错，只会在运行时走 `_` 兜底。这是明确的权衡：**便利留给你，漏处理的风险转给调用者**。另外它只保护「加」不保护「删」：删变体、改变体字段仍是 major。反过来说，库内部的错误类型、以及要长期冻结变体集合的枚举（例如已被下游用 `match` 做完整状态机的协议类型），不必加它。
 
 ### 18.4 builder 与 typestate：把误用挪到编译期
 
-当「构造一个值」需要很多可选项、还要区分必填与可选时，构造函数参数列表会失控。API Guidelines 的 C-BUILDER 给出了五条骨架，头两条最关键：
+当「构造一个值」需要很多可选项、还要区分必填与可选时，构造函数参数列表会失控。API Guidelines 的 C-BUILDER 给出了四条骨架（builder：把「配置」做成一个独立类型，最后一次性构造出目标值），头两条最关键：
 
 > 1. Introduce a separate data type `TBuilder` for incrementally configuring a `T` value. \[…\]
 > 2. The builder constructor should take as parameters only the data *required* to make a `T`.
@@ -436,13 +449,13 @@ error[E0599]: no method named `build` found for struct `ConnBuilder<Missing>` in
    = note: the method was found for `ConnBuilder<Present>`
 ```
 
-最后那句 note 是对读者的交代：**方法的可用范围就是状态的类型参数**。`PhantomData<State>` 只当标记，零大小、零开销（第 15 章）。
+最后那句 note 是对读者的交代：**方法的可用范围就是状态的类型参数**。`PhantomData<State>` 只当标记，零大小、零开销（第 16 章 16.5 节）。
 
-别把这两件工具当默认配置：builder 只在「构造复杂」时才值得（Guidelines 列的四种信号：输入很多、复合数据、可选配置、几种风格）；typestate 只在「顺序错误确实会发生」时才值得，代价是每个状态成为独立类型、类型名会出现在错误信息里。另外 builder 产出的配置结构体本身也常标 `#[non_exhaustive]`。
+别把它们当默认配置：builder 只在「构造复杂」时才值得（Guidelines 列的四种信号：输入很多、复合数据、可选配置、几种风格）；typestate 只在「顺序错误确实会发生」时才值得，代价是每个状态成为独立类型、类型名会进错误信息。另外 builder 产出的配置结构体本身也常标 `#[non_exhaustive]`。
 
 ### 18.5 参数怎么收：`&str`、`String` 与泛化边界
 
-参数的形状也影响兼容性。把 `fn f(s: &str)` 泛化成 `fn f(s: impl AsRef<str>)`，对应手册的 “**Minor: generalizing a function to use generics (supporting original type)**”——只要新签名能实例化回原类型就是安全的（手册同时提醒，这种泛化**可能引入类型推断失败**，“usually rare, and may be acceptable”）；反过来把已经泛化的签名收紧回具体类型，对应 “**Major: generalizing a function to use generics with type mismatch**”。既然放宽影响兼容性，就不能随便放宽——先看准则怎么说。API Guidelines 的 C-CALLER-CONTROL 给的是两条对称的规则：
+参数的形状也影响兼容性。把 `fn f(s: &str)` 泛化成 `fn f(s: impl AsRef<str>)`，对应手册的 “Minor: generalizing a function to use generics (supporting original type)”——只要新签名能实例化回原类型就安全（手册提醒它可能引入类型推断失败，“usually rare, and may be acceptable”）。反过来收紧会改变原先允许的类型，手册的总则是：“It is a breaking change to change a function parameter or return type if the generic type constrains or changes the types previously allowed.” 所以放宽不能随便做——先看准则怎么说。API Guidelines 的 C-CALLER-CONTROL 给的是两条对称的规则：
 
 > If a function requires ownership of an argument, it should take ownership of the argument rather than borrowing and cloning the argument.
 >
@@ -500,7 +513,7 @@ note: function defined here, with 0 generic parameters
 
 ### 18.6 SemVer：哪些改动算破坏
 
-有公开 API 的 crate 就要守 SemVer。Cargo 手册把改动分成三档：**Major change**（必须提升主版本号）、**Minor change**（只需提升次版本号）、**Possibly-breaking change**（**有些**项目认为它破坏了兼容性、另一些不认为——“The impact of these changes should be considered carefully.”）。`0.y.z` 阶段另算：`y` 位当 major、`z` 位当 minor，`0.0.z` 一律按 major 处理（Cargo 只把最左边非零的那一位看作不兼容边界）。
+有公开 API 的 crate 就要守语义化版本（SemVer）：Cargo 手册把改动分成三档：**Major change**（必须提升主版本号）、**Minor change**（只需提升次版本号）、**Possibly-breaking change**（**有些**项目认为它破坏了兼容性、另一些不认为——“The impact of these changes should be considered carefully.”）。`0.y.z` 阶段另算：`y` 位当 major、`z` 位当 minor，`0.0.z` 一律按 major 处理（Cargo 只把最左边非零的那一位看作不兼容边界）。
 
 下面挑出与错误类型及 API 形状最相关的条目（等级与英文条目名照抄手册）：
 
@@ -527,12 +540,12 @@ note: function defined here, with 0 generic parameters
 **那么「错误类型变大算不算破坏」？**它是两个问题，分开答：
 
 1. **变体集合长大了**（枚举多了一个变体）——**是** major，除非你从第一天就标了 `#[non_exhaustive]`：标了之后外部匹配本来就必须留通配分支，加变体就只是 minor。把新失败类别做成**独立的错误类型**同样安全（「新增公开项」是 minor）。
-2. **类型占的字节变大了**（例如某个变体换了个更宽的字段）——**不是** SemVer 破坏。手册讲布局时写得很清楚：默认表示（不带 `repr`）的类型“do not have a well-defined alignment, layout, or size”，“code should not make any assumptions about it”，所以即使有外部代码因为假设了大小而出错，“This is not considered a SemVer breaking change since those assumptions should not be made.” 但它仍值得避免——调用方每次都在 `Result` 里内联搬这些字节，clippy 的 `result_large_err` 会直接报出来（18.2）。
+2. **类型占的字节变大了**（例如某个变体换了个更宽的字段）——**不是** SemVer 破坏：手册说默认表示（不带 `repr`）的类型“do not have a well-defined alignment, layout, or size”，所以“code should not make any assumptions about it”；即使有外部代码因假设了大小而出错，也“is not considered a SemVer breaking change since those assumptions should not be made.” 但它仍值得避免——调用方每次都在 `Result` 里内联搬这些字节，clippy 的 `result_large_err` 会报出来（18.2）。
 
 配套的两条实践建议：
 
 - **先让类型能长大**：公开枚举第一天就标 `#[non_exhaustive]`（18.3），公开结构体字段私有 + 提供构造函数或 builder（18.4）。
-- **删除走三步**：先 `#[deprecated]` 并保留至少一个 minor 版本（加 deprecated 属 minor，见上表），再在下一个 major 里删除。用 sealed trait 保护「只想自己实现」的 trait，这样给 trait 加方法就不再是 major（第 12 章）。
+- **删除走三步**：先 `#[deprecated]` 并保留至少一个 minor 版本（加 deprecated 属 minor，见上表），再在下一个 major 里删除。另外用 sealed trait（密封 trait：靠父 trait 里一个外部无法命名的私有 trait 封住实现面，于是给 trait 加方法也不再是 major）保护「只想自己实现」的 trait（第 12 章）。
 
 ### 18.7 把意图写进属性：`#[must_use]` 与 `#[deprecated]`
 
@@ -557,7 +570,7 @@ fn main() {
 }
 ```
 
-如果把返回值丢掉，诊断长这样（实测）：
+如果把这行写成 `write_all("abc");`（丢掉返回值、其余不变），诊断长这样（实测，行号正对应上面第 8 行）：
 
 ```text
 warning: unused return value of `write_all` that must be used
@@ -574,25 +587,25 @@ help: use `let _ = ...` to ignore the resulting value
   |     +++++++
 ```
 
-三点补充。**带消息**（`#[must_use = "..."]`）比光秃秃的 `#[must_use]` 有用得多：消息会进诊断，直接说明为什么。**位置不止类型**：Reference 列的允许位置是「Struct、Enumeration、Union、Function、Trait」，1.98 上**方法**同样有效（实测诊断是 ``unused return value of `Token::issue` that must be used``），给 builder 的终端方法、「拿到就要用」的方法加它收益最大；而 `Result` **本身已经**带了这个属性（std 源码写的是 ``#[must_use = "this `Result` may be an `Err` variant, which should be handled"]``），你自己加它的价值在于覆盖**不是** `Result` 的返回值。最后**有一个例外**：`Result<(), E>` 在 `E` 是无值类型（uninhabited）时不触发 lint，`ControlFlow<B, ()>` 同理，因为那种值根本构造不出来。Reference 还补了一条边界：「A `#[non_exhaustive]` type from an external crate is not considered uninhabited for this purpose, because it may gain constructors in the future.」下面这段带着 `#![deny(unused_must_use)]` 也能编译，说明确实没有警告：
+三点补充。**带消息**比光秃秃的 `#[must_use]` 有用得多：消息会进诊断，直接说明为什么。**位置不止类型**：Reference 列的允许位置是「Struct、Enumeration、Union、Function、Trait」，1.98 上**方法**同样有效（实测诊断是 ``unused return value of `Token::issue` that must be used``），给 builder 的终端方法、「拿到就要用」的方法加它收益最大。注意 `Result` **本身已经**带了这个属性（std 源码写的是 ``#[must_use = "this `Result` may be an `Err` variant, which should be handled"]``），所以它真正的用武之地是**不是** `Result` 的返回值。最后**有一个例外**：`Result<(), E>` 在 `E` 是无值类型（uninhabited）时不触发 lint，`ControlFlow<B, ()>` 同理，因为那种值根本构造不出来。Reference 还补了一条边界：「A `#[non_exhaustive]` type from an external crate is not considered uninhabited for this purpose, because it may gain constructors in the future.」下面这段带着 `#![deny(unused_must_use)]` 也能编译：
 
-  ```rust
-  #![deny(unused_must_use)]
+```rust
+#![deny(unused_must_use)]
 
-  enum Never {} // 没有任何值的类型
+enum Never {} // 没有任何值的类型
 
-  fn noop() -> Result<(), Never> {
-      Ok(())
-  }
+fn noop() -> Result<(), Never> {
+    Ok(())
+}
 
-  fn main() {
-      // 不会触发 unused_must_use：Err 分支永远构造不出来
-      noop();
-      println!("通过");
-  }
-  ```
+fn main() {
+    // 不会触发 unused_must_use：Err 分支永远构造不出来
+    noop();
+    println!("通过");
+}
+```
 
-`#[deprecated]` 标记「别再用这个」。Reference 列出的形式有 `deprecated`、`deprecated = "message"`，以及带 `since` / `note` 两个可选字段的元列表语法；`rustc` 不解析 `since` 里的版本号，但 Clippy 等工具会看。它还能写在模块、`impl` 块这类容器上——「all child items inherit the deprecation attribute」。
+`#[deprecated]` 标记「别再用这个」。Reference 列出的形式有 `deprecated`、`deprecated = "message"` 和带 `since` / `note` 的元列表语法；`rustc` 不解析 `since` 里的版本号，但 Clippy 等工具会看。它还能写在模块、`impl` 块这类可包含子项的结构上——「all child items inherit the deprecation attribute」。
 
 ```rust
 #[deprecated(since = "0.3.0", note = "改用 `parse_config`：它会保留错误链")]
@@ -705,7 +718,7 @@ note: `AppError` needs to implement `From<std::io::Error>`
    = note: the question mark operation (`?`) implicitly performs a conversion on the error value using the `From` trait
 ```
 
-**定位路径**：第一句就说明白了（`?` 转不过去），中间的插入符告诉你「哪个表达式的错误类型不匹配」，最后一行 note 点出机制——`?` 会隐式调用 `From` 做转换。**修法**两条，选哪条取决于语义：转换无歧义就补 `impl From<io::Error> for AppError { … }`（18.2 的第一种情形）；有歧义或要额外上下文，就用 `.map_err(...)` 显式构造变体。
+**定位路径**：第一句就说明白了（`?` 转不过去），插入符指出哪个表达式的错误类型不匹配，最后一行 note 点出机制——`?` 会隐式调用 `From`。**修法**两条：转换无歧义就补 `impl From<io::Error> for AppError`（18.2 的第一种情形）；有歧义或要额外上下文，就用 `.map_err(...)` 显式构造变体。
 
 ### 现场二：库加了变体，`match` 就报错
 
@@ -755,7 +768,7 @@ help: ensure that all possible cases are being handled by adding a match arm wit
    |
 ```
 
-**定位路径**：`E0004` 是穷尽性检查失败，箭头指出**是哪个模式没覆盖**，`help` 直接把缺失的分支补全给你看。**修法**：用户侧加分支或加 `_`；库侧的正解是**从一开始**就在枚举上标 `#[non_exhaustive]`（18.3）——事后补它就不是修法而是 major 变更了（Cargo 手册的 “Major: adding non_exhaustive to an existing enum, variant, or struct with no private fields”）。
+**定位路径**：`E0004` 是穷尽性检查失败，箭头指出**是哪个模式没覆盖**，`help` 直接把缺失的分支补全给你看。**修法**：用户侧加分支或加 `_`；库侧的正解是**从一开始**就在枚举上标 `#[non_exhaustive]`（18.3）——事后补它就是 major 变更（Cargo 手册的 “Major: adding non_exhaustive to an existing enum, variant, or struct with no private fields”）。
 
 ## 小结
 
@@ -818,7 +831,7 @@ help: ensure that all possible cases are being handled by adding a match arm wit
 <details><summary>参考答案</summary>
 
 1. (a) 直接加会**编译破坏**依赖方的穷尽匹配（现场二），Cargo 手册把它归为 “Major: adding new enum variants (without `non_exhaustive`)” → **major**，必须发大版本。
-   (b) 可以不破坏，关键是**别动这个枚举的变体集合**：把新失败类别做成**独立的公开错误类型**（`CorruptError` 之类），「新增公开项」属于 minor，不影响调用者的 `match`。注意给 `Corrupt` 这个**变体**单独标 `#[non_exhaustive]` 没用——那只挡「构造」，挡不住「匹配」：调用者的穷尽匹配照样会漏掉新变体而报错（18.3 的表里，只有标在**枚举整体**上才逼出通配分支）。
+   (b) 可以不破坏，关键是**别动这个枚举的变体集合**：把新失败类别做成**独立的公开错误类型**（`CorruptError` 之类），「新增公开项」属 minor，不影响调用者的 `match`。注意给 `Corrupt` 这个**变体**单独标 `#[non_exhaustive]` 没用——那只挡「构造」；调用者的穷尽匹配照样会漏掉新变体而报错（18.3 的表里，只有标在**枚举整体**上才逼出通配分支）。
    (c) 补 `#[non_exhaustive]` 本身是 “Major: adding non_exhaustive to an existing enum, variant, or struct with no private fields” → 也是 **major**（它会让外部已有的穷尽匹配全部报错）。所以这件事只能从第一天做；已经发出去的枚举，要么等到下一个大版本，要么用新增类型绕开。
 
 2. 两处：

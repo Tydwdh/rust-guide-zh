@@ -37,10 +37,10 @@
 Rust 用三条规则把这件事说清楚：
 
 1. **每个值在任一时刻只有一个所有者（owner）**；所有者是唯一负责释放它的地方。
-2. **所有者离开作用域，值就被释放**（drop，即运行析构代码）。
-3. **值可以在所有者之间转移**（这一动作叫**移动（move）**）；不能移动时，只能通过**借用（borrow）**访问，而借用受别名规则约束。
+2. **所有者离开作用域，值就被析构**（drop，即运行析构代码）。
+3. **值可以在所有者之间移动（move）**；不能移动时，只能通过**借用（borrow）**访问，而借用受别名规则约束。
 
-第 1 条解决「谁负责」：释放点唯一，重复释放就不可能发生。第 2 条解决「什么时候」：不管函数从哪条路返回，出作用域就会释放，不需要人记得写释放代码。第 3 条解决「不转移所有权怎么用」：给它一个不夺走所有权的访问方式，代价是访问期间要守规矩。
+第 1 条解决「谁负责」：释放点唯一，重复释放就不可能发生。第 2 条解决「什么时候」：不管函数从哪条路返回，出作用域就会释放，不需要人记得写释放代码。第 3 条解决「不移动所有权怎么用」：给它一个不夺走所有权的访问方式，代价是访问期间要守规矩。
 
 三条规则合起来，正好卡在 GC 与手动管理中间：**不需要运行时记账，也不需要人工检查**——检查发生在编译期，运行时什么都不用做。
 
@@ -63,7 +63,7 @@ std::string& dangling() {
 
 ## 机制与规则
 
-### 4.1 move：赋值、传参、返回都会转移所有权
+### 4.1 move：赋值、传参、返回都会移动所有权
 
 ```rust
 fn takes(s: String) -> usize {
@@ -95,7 +95,7 @@ len = 5
 c = hello
 ```
 
-移动的语义是「**交出释放责任**」。机器层面通常只是复制几个机器字（`String` 的指针、长度、容量），堆上的字节一个也没动；但语义上 `a` 立刻失效，因为释放责任已经不在它身上了。所以「移动」既不是「深拷贝后销毁原值」，也不是「两个变量指向同一份数据」——它是所有权的交接，编译器把它当成零开销的位复制处理。
+移动的语义是「**交出释放责任**」。机器层面通常只是复制几个机器字（`String` 的指针、长度、容量），堆上的字节一个也没动；但语义上 `a` 立刻失效，因为释放责任已经不在它身上了。所以「移动」既不是「深拷贝后析构原值」，也不是「两个变量指向同一份数据」——它是所有权的交接，编译器把它当成零开销的位复制处理。
 
 下图把这次交接摊开：
 
@@ -207,7 +207,7 @@ s1 = hello, s2 = hello
 | `&T` | 是 | 复制一个地址不影响任何所有权 |
 | `&mut T` | **否** | 可变借用是独占的，复制一份等于凭空多出第二条写入通道 |
 | `String`、`Vec<T>`、`Box<T>` | 否 | 拥有堆内存，位复制会造成「两处都以为自己该释放」 |
-| `Option<i32>`、`Result<i32, bool>` | 是（成员全 `Copy` 才 `Copy`） | 同上 |
+| `Option<i32>`、`Result<i32, bool>` | 是（字段全 `Copy` 才 `Copy`） | 同上 |
 
 试试给 `String` 的包装类型强行 `Copy`：
 
@@ -246,11 +246,11 @@ fn main() {
 }
 ```
 
-对 `String` 来说，`.clone()` 是一次真实的堆分配加内存拷贝。所以读代码时的经验法则是：**看到 `.clone()` 就要能说出「这里为什么必须复制」**，说不出来通常是在绕借用检查，而不是真的需要两份数据。
+对 `String` 来说，`.clone()` 是一次真实的堆分配加内存拷贝。所以读代码时的经验法则是：**看到 `.clone()` 就要能说出「这里为什么必须复制」**，说不出来通常是在绕借用检查器，而不是真的需要两份数据。
 
 ### 4.3 作用域与 drop
 
-规则 2 说「所有者离开作用域，值被释放」。用带析构的类型能直接看到这件事。
+规则 2 说「所有者离开作用域，值被析构」。用带析构的类型能直接看到这件事。
 
 ```rust
 struct PrintOnDrop(&'static str);
@@ -284,9 +284,9 @@ drop: c
 drop: a
 ```
 
-三件事一起看：`b` 被移进 `consume`，于是在**函数内部**出作用域时就 drop，`main` 再也管不着它；`main` 结束时剩下的局部变量按**声明逆序**释放（`_c` 先 drop，`_a` 最后）；而 `_a` 没被移动过，释放责任一直在它身上。（`impl Drop` 的语法在第 9 章、第 17 章展开；这里只需知道：实现 `Drop` 的类型能在「被释放」时执行代码。）
+三件事一起看：`b` 被移进 `consume`，于是在**函数内部**出作用域时就 drop，`main` 再也管不着它；`main` 结束时剩下的局部变量按**声明逆序**析构（`_c` 先 drop，`_a` 最后）；而 `_a` 没被移动过，释放责任一直在它身上。（`impl Drop` 的语法在第 9 章、第 17 章展开；这里只需知道：实现 `Drop` 的类型能在「被析构」时执行代码。）
 
-赋值也会触发 drop——左边原来的值先被释放：
+赋值也会触发 drop——左边原来的值先被析构：
 
 ```rust
 struct PrintOnDrop(&'static str);
@@ -314,11 +314,11 @@ drop: 新值
 
 （这个程序还会得到一个 `unused_assignments` 警告，因为「旧值」写进去之后没人读过——那是另一条 lint，本章不展开。）
 
-想在作用域结束前就释放，用 `drop` 函数把值传进去：`drop(x);` 会移动 `x` 并立刻析构它，因此 `x` 之后不能再使用。这和第 17 章的智能指针是同一套机制的应用。
+想在作用域结束前就析构，用 `drop` 函数把值传进去：`drop(x);` 会移动 `x` 并立刻析构它，因此 `x` 之后不能再使用。这和第 17 章的智能指针是同一套机制的应用。
 
 ### 4.4 借用：`&T` 与 `&mut T`
 
-如果所有函数调用都要转移所有权，写起来会非常痛苦（每次调用前 `clone`）。于是有了**借用**：`&T` 是共享借用，`&mut T` 是可变借用。借用不改变所有权，只是想「用一下」。
+如果所有函数调用都要移动所有权，写起来会非常痛苦（每次调用前 `clone`）。于是有了**借用**：`&T` 是共享借用，`&mut T` 是可变借用。借用不改变所有权，只是想「用一下」。
 
 ```rust
 fn main() {
@@ -538,7 +538,7 @@ error[E0515]: cannot return reference to local variable `s`
 
 对比一下开头的 C++ 例子：同样的逻辑在 C++ 里编译通过、运行时是未定义行为；在 Rust 里它是**编译期的类型错误**。这就是「不需要 GC 也不需要人工检查」的具体形态——借用检查器（borrow checker）把「数据活着」的区间与「引用被使用」的区间对齐：对得上就编译通过，运行时不必再做任何检查；对不上就编译失败。
 
-反过来，从参数借来的引用可以放心返回，因为数据的寿命由调用方保证。这是最常见的一类签名：
+反过来，从参数借来的引用可以放心返回，因为数据的生命周期由调用方保证。这是最常见的一类签名：
 
 ```rust
 fn first_word(s: &str) -> &str {
@@ -639,7 +639,7 @@ fn shout(s: &str) -> String {
 
 fn main() {
     let owned = String::from("hello");
-    let slice: &str = &owned; // &String 自动强转成 &str
+    let slice: &str = &owned; // &String 解引用强转成 &str
     println!("{}", shout(slice));
     println!("{}", shout(&owned));
 
@@ -749,7 +749,7 @@ note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 2. `words` 返回的 `Vec<(usize, &str)>` 里，每个 `&str` 都借用自参数 `s`（也就是 `line` 里的字节），没有复制任何字符串内容；
 3. `&s[begin..i]` 的 `begin`、`i` 来自 `char_indices()`，所以永远落在字符边界上——这正是「字节索引不能乱切」的正确用法。
 
-如果确实需要返回值在 `line` 被释放后仍然存在，就必须让它们拥有数据：
+如果确实需要返回值在 `line` 被析构后仍然存在，就必须让它们拥有数据：
 
 ```rust
 fn words_owned(s: &str) -> Vec<String> {
@@ -782,7 +782,7 @@ fn main() {
 ["hello", "world"]
 ```
 
-这两版的选择就是本章的核心权衡：**借用**便宜但受所有者寿命约束，**拥有**自由但有分配与拷贝的代价。绝大多数情况下先写借用版，编译器逼你克隆时再考虑成本。
+这两版的选择就是本章的核心权衡：**借用**便宜但受所有者生命周期约束，**拥有**自由但有分配与拷贝的代价。绝大多数情况下先写借用版，编译器逼你克隆时再考虑成本。
 
 ## 报错现场
 
@@ -821,7 +821,7 @@ fn main() {
     let d = c.clone();
     println!("c = {c}, d = {d}");
 
-    // 修法 3：本来就是转移所有权，那就只在移动之后用新变量
+    // 修法 3：本来就是移动所有权，那就只在移动之后用新变量
     let first = String::from("hello");
     let second = first;
     println!("second = {second}");
@@ -1094,6 +1094,6 @@ error[E0502]: cannot borrow `s` as mutable because it is also borrowed as immuta
 - The Reference：引用类型（<https://doc.rust-lang.org/reference/types/pointer.html>）、切片类型（<https://doc.rust-lang.org/reference/types/slice.html>）、`str`（<https://doc.rust-lang.org/reference/types/str.html>）、动态大小类型（<https://doc.rust-lang.org/reference/dynamically-sized-types.html>）、析构与 drop 顺序（<https://doc.rust-lang.org/reference/destructors.html>）、生命周期省略规则（<https://doc.rust-lang.org/reference/lifetime-elision.html>）
 - Nomicon：所有权（<https://doc.rust-lang.org/nomicon/ownership.html>）、引用（<https://doc.rust-lang.org/nomicon/references.html>）
 - 标准库：`Copy`（<https://doc.rust-lang.org/std/marker/trait.Copy.html>）、`Clone`（<https://doc.rust-lang.org/std/clone/trait.Clone.html>）、`Drop`（<https://doc.rust-lang.org/std/ops/trait.Drop.html>）
-- 报错码逐条解释（`rustc --explain` 的完整版）：<https://doc.rust-lang.org/error_codes/E0382.html>，把编号换成 `E0499`、`E0502`、`E0515`、`E0106`、`E0204` 同理
+- 报错码逐条解释（`rustc --explain` 的完整版）：<https://doc.rust-lang.org/error_codes/E0382.html>，把错误码换成 `E0499`、`E0502`、`E0515`、`E0106`、`E0204` 同理
 - 非词法生命周期（NLL）的官方公告：<https://blog.rust-lang.org/2018/12/06/Rust-1.31-and-rust-2018.html#non-lexical-lifetimes>
 - 两阶段借用（编译器实现细节）：<https://rustc-dev-guide.rust-lang.org/borrow-check/two-phase-borrows.html>
