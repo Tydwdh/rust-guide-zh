@@ -23,3 +23,4 @@ Blocked by: 03
 ## Comments
 
 - 2026-10-18（07 仓库工程骨架会话实测）：mdbook 0.5.4 在 `book.toml` 配置字段非法时**打印 ERROR 日志但继续构建、exit 0**；本地实测 `[output.html.search] use-unicode-segmentation` 即非法（合法字段：enable / limit-results / teaser-word-count / use-boolean-and / boost-title / boost-hierarchy / boost-paragraph / expand / heading-split-level / copy-js / chapter）。写校验链时不能只看退出码。
+- 2026-10-18（03 返回后补记）：mdbook 默认按 **edition 2015** 编译书里代码块 —— 不显式设 `[rust] edition` 的话，`async` 等新语法在 `mdbook test` 里直接失败（该值由本票定，定完写进 `book.toml`）。另：代码块不标语言会被当 Rust 编译；`mdbook test` 不校验 `[output.html]`，而 `build` 会静默吞掉它的非法字段（exit 0）⇒ 校验链必须扫 build 日志中的 ERROR。完整证据见 `research/03-mdbook-capabilities.md`。

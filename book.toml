@@ -4,3 +4,6 @@ authors = ["tyd"]
 language = "zh-CN"
 
 # [output.html] 渲染 / 搜索相关配置待「03 mdBook 能力盘点」与「06 写作与验收规范」定稿后加入。
+
+# [rust] edition：mdbook 默认按 edition 2015 编译书里的代码块 —— 不显式设置的话，
+# async 等新语法在 `mdbook test` 里直接失败（03 实测）。具体值由「06 写作与验收规范」定（候选 2024），定了写在这里。
