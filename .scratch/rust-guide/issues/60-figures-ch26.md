@@ -1,7 +1,7 @@
 # 60 第四批图示：第 26 章（FFI 与 ABI）
 
 Type: task
-Status: claimed
+Status: resolved
 
 ## Question
 
@@ -40,4 +40,13 @@ Status: claimed
   2. 本机 resvg 对 `var()` 在 `stroke` 上的解析缺陷（见上）只能靠浏览器确认最终配色；收尾 build 时可在 HTML 里核对强调色（`--links`）与警示色（`--warning-border`）是否按预期出现。
 - 新增术语：无（图内用词沿用正文：只用 `catch_unwind`、`extern "C"`、`extern "C-unwind"`、abort）。
 - 衔接提示：后续章节如需引用本图，可说「第 26 章 26.6 的三行示意图」；图内「外层 Rust 帧」与 26.6 事实二的「边界之内」、事实三的「那边（外层）」措辞并不冲突。
+
+## Answer
+
+2026-10-19 批次收尾（用户验收通过）。
+
+- 交付：`src/ch26-ffi-abi.md` 内嵌 1 张（FFI 边界与 panic 三防线，与 26.6 三条事实一一对应），插在 26.6。
+- 自验：`mdbook test -c` exit 0；§9 自查全过；栅格化目视；协调者收尾浏览器复核（HTML 计数 ch26=1）。
+- `text` 块审计：26.6 内无 text 草图，0 删。
+- 全量链（批次级）全绿。
 

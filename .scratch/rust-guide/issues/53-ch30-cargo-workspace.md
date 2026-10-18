@@ -1,7 +1,7 @@
 # 53 第 30 章 Cargo 与 workspace 工程化
 
 Type: task
-Status: claimed
+Status: resolved
 
 ## Question
 
@@ -212,3 +212,14 @@ exit 0
 ```
 
 汉字数 5496 不变（改的是行内代码写法，不涉及中文）。本轮只动 `src/ch30-cargo-workspace.md` 与票 53。
+
+## Answer
+
+2026-10-19 批次收尾（用户验收通过）。
+
+- 交付：`src/ch30-cargo-workspace.md` + `snippets/ch30/`（feature_gate.rs 受测；build_script.rs `no_run` 并注明原因）。
+- 自验：`mdbook test -c` exit 0（含注入反证）；15 组行为在独立探针 workspace 真跑（feature 并集/`dep:`/lints 继承与覆写/priority/`rust-version`/resolver 3/`cargo::` 指令/`rerun-if-changed`/`CARGO_BUILD_WARNINGS` 等）。
+- 交叉审校 RvCh30（2 major + 6 minor）全修：`--locked` 语义纠正、`publish = false` 不豁免路径依赖、resolver 退回 `"1"` 的代价句、`rustc-link-arg-bin=BIN=FLAG`、`cargo::warning` 可见性、feature 名字符位置约束、1.97 口径。
+- 整合期：行内代码 3 处配对修正（linkcheck2 警告清零）；术语并表（模块与工程 12 条：build script/MSRV/虚拟清单/加法性/统一/yank 等）。
+- 全量链（批次级）全绿。
+- 遗留：CI YAML 未在真实 runner 跑；`cargo publish` 真实上传未执行（依赖无版本时的报错已实测）。

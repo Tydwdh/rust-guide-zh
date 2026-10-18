@@ -1,7 +1,7 @@
 # 56 第 33 章 Edition 与迁移
 
 Type: task
-Status: claimed
+Status: resolved
 
 ## Question
 
@@ -107,3 +107,15 @@ Status: claimed
 **证据**：`awk` 汉字计数 → `6599`；`mdbook test -c ch33-edition-migration.md` → `EXIT=0`；`grep -n "fixb\|现场三"` → 无命中；奇偶反引号自查 → 无非围栏异常行。
 
 **未反驳任何一条**：F1/F3/F4/F6 都是事实性错误（我接受）；F2/F5/F7 与存疑 5 是表达/同源问题，按审校给的首选方案改；F8 按分工不动。
+
+## Answer
+
+2026-10-19 批次收尾（用户验收通过）。
+
+- 交付：`src/ch33-edition-migration.md`（26 页改动清单逐条核对 + 2021→2024 真迁移演练）+ `snippets/ch33/`（drop_order/static_mut_raw/if_let_scope）。
+- 篇幅：8476 → 6599 汉字（协调者裁定 ≤6600；删现场三、33.4/33.5 收紧，清单/演练数字/练习/回指全保留）。
+- 自验：`mdbook test -c` exit 0（注入反证 101 → sha256 复原）；演练真跑（`--force-warn` 24 条 → `cargo fix --edition` 18 处 → 2024 后 `static_mut_refs` ×2 → 手工修 3 处 → 8 passed）。
+- 交叉审校 RvCh33（1 major + 7 minor）全修：压缩悬空引用、现场二两版同源（`pub fn bump` 重测）、match ergonomics 改写口径、never-type lint 全 edition deny 口径、`try_write` 实测措辞、note 逐字、探针文件名统一、默认级别表口径注。
+- 术语并表（协调者）：语言方言（edition）入 GLOSSARY。
+- 全量链（批次级）全绿。
+- 遗留：`edition="2024"` 蕴含 `resolver="3"` 只做文档核对（探针无依赖、无 workspace）。

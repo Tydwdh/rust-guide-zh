@@ -1,7 +1,7 @@
 # 59 第四批图示：第 24 章（指针、provenance 与未初始化内存）
 
 Type: task
-Status: claimed
+Status: resolved
 
 ## Question
 
@@ -34,4 +34,13 @@ Status: claimed
 - **新增术语**：无。图内只出现「地址、来历（provenance）、解引用、派生链、零大小访问」等本章与 `GLOSSARY.md` 已用的词。
 - **衔接提示（给协调者）**：图放在「稳定面」表之前，读者先拿到四种形态的对照再读 API 表；`with_exposed_provenance` 按要求**未单列成行**，只在图内底注与紧随其后的 API 表出现。
 - **遗留不确定**：栅格化工具不解析 CSS 变量，深色/浅色主题下的实际配色与 `--warning-border` 的对比度只能在收尾 build 的 HTML 里确认（本票禁 build）。
+
+## Answer
+
+2026-10-19 批次收尾（用户验收通过）。
+
+- 交付：`src/ch24-pointers-provenance.md` 内嵌 1 张（四种指针形态 × 有地址？/有来历？/能解引用？），插在 provenance API 小节。
+- 自验：`mdbook test -c` exit 0（负对照证明未破坏 fence 解析）；§9 自查 + 栅格化目视；协调者收尾浏览器复核（HTML 计数 ch24=1）。
+- `text` 块审计：既有 4 个与图主题不重叠，0 删（论证在票内）。
+- 全量链（批次级）全绿。
 

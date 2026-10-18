@@ -1,7 +1,7 @@
 # 55 第 32 章 文档与 lint 工程
 
 Type: task
-Status: claimed
+Status: resolved
 
 ## Question
 
@@ -101,4 +101,15 @@ Status: claimed
   - 两者均为**单个** `<code>`、反引号按字面显示、无反斜杠；差别只在尾空格。
 - 同章 `:200/:461/:491` 等围栏内的 `\[` 未动（协调者确认不受影响）。
 - 探针目录 `.scratch/tmp-55/` 已删除（含 probebook）。
+
+## Answer
+
+2026-10-19 批次收尾（用户验收通过）。
+
+- 交付：`src/ch32-docs-and-lints.md` + `snippets/ch32/`（doc_lib.rs/gated.rs，均经 `{{#rustdoc_include}}` 受测）。
+- 自验：`mdbook test -c` exit 0（双注入反证）；docprobe/wscap/lintprobe 三个探针 crate 真跑 `cargo doc`/`-D warnings`/clippy 分组/`#[expect]`/cap-lints，逐字核对。
+- 交叉审校 RvCh32（1 major + 5 minor + 1 存疑）全修：clippy 探针补两个真产诊断的函数（11 条口径落实）、`?` 写 turbofish、双反引号整行引诊断、clippy CI 示例分页归位、终端记录省略标注、术语首现、docs.rs 句软化；协调者加派三处探针路径中性化 + `:134` 行内代码配对修正。
+- 术语并表（协调者）：rustdoc/clippy/intra-doc link/隐藏行入 GLOSSARY。
+- 全量链（批次级）全绿。
+- 遗留：nightly 侧（`doc(cfg)` 真渲染）未跑；git 依赖 `--cap-lints` 未实测。
 

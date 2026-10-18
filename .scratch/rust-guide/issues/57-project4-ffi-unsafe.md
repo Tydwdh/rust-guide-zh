@@ -1,7 +1,7 @@
 # 57 项目 4：封装系统 API（FFI 与 unsafe）
 
 Type: task
-Status: claimed
+Status: resolved
 
 ## Question
 
@@ -96,3 +96,14 @@ Status: claimed
 
 1. 原「遗留不确定 1」（非 Windows 只做编译检查）仍成立，但现在多了一层保障：修 F1 时正是这条检查抓出了降级单测的签名不匹配。
 2. 新增一条认知：控制事件**注销**的正确玩法是传同一函数指针；这对「多个处理器叠用」的扩展方向（见「怎么继续扩展 2」）更重要 —— 多槽位实现时每层注销都要各自传自己的指针。
+
+## Answer
+
+2026-10-19 批次收尾（用户验收通过）。
+
+- 交付：`src/project4-ffi-unsafe.md` + `examples/sys-probe/`（零依赖：`GetTickCount64`/`GetSystemTimeAsFileTime`/`SetConsoleCtrlHandler` 封装；`#[cfg]` 只在 platform.rs；非 Windows 降级分支）。
+- 自验：`cargo test -p sys-probe` 12 单测 + 6 集成 + 9 文档全绿；clippy 0 警告、fmt 干净；`x86_64-linux-android --all-targets` 编译通过；`mdbook test -c` exit 0；24 条 include 行段逐条核对。
+- 交叉审校 RwProj4（1 blocker + 2 major + 6 minor）全修：**`CtrlGuard::drop` 真注销**（NULL/FALSE → 传同一函数指针，真信号对照修复；并修掉降级实现里的 E0308）、unsafe 分布口径、图 2 catch_unwind 包裹范围、doctest 行号重贴、持锁窗口叙述、cfg 口径、回指、图 1 aria-label、栈回溯行数。
+- 术语并表：无新增。
+- 全量链（批次级）全绿。
+- 遗留：非 Windows 分支只编译未跑（需 Linux CI）；abort 退出码正文未写（规避）。

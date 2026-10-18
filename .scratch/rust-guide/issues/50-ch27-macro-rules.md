@@ -1,7 +1,7 @@
 # 50 第 27 章 宏：macro_rules!
 
 Type: task
-Status: claimed
+Status: resolved
 
 ## Question
 
@@ -132,3 +132,15 @@ nightly-only 内容只标注不实跑：
 - **F10（minor）采纳**：`block` 行改为「块表达式（不收内部属性）」，对齐 Reference 的 `BlockExpressionNoInnerAttributes`。
 - **F11（minor）采纳（选推荐方案）**：两处 `helper.rs` 由 `rust,ignore` 改为 `rust`，现在同样被 `mdbook test` 编译；负对照（在其中塞 `let _: i32 = "x"`）→ `exit 101` + `E0308`，证明它们真在受测集合里。`user.rs` 块保持 `rust,ignore`（引用外部 crate `helper`，单文件编不过），与 §1 硬规则一致。
 - **F12（minor）采纳**：TT muncher 定义补「（`$head:tt $($rest:tt)*`，可以按需收窄成 `ident`）」，与 `count!` 用 `ident` 一致；基例描述改为「直到 `$($rest)*` 空掉、命中基例 `(@acc $n:expr;)`，此时 `$n` 已经累加成一串 `0 + 1 + ...`」，不再说「只剩 `0`」。 
+
+## Answer
+
+2026-10-19 批次收尾（用户验收通过）。
+
+- 交付：`src/ch27-macro-rules.md`（八节模板；14 真编译 + 10 `compile_fail` + 1 `ignore` 经审校后）+ `snippets/ch27/`（7 个受测文件）。
+- 关键事实（实测 + 逐条核对 Edition Guide）：2024 只改 `expr` 片段（`expr_2021` 保留旧行为）、`pat` 变化在 2021、`stmt` 无 edition 差异、`missing_fragment_specifier` 1.89 起全 edition 硬错误；`$crate` 跨 crate 用 `rustc --extern` 实跑。
+- 自验：`mdbook test -c ch27-macro-rules.md` exit 0；反假绿双负对照（正文块与 snippet 各注入类型错误 → 101）。
+- 交叉审校 RvCh27（4 major + 8 minor）全修：行号对齐、练习 1 补第二错误、`deep` 草稿残留、`show!` 定义补全、两块 `ignore` 升格受测等。
+- 术语并表（协调者）：宏系统 11 条入 GLOSSARY（卫生性/片段说明符/元变量/跟随集合/TT muncher 等）。
+- 全量链（批次级）：build 0 ERROR/0 警告；`mdbook test` 33 章 exit 0；examples 全 crate 绿。
+- 遗留：`cargo expand` 未实跑（本机无该二进制，只引 README/源码）。

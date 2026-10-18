@@ -1,7 +1,7 @@
 # 54 第 31 章 测试进阶
 
 Type: task
-Status: claimed
+Status: resolved
 
 ## Question
 
@@ -85,3 +85,14 @@ Status: claimed
 - **F-05 已修**：「本机 Windows 10」→「本机 Windows 11」（10.0.26200 属 Windows 11 构建号；系统报的 `win32 10.0.26200` 只是 NT 版本号）。
 
 **修复后复验**：`mdbook test -c ch31-advanced-testing.md` → **exit 0**；正文 CJK **5484**（新增 F-01 警告框，做了等量删减，仍在 4000–5500）；`cargo test`（`snippets/ch31/`）仍 5 单元 + 7 doctest 全绿；探针目录、`target/`、`Cargo.lock` 已再次删除。五条全部接受，无异议。
+
+## Answer
+
+2026-10-19 批次收尾（用户验收通过）。
+
+- 交付：`src/ch31-advanced-testing.md` + `snippets/ch31/`（可跑 crate：5 单测 + 7 doctest）。
+- 自验：`mdbook test -c` exit 0（注入反证 101 → 还原）；假绿机制（`#[test]`/`cfg(test)` 不被 rustdoc 编）、`compile_fail`/`no_run`/`should_panic` 边界逐条实测；粘贴输出与复跑逐字一致。
+- 交叉审校 RvCh31（1 blocker + 1 major + 3 minor）全修：`should_panic(expected)` 口径与 ch11 对齐（并加 `should_panic,expected=` 无效的 WARNING）、旗舰假绿块去 `ignore` 真进门禁、doctest 合并 trigger 改 2024 edition 口径、语法错误也算通过、Windows 11 口径。
+- 术语并表（协调者）：表驱动/属性测试/快照测试/假绿/夹具入 GLOSSARY。
+- 全量链（批次级）全绿。
+- 遗留：proptest/insta/nextest/Miri/loom 未装未跑（说明性；Miri 无 nightly）。

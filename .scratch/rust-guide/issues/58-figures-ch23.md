@@ -1,7 +1,7 @@
 # 58 第四批图示：第 23 章（unsafe 与 UB）
 
 Type: task
-Status: claimed
+Status: resolved
 
 ## Question
 
@@ -54,3 +54,12 @@ Status: claimed
 - 字号：正文标注 12、图题 14、代码样文本用 `font-family="monospace"`，符合 §9；图内只用 `① ②`，未用勾叉。
 - 未新增术语（图内措辞全部取自本章既有表述与 `GLOSSARY.md` 对应词：契约 / 健全 / UB）。
 - 衔接提示：图 1 的两个栏底注分别对应 23.3（`# Safety` 写在文档里）与 23.9（`// SAFETY:` 写在调用点）；图 2 左栏第 4 条（破坏指针别名规则）由第 35 章展开，第 24 章 provenance 另有图位。
+
+## Answer
+
+2026-10-19 批次收尾（用户验收通过）。
+
+- 交付：`src/ch23-unsafe-and-ub.md` 内嵌 2 张（① unsafe 的两种用法对照 + 编译器检查边界中线——必做；② UB vs 危险但非 UB 两栏——备选图，做而不略并已论证）。
+- 自验：`mdbook test -c` exit 0（阳性对照 101）；§9 结构自查全过；栅格化目视（双主题）+ 协调者收尾浏览器逐张复核（HTML 计数 ch23=2）。
+- `text` 块审计：8 个全为真跑输出，0 删。
+- 全量链（批次级）全绿；插图计数 79 张入地图/README。

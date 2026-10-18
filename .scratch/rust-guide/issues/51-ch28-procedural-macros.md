@@ -1,7 +1,7 @@
 # 51 第 28 章 过程宏
 
 Type: task
-Status: claimed
+Status: resolved
 
 ## Question
 
@@ -78,3 +78,14 @@ Status: claimed
 - **跨章口径**：「动手看看」的 `cargo test` 前言由「Windows 10」改为「Windows 11」（本机内部版本 10.0.26200）。
 - **F4（不归本票改，记录）**：GLOSSARY 条目的拼写「proc macro」与章内「procedural macro」不一致——按裁定章内保持 `procedural macro` 不动，由协调者并表时统一。
 - 复验：`mdbook test -c ch28-procedural-macros.md` → exit 0（sentinel 复测仍 exit 101，见上）；`cargo test --manifest-path examples/Cargo.toml -p macro-demo-use` → exit 0，`5 passed`。本轮探针目录 `.scratch/tmp-51/` 已删除。
+
+## Answer
+
+2026-10-19 批次收尾（用户验收通过）。
+
+- 交付：`src/ch28-procedural-macros.md` + `examples/macro-demo/`（零依赖手写解析：`Describe`/`repeat`/`sum`）+ `examples/macro-demo-use/`（消费端 + 5 测试）。
+- 自验：`cargo test -p macro-demo-use` 5 passed；`mdbook test -c ch28-procedural-macros.md` exit 0（注入反证 101 → 还原）；token dump 与报错现场逐条实跑对照。
+- 交叉审校 RvCh28（1 major + 5 minor）全修：练习 2 答案按实测重写（两条 E0609、span 指源码 ident）、全角分号、ch30 回指收窄、`walk` 补全、块计数更正。
+- 术语并表（协调者）：过程宏族入 GLOSSARY（procedural macro 统一拼写/三种形态/token 流树/辅助属性/不卫生）。
+- 全量链（批次级）全绿；章内 SVG 经收尾 build + 浏览器目视。
+- 遗留：syn/quote 对照块只做形状核对未编译（外部依赖，`ignore` 标注正确）。

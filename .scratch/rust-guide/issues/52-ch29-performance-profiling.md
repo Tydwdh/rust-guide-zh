@@ -1,7 +1,7 @@
 # 52 第 29 章 性能与剖析
 
 Type: task
-Status: claimed
+Status: resolved
 
 ## Question
 
@@ -81,3 +81,15 @@ Status: claimed
 - **F9（minor · 探针路径）**：接受。正文粘贴里的 `D:\Rust\.scratch\tmp-52\probe…` 已全部换成中性示例路径：`--timings` 块用 `C:\work\demo`（4 处），PGO 块用 `C:/work/demo/pgo-data`（2 处），并保留「项目目录以 `C:\work\demo` 为例」。覆盖率块的 `D:\Rust\snippets\ch29\capacity.rs` 按你的意见保留。为保证替换后数字仍是真跑结果，我在新探针里**重跑**了 `--timings`、覆盖率与 PGO 三步（结果与旧输出一致，只有时间戳/符号哈希更新），正文用的是这一轮输出：`--timings` 3 行 `Compiling` + `Timing report saved to …`；覆盖率 77/37/100%；PGO 16+10 条 missing-profile 警告。
 
 - **复验**：`mdbook test -c ch29-performance-profiling.md` → `INFO Testing chapter '第 29 章 性能与剖析'`，**exit 0**。最新字数 `grep -o '[一-鿿]' | wc -l` = **5882 汉字**（审校前 5749；增量来自 F1/F2 的补充说明与 F5 披露句；仍超票面上限约 7%，见上面「遗留」第 1 条）。探针 `.scratch/tmp-52/` 已再次删除。
+
+## Answer
+
+2026-10-19 批次收尾（用户验收通过）。
+
+- 交付：`src/ch29-performance-profiling.md`（档位表/`--timings`/测量方法学/PGO/覆盖率/分配成本）+ `snippets/ch29/`（3 个受测文件）。
+- 自验：`mdbook test -c` exit 0（3 个 `{{#rustdoc_include}}` 经注入反证确认真进门禁）；容量台阶/分配计数/覆盖率 77-37-100%/PGO 流程均本机真跑并注明浮动。
+- 交叉审校 RvCh29（1 major + 7 minor）全修：`lto="yes"` 事实改写（原样透传不报错）、`%m`=插桩二进制签名、量级「二三十倍」、行号对齐、覆盖率表压缩披露、criterion `black_box` 改 std、译自标注、ETW 措辞、探针路径全部中性化。
+- 篇幅 5882 汉字（+7%），按先例（ch19=6534）裁定接受。
+- 术语并表（协调者）：剖析/插桩入 GLOSSARY。
+- 全量链（批次级）全绿。
+- 遗留：PGO 收益未量化；Windows 采样路线（ETW/WPA）只给方向未实跑。
