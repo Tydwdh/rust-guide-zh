@@ -53,17 +53,17 @@
 - [第 31 章 测试进阶](ch31-advanced-testing.md)
 - [第 32 章 文档与 lint 工程](ch32-docs-and-lints.md)
 - [第 33 章 Edition 与迁移](ch33-edition-migration.md)
-- [项目 5：工程化改造]()
+- [项目 5：工程化改造](project5-engineering.md)
 
 # 第六篇 补充章节
 
-- [第 34 章 手写集合与智能指针]()
-- [第 35 章 别名模型与形式化]()
-- [第 36 章 高级类型系统（nightly 标注）]()
-- [第 37 章 编译器与代码生成]()
-- [第 38 章 自己实现极简 async 运行时]()
-- [第 39 章 宏系统极限]()
-- [第 40 章 生产工程]()
-- [第 41 章 领域地图：从这儿往哪走]()
+- [第 34 章 手写集合与智能指针](ch34-handwritten-collections.md)
+- [第 35 章 别名模型与形式化](ch35-aliasing-models.md)
+- [第 36 章 高级类型系统（nightly 标注）](ch36-advanced-type-system.md)
+- [第 37 章 编译器与代码生成](ch37-compiler-codegen.md)
+- [第 38 章 自己实现极简 async 运行时](ch38-mini-async-runtime.md)
+- [第 39 章 宏系统极限](ch39-macro-frontiers.md)
+- [第 40 章 生产工程](ch40-production-engineering.md)
+- [第 41 章 领域地图：从这儿往哪走](ch41-domain-map.md)
 
 <!-- 未写的章节以「草稿条目」挂在这里；每写完一章，把对应条目接上链接。 -->

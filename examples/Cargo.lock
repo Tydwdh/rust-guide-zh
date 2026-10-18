@@ -18,6 +18,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "release-drill"
+version = "0.1.0"
+
+[[package]]
 name = "sys-probe"
 version = "0.1.0"
 
