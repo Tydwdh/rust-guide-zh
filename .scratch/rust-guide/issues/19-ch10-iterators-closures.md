@@ -1,7 +1,7 @@
 # 19 第 10 章 迭代器与闭包
 
 Type: task
-Status: claimed
+Status: resolved
 Blocked by: 06
 
 ## Question
@@ -24,3 +24,12 @@ Blocked by: 06
   - 2026-10-18 交叉审校返修（RwCh10：1 major + 10 minor，12 项全部处理；改完复跑 `mdbook test -c ch10-iterators-closures.md` → **exit 0**）：
     - ① E0382 摘录行号 6/7 → **8/9**（本机复现确认 `--> …:9:30`，move 在第 8 行）。② E0658、③ E0507（正文 NOTE 与练习答案两处）引号改正为反引号，用双反引号包住内层。④ `str::parse` 的**元素类型** E0283 补成可复现的最小复现（新增第 7 个 `compile_fail` 块 + 真实摘录，本机确认 `--> …:3:36`）；修法写成 `map(str::parse::<i32>)` 或 `map(|t| t.parse::<i32>())`（两者实测编译通过；前者元素是 `Result<i32, _>`，故与上文的 `Result<Vec<i32>, _>` 短路收取衔接）。⑤ E0373 摘录补「（以 Rust 1.98 为例）」。⑥ 未消费警告摘录按本机原文重贴，补 `--> src/main.rs:3:5` / `--> src/main.rs:3:14` 行与 `...` 省略标记。⑦ 零成本条改为「闭包要**持有** `Box` / `Rc` 时，创建它们的那一次分配照样发生（捕获本身不分配）」。⑧ 「自定义迭代器…见第 14 章」拆成两句：实现 `next`（关联类型）见第 12 章、签名返回 `impl Iterator` 见第 14 章。⑨ 「语言对照角」移到「小结」之后。⑩ 「答案从便宜到贵有三档」改按权限措辞：「按闭包对变量的权限从弱到强」。⑪ 本 Comments 自证计数更新为 18 / 7 / 3（另 19 `text` + 1 `console`）。⑫ 示例运行命令补 `$` 提示符（路径正斜杠的全局归一由协调者收尾做）。
     - 为抵消④新增的正文，删了等量冗余表述（「接管道/放水」比喻句、若干重复限定语），篇幅维持在贴上限处（4504 汉字）。
+
+## Answer
+
+2026-10-18 批次收尾（用户验收通过）。
+
+- 交付：`src/ch10-iterators-closures.md`（4504 汉字，含「语言对照角」）+ `snippets/ch10/log_stats.rs`。
+- 自验：`mdbook test -c ch10-iterators-closures.md` exit 0（18 `rust` + 7 `compile_fail` + 3 `ignore`）。
+- 交叉审校 12 条全修（**major：E0382 摘录行号**；E0658/E0507 反引号、E0283 改可复现最小例、E0373 标注、警告省略标注、捕获分配表述、章节指引拆分、对照角位置、措辞、计数、裸命令补 `$`）。全量链：`mdbook build` 0 WARN/ERROR（含 linkcheck2）｜`mdbook test` exit 0（13 章）｜`cargo test --manifest-path examples/Cargo.toml` 19 + 2 passed。
+- 遗留不确定：`HashMap` 收集只讲不打印；零成本不跑基准（指向第 29 章）。

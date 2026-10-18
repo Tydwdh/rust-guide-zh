@@ -1,7 +1,7 @@
 # 12 第 3 章 语言基础：变量、类型、函数与控制流
 
 Type: task
-Status: claimed
+Status: resolved
 Blocked by: 06
 
 ## Question
@@ -42,3 +42,12 @@ Blocked by: 06
   - **minor** `'😀'` 作 `char` 数据示例：协调者裁定保持（数据非装饰）→ 未改。
   - **minor** 「构造式 API（第 18 章）」：已对版图核对，第 18 章含 builder/typestate → 保持不动。
   - 复跑：`mdbook test -c ch03-language-basics.md` → **exit 0**；include 展开后 `rustdoc --test --edition 2024` → `14 passed / 13 passed`（27 块全绿，数量未变）。篇幅变为正文 3683 汉字 / 含代码 3986 汉字，仍在 3000–4000。仍不写 `## Answer`、不置 `resolved`。
+
+## Answer
+
+2026-10-18 批次收尾（用户验收通过）。
+
+- 交付：`src/ch03-language-basics.md`（3683 汉字）+ `snippets/ch03/{tour,overflow}.rs`。
+- 自验：`mdbook test -c ch03-language-basics.md` exit 0；include 展开后 rustdoc 27 块全绿（14 运行 + 12 `compile_fail` + 1 `should_panic`）。
+- 交叉审校 5 条：修 3（练习 2 的 E0308/E0277 张冠李戴、未初始化措辞、隐式转换限定为数值类型），按裁定保持 2（emoji 作数据示例、第 18 章指路）。全量链：`mdbook build` 0 WARN/ERROR（含 linkcheck2）｜`mdbook test` exit 0（13 章）｜`cargo test --manifest-path examples/Cargo.toml` 19 + 2 passed。
+- 遗留不确定：E0571/E0317/运行期越界一句带过；遮蔽的精确 drop 语义留第 4 章。

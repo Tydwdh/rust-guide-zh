@@ -1,7 +1,7 @@
 # 11 第 2 章 读懂编译器：报错的解剖与修复路径
 
 Type: task
-Status: claimed
+Status: resolved
 Blocked by: 06
 
 ## Question
@@ -22,3 +22,12 @@ Blocked by: 06
   - 图示需求：①「一条诊断的解剖」现用 `text` 块画（①–⑦ 标注），08 票定图示体系后可升级为正式图；②想要一张「五步读报错流程」流程图（现为有序列表）；③想要一张 E0502 的「span 时间轴」示意（共享借用 ↔ 可变借用重叠，第 4 章也需要）。
   - 遗留 / 待协调者确认：(a) `mdbook test` 成功时不打印用例清单（只打 INFO 行），故用「临时插入应失败块」的方式枚举用例并证明门禁有效；(b) 实测 `{{#rustdoc_include}}` 的内容**会**被 `mdbook test` 编译（该块作为普通 doctest 通过），与 `WRITING.md` §1 括注「`{{#include}}`（不参与 `mdbook test`）」不符——本稿不受影响（`report.rs` 可编译），但规范宜更正；(c) `compile_fail,E0308` 形式为 nightly-only（rustdoc Unstable Book 原文：stable 上会「被当作纯文本」），stable 1.98 实测**不校验**错误码（故意写错码仍判 ok）→ 本章统一用稳定的 `rust,compile_fail`，错误码只出现在正文与输出中；(d) `cargo check` 输出中段我按「与前面 `rustc` 输出一致」呈现并注明「路径已省略」（本机捕获管道对同一段有一次 `||` 渲染噪声，未逐字粘贴中段）；(e) 首次 `cargo check` 因并行批次抢占 package cache 锁等待约 100s（项目无依赖），流程本身无碍。
 - 2026-10-18 复审修订（RwCh02 findings 1–5，全 minor，均已改，只动本章文件）：① span 计数统一：`:264` 由「剩下两处相关位置」改为「三处相关位置（移动 2 处 + 使用 1 处）」，与 `:236` 的「三个相关位置」及输出块中的 3 行源码位置一致；② warning 读法改正：不再说三条「读法一致、`help:` 直接给出修法」，改为「骨架一样（首行 + 末尾 `= note: #[warn(···)]`），中间那段不一定有」——只有例一（unused variable）带内联 `help:`，例二/例三（unused import、dead_code）需自行判断处理；③ `note` 例子改用真实 note 行：由「`String` 没有实现 `Copy`」（那是 ④ 的 span 标签文字）改为 ``note: `into_iter` takes ownership of the receiver `self` ``；④ 术语首现顺序前移：`lint` 括注移到 `:18`（首现处），`移动（move）`括注移到 `:236`（首现处，`:422` 已去重为「移动」），`trait` 说明移到 ③ 标题后的第一句 `:358`（标题无法带括注，已是最靠近首现的位置）；⑤ `:276` 改引英文原文 "compile the packages without performing the final step of code generation, which is faster than running `cargo build`" 并括号给大意，不再把中文译文称作「原话」。修订后复跑：`mdbook test -c ch02-reading-the-compiler.md` → **exit 0**；正文 3648 汉字；22 个 Rust 块（11 正向 + 11 `compile_fail`）不变。
+
+## Answer
+
+2026-10-18 批次收尾（用户验收通过）。
+
+- 交付：`src/ch02-reading-the-compiler.md`（3648 汉字）+ `snippets/ch02/report.rs`。
+- 自验：`mdbook test -c ch02-reading-the-compiler.md` exit 0（22 doctest：11 正向 + 11 `compile_fail`，含负向对照）。
+- 交叉审校 5 条全修（span 计数口径、warning 的 `help:` 断言收窄、`= note:` 举例换真实 note、术语首现前移 ×3、Cargo Book 引用改英文原文）。全量链：`mdbook build` 0 WARN/ERROR（含 linkcheck2）｜`mdbook test` exit 0（13 章）｜`cargo test --manifest-path examples/Cargo.toml` 19 + 2 passed。
+- 遗留不确定：`cargo check` 中段输出按「与 `rustc` 一致」呈现并注明路径省略。

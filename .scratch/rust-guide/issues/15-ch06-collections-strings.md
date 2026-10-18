@@ -1,7 +1,7 @@
 # 15 第 6 章 集合与字符串
 
 Type: task
-Status: claimed
+Status: resolved
 Blocked by: 06
 
 ## Question
@@ -57,3 +57,12 @@ Blocked by: 06
   6. 版本标注补齐：现场二定位路径段尾加「（以 Rust 1.98 为例；行号按你项目里的实际位置。）」；练习 2 答案的 E0502 输出块后加「（以 Rust 1.98 为例。）」。
   7. 「动手看看」词频注释补就近指向：「`iter()` / `map()` / `collect()` / `sort_by` 属于迭代器与闭包，第 10 章展开」。
   - 修回复验：`mdbook test -c ch06-collections-strings.md` → exit=0（15 个用例全过）；篇幅汉字 3171（含中文标点 3809），仍在 3000–4000 区间。
+
+## Answer
+
+2026-10-18 批次收尾（用户验收通过）。
+
+- 交付：`src/ch06-collections-strings.md`（3171 汉字）+ `snippets/ch06/word_count.rs`；**内嵌 SVG 样例图**（「你好」字节布局 + 字符边界，08 票图示体系的首张落地）。
+- 自验：`mdbook test -c ch06-collections-strings.md` exit 0（15 用例）；SVG 渲染经 `book/html` 校验（aria-label/元素齐全）。
+- 交叉审校 8 条全修（**major：C++ `substr` 断言错**、`vec!` 容量「等价」、摊还 O(1)、`&&str` 层级、术语首现、1.98 标注 ×2、第 10 章指针）。全量链：`mdbook build` 0 WARN/ERROR（含 linkcheck2）｜`mdbook test` exit 0（13 章）｜`cargo test --manifest-path examples/Cargo.toml` 19 + 2 passed。
+- 遗留不确定：Vec 越界 panic 未贴（控篇幅）。

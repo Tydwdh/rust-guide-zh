@@ -114,3 +114,8 @@
 - **术语并表完成**：`GLOSSARY.md` 19 → 99 条。
 - **全量链已全绿**（2026-10-18）：`mdbook build` 0 WARN/ERROR（含 linkcheck2）｜`mdbook test` exit 0（13 章全测）｜`cargo test --manifest-path examples/Cargo.toml` 19 + 2 passed｜项目 1：`cargo build` 0 warning、`cargo fmt --check` 干净。收尾提交 `3ede8a1`，工作区干净。
 - **待办**：用户验收（`mdbook serve` 通读 + 样例图判定）→ 13 张票写 `## Answer` + `resolved`；22 票（基础篇补图）排期。
+
+## 批次关闭（2026-10-18）
+
+- **用户验收通过**（「效果非常好」）；13 张写作票（09–21）已写 `## Answer` + `Status: resolved`。
+- 未结：**22 票**（基础篇图示补全 ~35 处，等排期）；进阶篇第一批写作票（第 12–18 章）待开。

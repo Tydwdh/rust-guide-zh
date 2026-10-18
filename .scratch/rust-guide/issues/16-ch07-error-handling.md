@@ -1,7 +1,7 @@
 # 16 第 7 章 错误处理：Result、panic 与自定义错误
 
 Type: task
-Status: claimed
+Status: resolved
 Blocked by: 06
 
 ## Question
@@ -38,3 +38,12 @@ Blocked by: 06
   5. 练习 2 与答案统一：题干改 `MyError::NotFound(u32)`，答案改 `ok_or_else(|| MyError::NotFound(id))`，并点明它与 7.4「需要构造就用 `ok_or_else`」规则的对应。
   - 复跑自验：`mdbook test -c ch07-error-handling.md` → **exit 0**（doctest 数与构成同前）。
   - 另注（非 findings）：本轮期间同一文件被并行写手改过——`## 延伸阅读` 6 个链接的 `/1.98.0/` 版本锚被去掉（改为不带版本的 stable 链接），其余内容与本稿一致。我未回退（不覆盖他人改动），请协调者确认全批链接是否统一去版本锚。
+
+## Answer
+
+2026-10-18 批次收尾（用户验收通过）。
+
+- 交付：`src/ch07-error-handling.md`（3582 汉字）+ `snippets/ch07/config_error.rs`。
+- 自验：`mdbook test -c ch07-error-handling.md` exit 0（18 doctest：14 编译/运行 + 4 `compile_fail`，含 2 个 `no_run`）。
+- 交叉审校 5 条全修（**blocker：「忽略 `Result` 就编译不过」实为 `unused_must_use` 警告**；Java 受检异常表述；父 trait 体例；回溯节选口径与线程号；练习 2 与答案统一）。全量链：`mdbook build` 0 WARN/ERROR（含 linkcheck2）｜`mdbook test` exit 0（13 章）｜`cargo test --manifest-path examples/Cargo.toml` 19 + 2 passed。
+- 遗留不确定：note 源码路径按规范剔噪（正文注明）。

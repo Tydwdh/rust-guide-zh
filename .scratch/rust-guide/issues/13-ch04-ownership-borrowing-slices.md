@@ -1,7 +1,7 @@
 # 13 第 4 章 所有权、借用与切片
 
 Type: task
-Status: claimed
+Status: resolved
 Blocked by: 06
 
 ## Question
@@ -31,3 +31,12 @@ Blocked by: 06
   ④ NLL 版本表述 → 「自 Rust 1.31（edition 2018）引入 NLL（non-lexical lifetimes）起」。
   ⑤ 尺寸表 `&String` 行补英文：瘦指针（thin pointer）（胖指针（fat pointer）已在 §4.7 内存图中首现）。
   复跑：`mdbook test -c ch04-ownership-borrowing-slices.md` → **exit 0**；正文 CJK 5460（仍 < 5500）；67 个围栏配平、0 裸栅栏；`E0505` 出现 2 处（NOTE + 速查表）。
+
+## Answer
+
+2026-10-18 批次收尾（用户验收通过）。
+
+- 交付：`src/ch04-ownership-borrowing-slices.md`（5460 汉字，核心章）+ `snippets/ch04/word_stats.rs`。
+- 自验：`mdbook test -c ch04-ownership-borrowing-slices.md` exit 0（19 执行块 + 14 `compile_fail`；include 覆盖做了负向实证）。
+- 交叉审校 6 条：修 5（**E0505 归属修正并补进速查表**、panic 线程号、`&str` 只读、NLL 版本、瘦指针英文），裁定 1 不改（预览列表首现次序）。全量链：`mdbook build` 0 WARN/ERROR（含 linkcheck2）｜`mdbook test` exit 0（13 章）｜`cargo test --manifest-path examples/Cargo.toml` 19 + 2 passed。
+- 遗留不确定：无未核实事实。

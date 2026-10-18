@@ -1,7 +1,7 @@
 # 10 第 1 章 起步：工具链与第一个程序
 
 Type: task
-Status: claimed
+Status: resolved
 Blocked by: 06
 
 ## Question
@@ -46,3 +46,12 @@ Blocked by: 06
     9. `:167` 计数改写为「只讲 `check`、`build`、`run` 三个主命令，外加 `fmt`、`clippy` 两条辅助命令」。
   - 上一条 Comment 中已过时的三处，以本条为准：字数（2789）、占位路径（`/path/to/hello`）、`cargo-new` 引文（`The edition to use.`）、以及「只提到 rustc 检查类型/借用」的说法。
   - 探针（`.scratch/tmp-10/probe/` 下的 `solo.rs`、`stat.rs`）用完已删除。
+
+## Answer
+
+2026-10-18 批次收尾（用户验收通过）。
+
+- 交付：`src/ch01-getting-started.md`（2969 汉字）。
+- 自验：`mdbook test -c ch01-getting-started.md` exit 0。
+- 交叉审校 9 条全修（CRT 依赖限定「跨机可跑」、引文改为快照原文、`:::` 归类、E0601 补版本标注、反例可见标注、目录树补 `.git/`、命令计数点名等）；与第 2 章 `cargo check` 重复一条按裁定接受。全量链：`mdbook build` 0 WARN/ERROR（含 linkcheck2）｜`mdbook test` exit 0（13 章）｜`cargo test --manifest-path examples/Cargo.toml` 19 + 2 passed。
+- 遗留不确定：耗时数字为并发写盘下的量级参考（正文已注明）。

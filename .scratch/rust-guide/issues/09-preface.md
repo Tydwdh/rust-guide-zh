@@ -1,7 +1,7 @@
 # 09 前言：读者须知与使用约定
 
 Type: task
-Status: claimed
+Status: resolved
 Blocked by: 06
 
 ## Question
@@ -46,3 +46,12 @@ Blocked by: 06
   给协调者的提醒：正文里 `.\main` 是 Windows 命令写法（WRITING.md §5「Windows 实际输出里的反斜杠在首次出现处说明一次即可」），做「反斜杠 → 正斜杠」全局归一时请跳过这一处，否则会变成错误的 Windows 指路。
 - 2026-10-18 收尾句回归（协调者请求）：加回「准备就绪后，翻到第 1 章。」，为腾字数从资料表「定位」列挤掉等量冗词——Book 行「从安装讲到」→「讲到」、Cargo 行「workspace 管理」→「workspace」、Edition Guide 行「之间改了什么」→「改了什么」、Error Codes 行「这类编号」→「编号」、std 行「查 API 第一站」→「查 API 首选」；Reference 行的「，供查证」保留（其余未动）。
   自验：`mdbook test -c preface.md` → `INFO Testing chapter '前言': "preface.md"`，**exit 0**；字数四口径：汉字 1189 / 汉字+拉丁词 1271 / 汉字+中文标点 1416 / 汉字+标点+拉丁词 **1498**（全部 ≤1500）；`tail -3` 确认末行为「准备就绪后，翻到第 1 章。」；`src/preface.md` md5 = `ad7f8b365103bfb29beba466082bd261`。
+
+## Answer
+
+2026-10-18 批次收尾（用户验收通过）。
+
+- 交付：`src/preface.md`（1189 汉字，六小节）。
+- 自验：`mdbook test -c preface.md` exit 0（两次）+ 负向对照（注入类型错误 → exit 101）。
+- 交叉审校 11 条全修（1 major：讲法③「每段代码都进自动检查」系过度承诺）；裁定 5 条按稿（`unsafe` 不加括注 / 「包管理器」非术语首现 / Reference 定位语 / 对照角可选 / 措辞不与 04 逐字对齐）。全量链：`mdbook build` 0 WARN/ERROR（含 linkcheck2）｜`mdbook test` exit 0（13 章）｜`cargo test --manifest-path examples/Cargo.toml` 19 + 2 passed。
+- 遗留不确定：无。明细见 `.scratch/rust-guide/batch-notes.md`。

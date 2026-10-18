@@ -38,6 +38,7 @@
 - [05 内容版图与章节结构](issues/05-content-map-and-structure.md): 版图 v0 定稿 —— 六篇 41 章 + 5 项目（`SUMMARY.md` 草稿条目 + `outline-v0.md`）；顺序吃 02 批次序；每章一张写作票、每章 2–3 道理解题（带答案）；基础篇 13 张写作票（09–21）已开、全部 blocked by 06。
 - [06 写作与验收规范](issues/06-writing-and-acceptance-spec.md): 规范定稿 —— `WRITING.md`（混合示例制 / edition 2024 + 最新 stable / 标准校验链 / 八节章节模板 / 加严 DoD 含交叉审校 / 已知坑）+ `GLOSSARY.md` 草案（trait 保留英文）；`book.toml` 已设 edition 与 create-missing。
 - [08 样板章](issues/08-sample-chapter-prototype.md): 原型由批量写作取代（基础篇 13 票落稿 + 13 份审校（每票一份） + 逐票修回）；反馈沉淀为 WRITING 增补（示例组织四硬规则 / 跨语言断言 / 逐字核对 / 命令行与路径口径 / 六条实测坑）；**图示体系定案 = 内嵌 SVG**（用户裁决），样例图落在 ch06。
+- 基础篇写作票 09–21（13 张）: **全部 resolved**（2026-10-18 用户验收通过）—— 13 章落稿 + 13 份审校修回 + 全量链全绿；逐票 `## Answer` 已写，过程记录见 `batch-notes.md`。
 
 ## Not yet specified
 

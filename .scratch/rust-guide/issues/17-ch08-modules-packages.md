@@ -1,7 +1,7 @@
 # 17 第 8 章 模块、包与依赖
 
 Type: task
-Status: claimed
+Status: resolved
 Blocked by: 06
 
 ## Question
@@ -46,3 +46,12 @@ Blocked by: 06
   6. `:589` 含混句 → 「如果文件已经放在 `src/config.rs`，它不会作为 `util` 的子模块被找到：要么挪到 `src/util/config.rs`，要么在 `main.rs` 里 `mod config;` 把它升成 crate 根的模块……」。
   7. +RwCh09：shop 运行命令统一 Windows 口径 → `rustc --edition 2024 main.rs -o shop.exe` / `.\shop.exe`（注释给出 Linux/macOS 的 `-o shop` / `./shop`）。注意 `-o` 的名字 rustc **不会**补 `.exe`。
   复跑：`mdbook test -c ch08-modules-packages.md` → **exit 0**（现 14 个 doctest：8 个 `compile_fail` + 6 个 `rust`，4 个 `ignore`）；正文中文 **3668** 字（不含代码块，仍在 3000–4000）。`snippets/ch08/` 仍只有 3 个 `.rs`，无产物。
+
+## Answer
+
+2026-10-18 批次收尾（用户验收通过）。
+
+- 交付：`src/ch08-modules-packages.md`（3668 汉字）+ `snippets/ch08/shop/`（`main.rs` + `catalog.rs` + `catalog/items.rs`，多文件布局）。
+- 自验：`mdbook test -c ch08-modules-packages.md` exit 0（14 doctest：8 `compile_fail` + 6 `rust`，4 `ignore`）；三段 include 在 `book/html` 里确认已展开。
+- 交叉审校 8 条全修（**major：补 E0616 + E0451，闭合第 5 章的跨章承诺缺口**；跨 crate 优化归因、Cargo.lock 节选标注、features/workspace 体例、标题、根模块措辞、Windows 口径）。全量链：`mdbook build` 0 WARN/ERROR（含 linkcheck2）｜`mdbook test` exit 0（13 章）｜`cargo test --manifest-path examples/Cargo.toml` 19 + 2 passed。
+- 遗留不确定：依赖实操走 `--offline`（本机无外网，正文已注明）。

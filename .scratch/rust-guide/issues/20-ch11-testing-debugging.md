@@ -1,7 +1,7 @@
 # 20 第 11 章 测试与调试
 
 Type: task
-Status: claimed
+Status: resolved
 Blocked by: 06
 
 ## Question
@@ -39,3 +39,12 @@ Blocked by: 06
   4. `--nocapture` 措辞对齐一手来源：`library/test/src/cli.rs:204` 为 `optflag("", "nocapture", "Deprecated, use --no-capture")`；正文改为「自 1.88 起已弃用，但仍被接受，且不再出现在 `--help` 里」。
   5. 失败起点补精确复现指令：「打开 `snippets/ch11/src/lib.rs`，把第 3 行 `split_whitespace()` 换回 `split(' ')`，在 `snippets/ch11/` 跑 `cargo test`」。
   - 复跑：`mdbook test -c ch11-testing-debugging.md` → `INFO Testing chapter …` / **EXIT=0**。清理：删除 `snippets/ch11/target` 与 `Cargo.lock`，目录仅剩 `Cargo.toml`、`src/lib.rs`、`tests/integration.rs`。现值：20492 字节，正文 3163 汉字（仍在 3000–4000）。
+
+## Answer
+
+2026-10-18 批次收尾（用户验收通过）。
+
+- 交付：`src/ch11-testing-debugging.md`（3163 汉字）+ `snippets/ch11/`（可跑 crate：`Cargo.toml` + `src/lib.rs` + `tests/integration.rs`）。
+- 自验：`mdbook test -c ch11-testing-debugging.md` exit 0；`cargo test --manifest-path snippets/ch11/Cargo.toml` 真跑全绿（测试语义借可跑 crate 补齐——`#[test]` 块对 mdbook test 是「假绿盲区」）。
+- 交叉审校 6 条全修（引用反引号 ×2、doctest 回指改第 31 章、输出路径改 `snippets/ch11`、`--nocapture` 已弃用说明、失败起点补精确复现指令）。全量链：`mdbook build` 0 WARN/ERROR（含 linkcheck2）｜`mdbook test` exit 0（13 章）｜`cargo test --manifest-path examples/Cargo.toml` 19 + 2 passed。
+- 遗留不确定：断点调试未实测（正文如实标注）。

@@ -1,7 +1,7 @@
 # 21 项目 1：命令行小工具
 
 Type: task
-Status: claimed
+Status: resolved
 Blocked by: 06
 
 ## Question
@@ -103,3 +103,13 @@ Blocked by: 06
   - **切片行号重算**（代码改动使 `error.rs` / `store.rs` 位移）：`error.rs:6:22`→`6:24`、`store.rs:26:72`→`26:77`、`store.rs:94:126`→`99:132`，并新增只读 impl 块 `store.rs:79:97`（让「分成两类」的说法与展示一致）。脚本复核 14 条切片边界全部落在 doc 注释/项首与闭合 `}`（`error.rs:6:24` 以 `Result` 别名行结尾，是有意的）。
   - **复验**（`CARGO_TARGET_DIR=.scratch/tmp-21/target`）：`cargo test --manifest-path examples/Cargo.toml` → exit 0，`19 passed; 0 failed` + `2 passed; 0 failed`；`cargo build` → exit 0、0 warning；`cargo fmt --check` → exit 0；`mdbook test -c project1-cli-tool.md` → exit 0。
   - **篇幅回修**：正文汉字 **4495**（不含围栏代码块）；`.scratch/tmp-21/` 已删除。
+
+## Answer
+
+2026-10-18 批次收尾（用户验收通过）。
+
+- 选型：**待办清单 CLI**（理由：`Status`/`Command`/`Filter`/`AppError` 四个枚举正好落第 5/7 章的概念）。
+- 交付：`src/project1-cli-tool.md`（4495 汉字）+ `examples/`（workspace + `todo-cli`，零外部依赖，14 处 `{{#include}}` 切片）。
+- 自验：`cargo test --manifest-path examples/Cargo.toml` → 19 + 2 passed；`cargo build` 0 warning；`cargo fmt --check` 干净；`mdbook test -c project1-cli-tool.md` exit 0。
+- 交叉审校 14 条全修（3 major：不存在的测试名、8 条钉版链接、`examples/README.md` 旧占位——后者由协调者重写；**溢出真修：`checked_add` + `AppError::IdsExhausted`**；`trait 边界`→「trait 约束」；切片按新代码重算）。全量链：`mdbook build` 0 WARN/ERROR（含 linkcheck2）｜`mdbook test` exit 0（13 章）｜`cargo test --manifest-path examples/Cargo.toml` 19 + 2 passed。
+- 遗留不确定：`examples/target/` 为共享构建缓存（gitignored）。
