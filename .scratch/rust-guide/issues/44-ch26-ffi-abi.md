@@ -1,7 +1,7 @@
 # 44 第 26 章 FFI 与 ABI
 
 Type: task
-Status: claimed
+Status: resolved
 
 ## Question
 
@@ -96,5 +96,16 @@ Status: claimed
 **顺带对齐（同一处跨章回指的精度问题，我主动一并改，供评审复核）**：26.8 末句原写「第 23 章讲过的「`unsafe` 不是关掉检查的开关」」——加了引号实为转述。ch23 定稿里对应的是 §23.2 标题「`unsafe` 不是「关掉检查」」与小节正文「`unsafe` 块给的是**额外能力**，不是关闭检查的开关」。现改为「第 23 章 23.2 的结论（`unsafe` 不是「关掉检查」）」，不再冒充逐字引文。若评审认为此改动超出 #15 范围，可回退为原句。
 
 **该项修后复跑**：`mdbook test -c ch26-ffi-abi.md` → **exit 0**（本次只改正文文字，块结构未变，仍是 14 passed / 6 ignored）。探针 `.scratch/tmp-44-x15/` 已删除。
+
+## Answer
+
+2026-10-19 批次收尾（用户验收通过）。
+
+- 交付：`src/ch26-ffi-abi.md`（4287 汉字；**真 C 端到端**：MinGW gcc → `c26.dll` → MSVC rustc 链接 + `build.rs` 路线；`extern "C"` 回调 + `catch_unwind`；C 字符串；2024 硬错误两条）+ `snippets/ch26/{callbacks,cstrings}.rs`。
+- 自验：`mdbook test -c ch26-ffi-abi.md` exit 0（14 passed / 6 ignored，变参声明块在审校后进门禁）；注入反证 101 → 绿。
+- 交叉审校（RvCh26；5 minor + 跨章 1）全修：CStr 引文出处、`"system"` 变参例外、术语括注、变参块去 `ignore`、`next_arg` unsafe 标注、23.6 精确回指。
+- 术语并表（协调者）：FFI / ABI / 调用约定 / 符号修饰 / 空指针优化 / 不透明句柄 已入 GLOSSARY。
+- 全量链（批次级）：同上一档口径全绿。
+- 遗留：例 3 需本机 C 编译器（纯 Rust 例 1/2 不依赖）；`raw-dylib` 未实测。
 
 

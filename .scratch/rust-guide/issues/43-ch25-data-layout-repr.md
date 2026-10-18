@@ -1,7 +1,7 @@
 # 43 第 25 章 数据布局与 repr
 
 Type: task
-Status: claimed
+Status: resolved
 
 ## Question
 
@@ -84,3 +84,14 @@ Status: claimed
 - `mdbook test -c ch25-data-layout-repr.md` → **exit 0**（修复前一度 5624 汉字超上限，已压回 5472）。
 - 本章 doctest 由 8 个增至 **9 个**（新增 `offset_of!` DST 容器示例）；对该新块注入类型错误 → `test result: FAILED. 8 passed; 1 failed`、**exit 101**，还原后 exit 0 —— 新块确实在门禁内被编译。
 - 本轮只动 `src/ch25-data-layout-repr.md` 与本票；`snippets/ch25/` 四个文件未改（新增示例直接内联在正文，不涉及 snippet）。
+
+## Answer
+
+2026-10-19 批次收尾（用户验收通过）。
+
+- 交付：`src/ch25-data-layout-repr.md`（5472 汉字；9 doctest；4 片段 `structs/enums/list/dst.rs` + 2 张自画 SVG）。
+- 自验：`mdbook test -c ch25-data-layout-repr.md` exit 0；注入反证 `FAILED. 8 passed; 1 failed` → 还原。
+- 交叉审校（RvCh25；6 major + 6 minor）全修：**伪测纠正**（`Option<Option<bool>>` 实为 255 非 3）；`TwoU64` Option 解释与练习三统一；**ch17 回指与勘误版同步**；`offset_of!` 字段 Sized/容器 DST；`size_of_val` 仅引用（`*_raw` nightly）；瘦指针；discriminant 括注；niche 关停限定「带字段」；小结 6 条；SVG 字号 10→12；「确定布局算法」措辞；引文补原文。
+- 术语并表（协调者）：对齐 / 填充 / 判别式 / 空位（niche）已入 GLOSSARY。
+- 全量链（批次级）：同上一档口径全绿。
+- 遗留：无。

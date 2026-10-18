@@ -1,7 +1,7 @@
 # 41 第 23 章 unsafe 与 UB
 
 Type: task
-Status: claimed
+Status: resolved
 
 ## Question
 
@@ -97,3 +97,14 @@ Status: claimed
   2. UB 检查矩阵（`slice::get_unchecked` 越界，1.98）：默认构建 → 触发（非展开式 panic，退出 9）；`-C opt-level=2 -C debug-assertions=on` → 触发；`-C debug-assertions=off` → 不触发（读到垃圾值后 exit 0）；`-C opt-level=1`、`-C opt-level=2` → 不触发（进程以 0xC000001D 消失）。
 - 篇幅：正文 **5741 汉字**（我的计法，评审修订净增约 149）；按协调者口径约 5465，仍在 4000–5500 内。
 - 仍未做（与初稿同一处遗留）：Miri 真输出；`.scratch/tmp-41/` 已删，仓库根无残留可执行文件。
+
+## Answer
+
+2026-10-19 批次收尾（用户验收通过）。
+
+- 交付：`src/ch23-unsafe-and-ub.md`（五类超能力 vs Reference 八条差集；UB 清单逐条 + 「危险但非 UB」六类；Miri 章节诚实标注 nightly 未跑；练习 3 题带答案）+ `snippets/ch23/boundary.rs`。
+- 自验：`mdbook test -c ch23-unsafe-and-ub.md` exit 0（11 块 = 2 跑 + 3 `no_run` + 3 `compile_fail` + 3 ignore）；注入反证 ×3。
+- 交叉审校（RvCh23；1 major + 13 minor）全修：练习 2 答案的「unnecessary unsafe block」不成立（实测无此警告、2024 先报 `static_mut_refs` error）→ 重写；派生括号还原；五/八差集补静态条；UB 检查口径（1.78/1.80 起、跟随 debug-assertions、尽力而为）；「契约（contract）」首现；三处粘贴块省略标注；练习 1 补代码。
+- 术语并表（协调者）：契约 / 健全的·不健全的 / 裸指针 / 可变静态 / 未初始化 / 裸借用运算符 已入 GLOSSARY。
+- 全量链（批次级）：build 0 ERROR/0 警告｜test 30 章 exit 0｜examples 全绿。
+- 遗留：Miri 真输出（本机无 nightly；正文 WARNING + 命令给全）。

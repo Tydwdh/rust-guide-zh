@@ -1,7 +1,7 @@
 # 45 项目 2：表达式求值器（小型库 crate）
 
 Type: task
-Status: claimed
+Status: resolved
 
 ## Question
 
@@ -95,3 +95,13 @@ Status: claimed
 
 - `examples/README.md` 成员表仍只有 `todo-cli`（按票要求未动）。
 - 正文未演示 CLI 上的深度上限（只在 §4 说明 + 单测/e2e 覆盖），若希望 console 里也出现一条 200 层括号的示例，可以补。
+
+## Answer
+
+2026-10-19 批次收尾（用户验收通过）。
+
+- 交付：`src/project2-expr-eval.md`（5498 汉字；概念落点表 + 3 报错现场 + 1 图）+ `examples/expr-eval/`（零依赖、`forbid(unsafe_code)`；**59 测试** = 39 库单测 + 3 CLI 单测 + 11 e2e + 6 doc；clippy/fmt 干净）。
+- 自验：`cargo test -p expr-eval` 59 全绿；`mdbook test -c project2-expr-eval.md` exit 0；31 处 include 的 32 个范围逐条脚本核对。
+- 复审（RwProj2；7 major + 11 minor）全修：变体数→8（新增 `TooDeep`）；E0106 框架删除（四 edition 同输出，lint 1.89 起）；两处现场行号/gutter 按实跑重贴；裸 `--var` 演示；练习 2 按 `PREFIX_BP` 实跑重写；练习 1 修正；**真 bug 修复**：`MAX_DEPTH=128` 深度守卫（400 层括号由栈溢出 253 → 干净报错 2）、`columns_of` 宽字符/制表符列宽；「绝不 panic」验收标准落实；「闭集 vs 开集」改指 ch13；「寿命」清零。
+- 全量链（批次级）：同上一档口径全绿。
+- 遗留：无。

@@ -1,7 +1,7 @@
 # 47 第三批图示：第 19 章（并发基础）
 
 Type: task
-Status: claimed
+Status: resolved
 
 ## Question
 
@@ -45,3 +45,12 @@ Status: claimed
 - 栅格化目视：`cairosvg` 渲染 3 张 PNG（宽 760）到 `.scratch/tmp-47/`（收尾已删）——框、箭头、对齐、文字落位均正常；CJK 显示为方框是渲染器缺中文字库所致（非 SVG 问题，HTML 渲染用浏览器字体）。
 
 **遗留**：无。HTML 最终渲染留待协调者收尾 build 统一确认（§9）。
+
+## Answer
+
+2026-10-19 批次收尾（用户验收通过）。
+
+- 交付：`src/ch19-concurrency-basics.md` 补 **3 张** —— Send/Sync 三条路径（:38–61）、`spawn` vs `scope` 区间（:165–187）、mpsc 拓扑（:579–605）。
+- `text` 块审计：21 个全是程序输出/报错行，**0 删**。
+- 自验：`mdbook test -c ch19-concurrency-basics.md` exit 0；结构自查 3/3；栅格化目视；HTML 计数 3/3 与浏览器确认。
+- 遗留：无。

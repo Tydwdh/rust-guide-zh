@@ -1,7 +1,7 @@
 # 48 第三批图示：第 21 章（async 基础）
 
 Type: task
-Status: claimed
+Status: resolved
 
 ## Question
 
@@ -59,3 +59,12 @@ Status: claimed
 - 图 1「变体 0..3」是枚举变体的示意编号，正文只说「枚举状的状态机」，未承诺变体个数或命名；若将来第 38 章要画真实展开（含内层 future 字段名），可在此图上加深而不用重画。
 - 图 2 的 `wake()` 用一条长箭头从「I/O 或定时器线程」直通「执行器」；严格说 waker 是在 future 侧登记的，图已用 ② 的箭头方向表达，但长箭头会横穿 future 泳道的生命线（时序图惯例，目视无遮挡问题）。
 - 未做 HTML 级渲染确认（`mdbook build` 属禁项）；`var(--links)`/`var(--quote-border)` 在真主题下的配色由协调者收尾 build 统一确认。
+
+## Answer
+
+2026-10-19 批次收尾（用户验收通过）。
+
+- 交付：`src/ch21-async-basics.md` 补 **2 张** —— `async fn` ↔ 状态机（:161–194）、poll/Pending/waker/再 poll 时序（:205–233）；两张分离并论证（编译期形态 vs 运行期协议）。
+- 代码列缩进用 `xml:space` 预证；`text` 块 27 个全保留（**0 删**）。
+- 自验：`mdbook test -c ch21-async-basics.md` exit 0；结构自查全过；栅格化目视（含放大核对）。
+- 遗留：无。

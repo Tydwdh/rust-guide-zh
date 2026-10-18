@@ -1,7 +1,7 @@
 # 46 项目 3：迷你任务队列（并发与异步篇）
 
 Type: task
-Status: claimed
+Status: resolved
 
 ## Question
 
@@ -105,3 +105,14 @@ crate：
 - 章结构与项目 1 一致：这一章解决什么问题（要做的东西 / 图 / 验收标准 / 先看效果）→ 设计取舍 → 逐块实现（含概念落点对照表）→ 报错现场（3 段）→ 测试（含「并发用例怎么写得能重复跑」）→ 收尾 → 小结 → 练习（3 题带答案）→ 延伸阅读（只官方一手链接，不钉版本）。
 - **模板扩展（有意为之，协调者已裁定保留）**：项目 3 起，项目章模板新增两节 —— `### 先看效果`（效果先行：先用真实终端记录把「确定/不确定」立起来）与 `### 并发用例怎么写得能重复跑`（并发测试方法论）。项目 1/2 无此节；如果后续项目章沿用它，建议写进 `WRITING.md` 的项目章模板说明里。
 - 若审校要给本项目配图，候选：① 关闭的两步（丢发送端 → worker 排空队列 → join）；② `Arc<Mutex<Receiver>>` 的共享视图（N 个 worker 各持一份 `Arc`、锁只护 `recv`）。当前只放了 ① 对应的文字与一张总览图，未额外插图。
+
+## Answer
+
+2026-10-19 批次收尾（用户验收通过）。
+
+- 交付：`src/project3-task-queue.md`（5409 汉字；含 2 个有意扩展小节并已在票注明）+ `examples/task-queue/`（零依赖、无 unsafe/async；**18 测试** = 2 单测 + 13 集成 + 3 doc；连跑 20× 稳定）。
+- 自验：`cargo test -p task-queue` 18 全绿；`--test-threads=1`/`--release` 复跑；`mdbook test -c project3-task-queue.md` exit 0（18 块：真编译 6 + ignore 12）。
+- 复审（RwProj3；1 major + 12 minor）全修：锁中毒回指 19 章、公开三类型、`thread::Result` 补 `'static`、报错三按真实 help、概念表 worker 表述、首现「工作线程（worker）」、SVG 600/字号≥12、省略说明写全；crate：`Timeout.waited` 口径、**新增 3 个 `bounded(cap>0)` 用例**、`enqueue` expect 消息。
+- 术语并表（协调者）：线程池 / 工作线程 / 任务队列 / 句柄 / 背压 / 队头阻塞 已入 GLOSSARY。
+- 全量链（批次级）：同上一档口径全绿。
+- 遗留：无。

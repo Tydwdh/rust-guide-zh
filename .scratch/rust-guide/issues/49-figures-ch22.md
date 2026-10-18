@@ -1,7 +1,7 @@
 # 49 第三批图示：第 22 章（Pin 与自引用）
 
 Type: task
-Status: claimed
+Status: resolved
 
 ## Question
 
@@ -49,3 +49,12 @@ Status: claimed
 
 - 两图用到的 `✓`/`✗` 与既有 ch04 图同款；主题变量在真实 mdBook 渲染下的对比度由协调者收尾 build 统一确认（§9 口径）。
 - 未改 `src/SUMMARY.md`、`book.toml` 或其他章；未新增术语。
+
+## Answer
+
+2026-10-19 批次收尾（用户验收通过）。
+
+- 交付：`src/ch22-pin-self-reference.md` 补 **2 张** —— `Pin<&mut T>` 三层结构 + 移动前后对照（:155–197，承载 22.1 的 `true → false`）、`Unpin` 字段传播（:435–454）。
+- `text` 块 11 个全是真实输出，**0 删**。
+- 自验：`mdbook test -c ch22-pin-self-reference.md` exit 0 + 注入反证（101 → 绿）；结构自查全过；栅格化目视（含主题变量实色对照）。
+- 遗留：无。

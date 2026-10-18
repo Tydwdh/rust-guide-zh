@@ -1,7 +1,7 @@
 # 42 第 24 章 指针、provenance 与未初始化内存
 
 Type: task
-Status: claimed
+Status: resolved
 
 ## Question
 
@@ -61,3 +61,14 @@ Status: claimed
 11. **[可选] `:334`**：改为「`as` 属 std 所说的 Exposed Provenance 家族、结果只是『尽力而为』；而 `addr()` 本身不暴露来历，所以它什么也捡不到——地址对，不能解引用」，与 `:43` 表格口径一致。
 
 **修订后复跑**：`mdbook test -c ch24-pointers-provenance.md` → **exit 0**（`13 passed; 2 ignored`——别名反例现为被测块；ignored 两个 = `MaybeUninit::zeroed` 的 UB 示例、练习 3）；再次注入失败反证 → exit 101（`13 passed; 1 failed`），还原后 exit 0。修订引入的扩写用同量级删减抵消，汉字数 **5434**（仍在 4000–5500）。
+
+## Answer
+
+2026-10-19 批次收尾（用户验收通过）。
+
+- 交付：`src/ch24-pointers-provenance.md`（5434 汉字；5 片段 + 6 `compile_fail` + nightly 表 + 别名模型直觉节）+ `snippets/ch24/{nonnull_list,provenance,checked_uninit,manually_drop,raw_borrow}.rs`。
+- 自验：`mdbook test -c ch24-pointers-provenance.md` exit 0（`13 passed / 2 ignored`）；注入反证 101 → 绿。
+- 交叉审校（RvCh24；4 major + 6 minor）全修：别名反例改 `&raw mut` 版（原版 stable 编不过，`invalid_reference_casting` deny）并转正进门禁；`NonNull::with_exposed_provenance` const 声明改正（#154215 未稳定）；「四个→五项」；`checked_uninit` 反事实按实测重写（`drop Noisy(first)` 两次 = 要害）；nightly 表加 WARNING；「严格来历/别名模型」首现；`<ptr>::to_raw_parts`；「三类场合」；Miri 承诺改诚实注解。
+- 术语并表（协调者）：来历 / 严格来历·暴露来历 / 别名模型 已入 GLOSSARY。
+- 全量链（批次级）：同上一档口径全绿。
+- 遗留：Miri 未实跑（本机仅 stable，正文已注明）。
