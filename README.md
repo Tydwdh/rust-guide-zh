@@ -1,6 +1,6 @@
-# Rust 进阶指南（暂名）
+# Rust 指南（暂名）
 
-面向**有编程经验的读者**、假定 Rust 基础已过的中文 Rust 指南，用 [mdBook](https://rust-lang.github.io/mdBook/) 写。
+从零起步的中文 Rust 指南：假定读者会一门主流语言，**不假定会 Rust** —— 以「理解 Rust 的设计」为主线、诊断训练贯穿全书，用 [mdBook](https://rust-lang.github.io/mdBook/) 写。
 
 写作路线 —— 地图与全部决策票 —— 在 `.scratch/rust-guide/`：先读 `map.md`。
 
