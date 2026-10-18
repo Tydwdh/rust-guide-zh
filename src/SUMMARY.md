@@ -19,13 +19,13 @@
 
 # 第二篇 类型与 trait 主干
 
-- [第 12 章 trait 设计]()
-- [第 13 章 dyn 兼容性与 trait 对象]()
-- [第 14 章 impl Trait 与 opaque type]()
-- [第 15 章 泛型的边界：const 泛型与 GAT]()
-- [第 16 章 生命周期进阶：variance、HRTB 与 drop check]()
-- [第 17 章 智能指针与内部可变性]()
-- [第 18 章 错误处理与 API 设计]()
+- [第 12 章 trait 设计](ch12-trait-design.md)
+- [第 13 章 dyn 兼容性与 trait 对象](ch13-dyn-trait-objects.md)
+- [第 14 章 impl Trait 与 opaque type](ch14-impl-trait-opaque.md)
+- [第 15 章 泛型的边界：const 泛型与 GAT](ch15-generics-limits.md)
+- [第 16 章 生命周期进阶：variance、HRTB 与 drop check](ch16-lifetimes-advanced.md)
+- [第 17 章 智能指针与内部可变性](ch17-smart-pointers.md)
+- [第 18 章 错误处理与 API 设计](ch18-error-api-design.md)
 - [项目 2：小型库 crate]()
 
 # 第三篇 并发与异步
