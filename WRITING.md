@@ -19,7 +19,8 @@
 
 硬规则：
 
-- **被测块里绝不出现外部 crate 的 `use`**：`-L` 只认 `extern crate`，2018+ 的 `use` 需要隐藏行垫片（03 实测）。要引用配套 crate 时：放进 `rust,ignore` 块展示，或走 `{{#include}}`（不参与 `mdbook test`）。
+- **被测块里绝不出现外部 crate 的 `use`**：`-L` 只认 `extern crate`，2018+ 的 `use` 需要隐藏行垫片（03 实测）。要引用配套 crate 时：放进 `rust,ignore` 块展示。
+- **`{{#include}}` / `{{#rustdoc_include}}` 的内容参与 `mdbook test`**（预处理器先跑；rustdoc 按 doctest 规则自动包 `fn main`，实测坏片段会让整章测试失败）—— 片段不能独立编译就整块标 `rust,ignore`，别指望 include 躲测试。
 - 样板噪音用隐藏行 `# `（渲染时自动隐藏）。
 - 要展示 mdBook 指令本身时写 `\{{#…}}` —— 行内代码里也会展开（03 实测踩过）。
 - 以 `#` 开头的展示内容不要放进 `rust` 块（会被当隐藏行吃掉），用 `text`。
@@ -111,6 +112,7 @@ mdbook build
 
 - `mdbook build` 对非法 `[output.html]` 字段、缺失 `{{#include}}` 都是 **ERROR + exit 0** —— 必须扫日志。
 - 裸栅栏会被当 Rust 测试；非 Rust 片段必须标语言。
+- `{{#include}}` / `{{#rustdoc_include}}` 引入的代码**照样被测**（预处理器先展开）——想只展示不编译，用 `rust,ignore`。
 - 行内代码里的 `{{#…}}` 也会展开。
 - `[build] create-missing = false` 已设：SUMMARY 指向缺失文件会报错（默认 true 会静默建空文件）。
 - `[output]` 表多于一个（如 linkcheck2）时，HTML 输出挪到 `book/html/`（部署路径同步改）。
