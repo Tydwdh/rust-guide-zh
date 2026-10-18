@@ -1,7 +1,7 @@
 # 23 第 12 章 trait 设计
 
 Type: task
-Status: claimed
+Status: resolved
 
 ## Question
 
@@ -60,3 +60,14 @@ Status: claimed
   8. 票内新术语补登「upcasting | 向上转型」；并注明「孤儿规则（orphan rule）」已在 GLOSSARY 入驻，本票不新增。
   9. 更正初稿遗留里关于 `Deref`/第 17 章的错记（正文中并无该句，已删除，见「邻章衔接」条的更正说明）。
   - 复跑：`mdbook test -c ch12-trait-design.md` → **exit 0**。当前 15 个 doctest = **14 passed**（5 个 `compile_fail` 正向断言 + 4 个 `{{#rustdoc_include}}` 片段 + 2 个 std 签名块 + 本次解禁的 3 块）/ **1 ignored**（练习块）。正文 4717 → **4828 汉字**（仍在 4000–5500 区间）。收尾前另修一处渲染问题：跨 crate sealed 那段原用单反引号内嵌 `\`` 转义，CommonMark 的代码段不处理反斜杠转义，会显示成字面反斜杠——已改成「」引用 + 单层行内代码；现在全文无 `\`` 嵌套。仍未写 `## Answer`、未置 `resolved`。
+
+## Answer
+
+2026-10-18 批次收尾（用户验收通过）。
+
+- 交付：`src/ch12-trait-design.md`（4828 汉字；八节模板 + 3 道练习）+ `snippets/ch12/`（4 个完整程序，经 `{{#rustdoc_include}}` 进门禁）。
+- 自验：`mdbook test -c ch12-trait-design.md` → exit 0（14 passed / 1 ignored；含 5 个 `compile_fail` 正向断言）。
+- 交叉审校（RvCh12；8 × minor）全修：3 块 `rust,ignore` 解禁（实可编译）、密封 trait / 一致性 / 孤儿规则口径统一、E0119 表述与跨 crate 帮助差异、`Counter` 出处、反斜杠转义渲染修复、票内遗留更正。
+- 术语并表（协调者）：关联类型、关联项、扩展 trait、密封 trait、一致性、覆盖/未覆盖、固有方法、blanket impl、基础类型构造器、dyn 兼容性、向上转型 等已入 GLOSSARY。
+- 全量链（批次级）：`mdbook build` 0 ERROR/0 警告｜`mdbook test` 20 章 exit 0｜examples 19+2 passed。
+- 遗留：语言对照角未写（票内可选，取舍理由见 Comments）；图示需求已登记（进阶篇补图批次执行）。

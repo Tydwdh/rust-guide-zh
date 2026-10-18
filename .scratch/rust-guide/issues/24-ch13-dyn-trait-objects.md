@@ -1,7 +1,7 @@
 # 24 第 13 章 dyn 兼容性与 trait 对象
 
 Type: task
-Status: claimed
+Status: resolved
 
 ## Question
 
@@ -43,3 +43,14 @@ Status: claimed
   3. 【minor】`Box<I>: Iterator` 漏分配器参数：`:172` 补全源码签名 `impl<I: Iterator + ?Sized, A: Allocator> Iterator for Box<I, A>`，并注明日常写 `Box<I>` 用的是默认值；`:583`（练习 2 答案）补「源码实现还带分配器参数 `A: Allocator`」。
   4. 【minor】E0038 报错块：**「缩进多 1 空格」经复核为误报**——把章内那段 `compile_fail` 代码按文件名 `e0038.rs` 用 1.98 重跑，再用逐行 `repr` 比对，章内 15 行与真实输出**逐字节相同**（真实确为 `  --> e0038.rs:12:20`、`   |`、`   = help:`：该片段最大行号是 12，gutter 宽度取 2；审校看到的 ` --> `/`  | ` 是行号只有 1 位时 gutter 宽 1 的形态，同章 E0191 块正属此情形）。**有效部分是省略说明**：已把原先略去的 ` 1 | trait Store {` 与 `   |       ----- this trait is not dyn compatible...` 两行补回正文，说明文字改为「代码存成 `e0038.rs` 编译即得这份输出，路径与行号一一对应；`note:` 里指向 Reference 的第二行与末尾汇总行略去，缩进照实」。三处报错块现均与真实输出逐行一致（E0038 仅少 1 行已在说明里点明的 Reference 行；`sized_method` 的 `:::` 行仅省略本机工具链路径前缀）。
   - 复跑：`mdbook test -c ch13-dyn-trait-objects.md` → **exit 0**；汉字数 5106 → **5203**（仍在 4000–5500）。探针目录 `.scratch/tmp-24b/` 收尾已删。
+
+## Answer
+
+2026-10-18 批次收尾（用户验收通过）。
+
+- 交付：`src/ch13-dyn-trait-objects.md`（5203 汉字；八节模板 + 3 道练习）+ `snippets/ch13/`（5 个片段：shapes / errors / iterators / catalogue / dispatch，含 LLVM IR 摘录 `dispatch.ll`）。
+- 自验：`mdbook test -c ch13-dyn-trait-objects.md` → exit 0；`dispatch.ll` 行号与 mangled 名、七类 E0038/E0191/E0371/E0605、upcasting 1.86 实测均与正文逐字一致（审校复核）。
+- 交叉审校（RvCh13；2 major + 2 minor）：JVMS §2.11.8 引文删去多出的 "to invoke"；`supertrait` 统一「父 trait（supertrait）」；`Box<I>` 补分配器参数；E0038 块缩进**经逐字节复核为误报**（gutter 宽度随行号位数变化）、省略说明已补全。
+- 另：linkcheck2 方括号修复（`[class.virtual]` → 行内代码）已入本票与 `WRITING.md` §7。
+- 全量链（批次级）：`mdbook build` 0 ERROR/0 警告｜`mdbook test` 20 章 exit 0｜examples 19+2 passed。
+- 遗留：vtable 头部字段顺序留第 25 章；`Pin<P>` 未实测（票内记录）。

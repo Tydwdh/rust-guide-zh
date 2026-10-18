@@ -1,7 +1,7 @@
 # 28 第 17 章 智能指针与内部可变性
 
 Type: task
-Status: claimed
+Status: resolved
 
 ## Question
 
@@ -70,3 +70,14 @@ Status: claimed
   - **8（minor）E0507 的 `help` 不可照抄**：补一句「它建议的 `r.clone()` 换的是句柄，照抄会报 E0308（`expected String, found Rc<String>`）；要拿 `String` 得写 `(*r).clone()`」。实测：`let t: String = r.clone();` → E0308。
   - **复跑自验**：`mdbook test -c ch17-smart-pointers.md` → **exit 0**（25 个被测块不变：19 `rust` + 4 `compile_fail` + 2 `should_panic`）。正文 **6000 汉字**（含代码块与中文串 6507），仍在票面 4500–6000 内——修订新增的必要说明已用同量级删减抵消。
   - 按批次协议：未写 `## Answer`、未置 `resolved`。
+
+## Answer
+
+2026-10-18 批次收尾（用户验收通过）。
+
+- 交付：`src/ch17-smart-pointers.md`（6000 汉字；八节模板 + 语言对照角 + 3 道练习）+ 实跑输出（`tree.rs` 等与正文逐字一致）。
+- 自验：`mdbook test -c ch17-smart-pointers.md` → exit 0（25 个被测块：19 `rust` + 4 `compile_fail` + 2 `should_panic`）。
+- 交叉审校（RvCh17；**1 blocker** + 4 major + 4 minor）：①`Cell::update` 签名改正（`FnOnce(T) -> T`，非 `&mut` 就地改）；②Send/Sync 表出处段改正（Auto Trait Implementations vs Trait Implementations）；③`&mut String` 证据补齐（`takes_str(&mut m)` 实测）；④`List` 布局改正（`i32` + 填充 + 指针=16，`Nil` 折进空指针 niche）；⑤「自动强转」统一「解引用强转」；Deref「头号理由」改为三条之一、`LazyLock` 方法版本/接收者、E0507 help 限定。
+- 术语并表（协调者）：引用计数 / 强弱引用 / 写时克隆 / 互斥锁·读写锁 / 锁中毒 / 自动解引用 等已入 GLOSSARY。
+- 全量链（批次级）：`mdbook build` 0 ERROR/0 警告｜`mdbook test` 20 章 exit 0｜examples 19+2 passed。
+- 遗留：`UnsafeCell` 别名模型 → 第 35 章（票内记录）。

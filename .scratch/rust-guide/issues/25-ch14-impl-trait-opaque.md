@@ -1,7 +1,7 @@
 # 25 第 14 章 impl Trait 与 opaque type
 
 Type: task
-Status: claimed
+Status: resolved
 
 ## Question
 
@@ -58,3 +58,14 @@ Status: claimed
   - **minor 13**：「第 21 章的执行器正是这么要求的」。
   - **minor 14**：新术语首现处补齐：隐藏类型（hidden type）、精确捕获（precise capturing，也就是 `use<..>`）、RPITIT 全称 `return-position impl Trait in trait`、AFIT 展开 `` `async fn in trait` ``、auto trait 的一句定义。
   - 复跑结果：`mdbook test -c ch14-impl-trait-opaque.md` → exit 0；注入必失败块得 `test result: FAILED. 32 passed; 1 failed; 0 ignored`（随后还原并复跑 exit 0），当前章内共 32 个受测块（21 `rust` + 11 `rust,compile_fail`）+ 23 个 `text` 块，0 ignored；汉字 4398 → 4781（仍在 4000–5500）。
+
+## Answer
+
+2026-10-18 批次收尾（用户验收通过）。
+
+- 交付：`src/ch14-impl-trait-opaque.md`（4781 汉字；八节模板 + 语言对照角 + 3 道练习）+ `snippets/ch14/`。
+- 自验：`mdbook test -c ch14-impl-trait-opaque.md` → exit 0；注入必失败块反证 `32 passed; 1 failed; 0 ignored`（随即还原）→ 32 个受测块（21 `rust` + 11 `compile_fail`）、0 ignored。
+- 交叉审校（RvCh14；**2 blocker** + 4 major + 8 minor）：①表内 `Box<dyn Trait>` 误写「透传 auto trait」→ 改正并补实测对照；②练习修法二 `Box<dyn Future>` 无法 `.await` → 改 `Pin<Box<…>>`；③`main::values` 前缀、§6 行/列坐标、help 逐字、`impl_trait_overcaptures` 下划线、const 参数、`{integer}`、12 个摘录块连续片段化（脚本逐行比对，0 处跨位置拼接）等全修。
+- 术语裁定（协调者）：GLOSSARY 删「不透明类型」的 `_Avoid_: 隐藏类型` 并新增「隐藏类型（hidden type）」条；正文首现括注已补。
+- 全量链（批次级）：`mdbook build` 0 ERROR/0 警告｜`mdbook test` 20 章 exit 0｜examples 19+2 passed。
+- 遗留：`cargo fix --edition` 插 `use<>` 依 Edition Guide 未本机跑（票内记录）。

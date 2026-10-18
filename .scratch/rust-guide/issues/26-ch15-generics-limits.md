@@ -1,7 +1,7 @@
 # 26 第 15 章 泛型的边界：const 泛型与 GAT
 
 Type: task
-Status: claimed
+Status: resolved
 
 ## Question
 
@@ -46,3 +46,14 @@ Status: claimed
   - 【minor】`AsyncFnMut` 摘录补 `where Args: Tuple,`，并按源码标出 `CallRefFuture` 本身是 `#[unstable(feature = "async_fn_traits", issue = "none")]`。
   - 【自查新增 major】原稿写「标准库里稳定可用的 GAT 案例不多，最显眼的一个是 async 的闭包 trait（1.85 稳定）」——**不成立**：`AsyncFn*` trait 自身 1.85 稳定，但关联类型 `CallRefFuture<'a>` 与方法 `async_call*` 在 1.98 仍标 `#[unstable(feature = "async_fn_traits", issue = "none")]`（`core/src/ops/async_function.rs:28,31` 等），文档页对这些条目标 nightly-only experimental API。已改写为「**标准库里没有稳定可用的公开 GAT**」，依据是 1.98 `core`/`alloc`/`std` 中 `type <名><'` 的 13 处命中：全部落在 `Pattern`（模块级 `#![unstable]`）、`AsyncFn*`（`async_fn_traits`）、`SyncView`（`exclusive_wrapper`）及对应 impl，另 2 处是普通类型别名（`PanicInfo<'a>`、unix 的 `SplitPaths<'a>`）。小结同步改。顺带按块内真实行号重贴 E0038 引文（`1 | trait LendingIterator {` / `2 |     type Item<'a> where Self: 'a;` + `= help:`）。
   - 复验：`mdbook test -c ch15-generics-limits.md` → **exit 0**（修后 4657 汉字，仍在 4000–5500 区间）。另写脚本对全部 9 组「`compile_fail` 块 ↔ 紧跟其后的 `text` 输出块」做行号-内容一致性校验：仅 2 处差异，均为 rustc 的 `help:` 建议行（`Foo<{ N }>`、`… where Self: 'a`），与真实输出一致，非笔误。探针目录 `.scratch/tmp-26/` 已再次删除。
+
+## Answer
+
+2026-10-18 批次收尾（用户验收通过）。
+
+- 交付：`src/ch15-generics-limits.md`（4657 汉字；八节模板 + 3 道练习）+ 全部实跑输出块。
+- 自验：`mdbook test -c ch15-generics-limits.md` → exit 0；另写脚本对全部 9 组「`compile_fail` ↔ `text` 输出」做行号-内容一致性校验（仅 2 处 rustc `help:` 建议行差异，与真实输出相符）。
+- 交叉审校（RvCh15；3 major + 3 minor）+ 自查追加 1 major：删臆造 std 例（`core::fmt::Pointer` 无关联类型）；`adt_const_params` / `min_adt_const_params` / `unsized_const_params` 拆清；E0277/E0477 行号按复跑改正；E0554 逐字引文、`AsyncFnMut` 摘录补 `where Args: Tuple,`；结论改为「**标准库里没有稳定可用的公开 GAT**」（`AsyncFn*` 关联类型在 1.98 仍 nightly）。
+- 术语并表（协调者）：const 泛型、GAT、借用式迭代器、内联 const、关联类型 等已入 GLOSSARY。
+- 全量链（批次级）：`mdbook build` 0 ERROR/0 警告｜`mdbook test` 20 章 exit 0｜examples 19+2 passed。
+- 遗留：`where Self: 'a` 的报错摘录保留 rustc 建议行原样（非笔误，脚本已核）。

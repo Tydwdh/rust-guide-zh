@@ -1,7 +1,7 @@
 # 27 第 16 章 生命周期进阶：variance、HRTB 与 drop check
 
 Type: task
-Status: claimed
+Status: resolved
 
 ## Question
 
@@ -58,3 +58,14 @@ Status: claimed
   - 块数与计数变化：`rust` 33→**34**、`rust,ignore` 4→**2**（`compile_fail` 14、`text` 15 不变）；`mdbook test` 反证法实测计数 = **30 passed + 2 ignored**（注入失败探针时输出 `30 passed; 1 failed; 2 ignored`，探针随即删除）。
   - **复跑**：`mdbook test -c ch16-lifetimes-advanced.md` → **exit 0**（修回后最终稿）。修回只动正文与练习题面，两个 `snippets/ch16/*.rs` 与全部报错输出零改动。
   - 字数：6336 → **6497 汉字**（不含代码块），增量来自练习 3 的题面重写（含完整程序）；按协调者裁定保持不删减。
+
+## Answer
+
+2026-10-18 批次收尾（用户验收通过）。
+
+- 交付：`src/ch16-lifetimes-advanced.md`（6497 汉字；八节模板 + 3 道练习）+ `snippets/ch16/`（`drop_order.rs`、`hrtb_callback.rs` 实跑输出与正文逐字一致）。
+- 自验：`mdbook test -c ch16-lifetimes-advanced.md` → exit 0；注入失败反证 = 30 passed + 2 ignored；块结构：34 `rust` / 14 `compile_fail` / 15 `text` / 2 `ignore`。
+- 交叉审校（RvCh16；**1 blocker** + 2 major + 5 minor）：①练习 3 参考答案自相矛盾（实测 E0597）→ 按现场 1 重写、块由 `ignore` 改 `rust` 真受门禁；②「寿命」「容器」违规清零、drop 义的「释放」改「析构」；③三层图方向、`unique.rs` 注释行号（37–38）、「drop glue」解释、速查表 E0599 文案。
+- 术语并表（协调者）：型变 / 协变·逆变·不变 / HRTB / 析构检查 / 析构作用域 / 健全的泛型析构 / 晚绑定生命周期 等已入 GLOSSARY；「型变」全章统一（18 处）。
+- 全量链（批次级）：`mdbook build` 0 ERROR/0 警告｜`mdbook test` 20 章 exit 0｜examples 19+2 passed。
+- 遗留：`&mut` unsize 缩短仅证 1.98 可编译；`Vec` 的 `#[may_dangle]` 依赖 Nomicon 结论（票内记录）。

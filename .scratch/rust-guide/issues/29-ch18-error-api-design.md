@@ -1,7 +1,7 @@
 # 29 第 18 章 错误处理与 API 设计
 
 Type: task
-Status: claimed
+Status: resolved
 
 ## Question
 
@@ -77,3 +77,14 @@ Status: claimed
   9. 【minor】uninhabited 例外块去掉 2 空格缩进。其余带缩进的围栏都在编号列表项内部（§18.1 第 2 条、练习 2/3 与答案），是 CommonMark 要求的续行缩进，未动。
   10. 【minor】补首现界定：`builder`、`语义化版本（SemVer）`、`sealed trait（密封 trait：靠父 trait 里一个外部无法命名的私有 trait 封住实现面）`；`typestate` 与「无值类型（uninhabited）」原本已有解释。
   为回到篇幅上限（修回后一度 5603 汉字），同步压缩了 §18.1/18.2/18.3/18.5/18.6/18.7 与练习答案的措辞，**未删任何事实、引用与实测输出**；链接类残留复扫仍只剩 `[!NOTE]` / `[!WARNING]`。
+
+## Answer
+
+2026-10-18 批次收尾（用户验收通过）。
+
+- 交付：`src/ch18-error-api-design.md`（5489 汉字；八节模板 + 3 道练习）+ `snippets/ch18/`。
+- 自验：`mdbook test -c ch18-error-api-design.md` → exit 0（20 doctest）；正文回指第 7/9/12 章逐一对上。
+- 交叉审校（RvCh18；**1 blocker** + 2 major + 7 minor）：①「C-BUILDER 五条骨架」实为**四条**；②`PhantomData` 章号 15 → **16**（16.5 节）；③跨 crate transcript 按真编文件重录（`cat` 文本与源文件脚本比对逐字一致、行号对齐）；④E0639 `struct`/variant 文案分列；⑤should/must 口径、弯引号 `it’s`、条目名方向、丢值片段版本、缩进、新词首现。
+- 术语并表（协调者）：typestate / builder / SemVer / 破坏性变更 / 无值类型（uninhabited）/ 密封 trait 等已入 GLOSSARY。
+- 全量链（批次级）：`mdbook build` 0 ERROR/0 警告｜`mdbook test` 20 章 exit 0｜examples 19+2 passed。
+- 遗留：Cargo semver「`as` 转换不允许」1.98 复现不出（正文回避）；`#[non_exhaustive]` 的 `as` 一条略去（票内记录）。
