@@ -2,6 +2,8 @@
 
 从零起步的中文 Rust 指南：假定读者会一门主流语言，**不假定会 Rust** —— 以「理解 Rust 的设计」为主线、诊断训练贯穿全书，用 [mdBook](https://rust-lang.github.io/mdBook/) 写。
 
+**在线阅读**：[tydwdh.github.io/rust-guide-zh](https://tydwdh.github.io/rust-guide-zh/)（每次推送 `main` 由 GitHub Actions 自动构建部署；工作流见 `.github/workflows/pages.yml`）。
+
 写作路线 —— 地图与全部决策票 —— 在 `.scratch/rust-guide/`：先读 `map.md`。
 
 ## 本地预览与校验

@@ -1,0 +1,44 @@
+# 构建 mdBook 并部署到 GitHub Pages（在线阅读）。
+# 校验链本身在 book.yml；这里只负责「构建 → 发布」，每次推 main 自动更新。
+name: pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install mdBook 与 linkcheck2
+        run: |
+          cargo install mdbook --version 0.5.4 --locked
+          cargo install mdbook-linkcheck2 --locked
+
+      - name: Build（HTML 输出在 book/html/）
+        run: mdbook build
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: book/html
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
