@@ -87,6 +87,42 @@ The Book 也是同样的五条（它把最后两条写成「访问或修改可�
 
 前两行是**声明**（有契约存在），后两行是**兑现**（我保证它成立）。所以 `unsafe` 不等于「危险」，它等于「这里有一条编译器管不了的约定」。
 
+下图把这两种用法摆开：左栏是声明契约的两种写法，右栏是兑现契约的两种写法，中间那条竖线标出编译器检查的边界。
+
+<svg viewBox="0 0 720 260" width="100%" role="img" aria-label="unsafe 的两种用法对照：左栏是声明契约，unsafe fn 与 unsafe trait 把遵守契约的责任推给调用方与实现方，箭头向上指向「调用方 / 实现方」；右栏是兑现契约，unsafe {} 与 unsafe impl 表示程序员已经检查过，箭头向下指向「被调用的操作 / trait 的不变量」；中间的竖线是编译器检查的边界，两侧的契约它一条也验不了" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">unsafe 的两种用法：一边声明契约，一边兑现契约</text>
+<line x1="360" y1="28" x2="360" y2="226" stroke="var(--quote-border)" stroke-width="1.5" stroke-dasharray="4 3" />
+<text x="8" y="40" font-size="13" fill="var(--links)">① 声明契约</text>
+<text x="384" y="40" font-size="13" fill="var(--links)">② 兑现契约</text>
+<rect x="8" y="52" width="322" height="32" rx="5" fill="none" stroke="var(--links)" stroke-width="1.5" />
+<text x="169" y="73" font-size="12" fill="var(--links)" text-anchor="middle">责任落在：调用方 / 实现方</text>
+<line x1="83" y1="114" x2="83" y2="92" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5" />
+<polyline points="79,98 83,90 87,98" fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5" />
+<line x1="255" y1="114" x2="255" y2="92" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5" />
+<polyline points="251,98 255,90 259,98" fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5" />
+<rect x="8" y="114" width="150" height="38" rx="5" fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5" />
+<text x="83" y="138" font-size="13" font-family="monospace" fill="currentColor" text-anchor="middle">unsafe fn</text>
+<rect x="180" y="114" width="150" height="38" rx="5" fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5" />
+<text x="255" y="138" font-size="13" font-family="monospace" fill="currentColor" text-anchor="middle">unsafe trait</text>
+<text x="83" y="172" font-size="12" fill="currentColor" opacity="0.7" text-anchor="middle">调用它必须守约</text>
+<text x="255" y="172" font-size="12" fill="currentColor" opacity="0.7" text-anchor="middle">实现它必须守约</text>
+<text x="8" y="204" font-size="12" fill="currentColor" opacity="0.7">契约内容编译器验不了，只能写进文档</text>
+<rect x="384" y="52" width="150" height="38" rx="5" fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5" />
+<text x="459" y="76" font-size="13" font-family="monospace" fill="currentColor" text-anchor="middle">unsafe {}</text>
+<rect x="556" y="52" width="150" height="38" rx="5" fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5" />
+<text x="631" y="76" font-size="13" font-family="monospace" fill="currentColor" text-anchor="middle">unsafe impl</text>
+<text x="459" y="108" font-size="12" fill="currentColor" opacity="0.7" text-anchor="middle">前提我已查过</text>
+<text x="631" y="108" font-size="12" fill="currentColor" opacity="0.7" text-anchor="middle">不变量我保证</text>
+<line x1="459" y1="116" x2="459" y2="142" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5" />
+<polyline points="455,140 459,148 463,140" fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5" />
+<line x1="631" y1="116" x2="631" y2="142" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5" />
+<polyline points="627,140 631,148 635,140" fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5" />
+<rect x="384" y="156" width="322" height="32" rx="5" fill="none" stroke="var(--links)" stroke-width="1.5" />
+<text x="545" y="177" font-size="12" fill="var(--links)" text-anchor="middle">被调用的操作 / trait 的不变量</text>
+<text x="384" y="204" font-size="12" fill="currentColor" opacity="0.7">兑现写在调用点：说清前提为何成立</text>
+<text x="360" y="248" font-size="12" fill="currentColor" opacity="0.75" text-anchor="middle">中线 = 编译器检查的边界</text>
+</svg>
+
 ### 23.2 `unsafe` 不是「关掉检查」
 
 最常见的一条误解，The Book 用一句话按下去：
@@ -280,6 +316,40 @@ Reference 也提醒，这份清单不是终审判决：
 - 逻辑错误：例如实现 `Hash` 与 `Eq` 时忘了「相等的值必须有相同哈希」，或者改动 `BTreeMap` 里的键。
 
 把两类分开的价值很直接：死锁与逻辑错误都不是 UB，也就不在 Miri 的 UB 检查清单里；「这个 bug 难以复现」同样不是 UB 的证据。反过来，遇到确实 UB 的代码，别指望「我这边跑起来是对的」能证明什么——「动手看看」里那两条输出已经说明问题。
+
+下图把两边的判据并排摆开：左栏是 23.6 那 11 类能触发 UB 的行为，右栏是这一节这些危险但合法的行为。
+
+<svg viewBox="0 0 720 250" width="100%" role="img" aria-label="两类判据并排：左栏是能触发 UB 的 11 类行为，依次是数据竞争、悬垂或未对齐的读写、越界的位置投影、破坏指针别名规则、修改不可变字节、内在函数触发、不支持的平台特性、调用 ABI 错或展开越界、产生无效值、内联汇编用法错、违反运行时假设，任意一条都让整个程序失去全部保证；右栏是危险但不构成 UB 的行为，依次是死锁、内存与其他资源泄漏、不调用析构就退出、用指针暴露随机化基址、整数溢出、逻辑错误，它们再糟也只是算错了，不是 UB" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">两类判据：左边是 UB，右边只是危险</text>
+<line x1="364" y1="30" x2="364" y2="222" stroke="var(--quote-border)" stroke-width="1.5" stroke-dasharray="4 3" />
+<text x="8" y="42" font-size="13" fill="var(--warning-border)">能触发 UB：Reference 列了 11 类</text>
+<text x="380" y="42" font-size="13" fill="var(--links)">危险，但不构成 UB</text>
+<text x="12" y="62" font-size="12" fill="currentColor">1 数据竞争（data race）</text>
+<text x="12" y="77" font-size="12" fill="currentColor">2 悬垂 / 未对齐的读写</text>
+<text x="12" y="92" font-size="12" fill="currentColor">3 越界的位置投影</text>
+<text x="12" y="107" font-size="12" fill="currentColor">4 破坏指针别名规则</text>
+<text x="12" y="122" font-size="12" fill="currentColor">5 修改不可变字节</text>
+<text x="12" y="137" font-size="12" fill="currentColor">6 内在函数（intrinsic）触发</text>
+<text x="12" y="152" font-size="12" fill="currentColor">7 不支持的平台特性 target_feature</text>
+<text x="12" y="167" font-size="12" fill="currentColor">8 调用 ABI 错 / 展开越界</text>
+<text x="12" y="182" font-size="12" fill="currentColor">9 产生无效值</text>
+<text x="12" y="197" font-size="12" fill="currentColor">10 内联汇编用法错</text>
+<text x="12" y="212" font-size="12" fill="currentColor">11 违反运行时假设</text>
+<text x="380" y="62" font-size="12" fill="currentColor">死锁</text>
+<text x="380" y="75" font-size="12" fill="currentColor" opacity="0.7">线程互相等，谁都等不到</text>
+<text x="380" y="89" font-size="12" fill="currentColor">内存与其他资源泄漏</text>
+<text x="380" y="102" font-size="12" fill="currentColor" opacity="0.7">分配没释放、句柄没关</text>
+<text x="380" y="116" font-size="12" fill="currentColor">不调用析构就退出</text>
+<text x="380" y="129" font-size="12" font-family="monospace" fill="currentColor" opacity="0.7">std::process::exit、std::mem::forget</text>
+<text x="380" y="143" font-size="12" fill="currentColor">用指针暴露随机化基址</text>
+<text x="380" y="156" font-size="12" fill="currentColor" opacity="0.7">危害在安全侧，仍然不是 UB</text>
+<text x="380" y="170" font-size="12" fill="currentColor">整数溢出</text>
+<text x="380" y="183" font-size="12" fill="currentColor" opacity="0.7">debug 构建 panic，发布构建环绕，结果本身有定义</text>
+<text x="380" y="197" font-size="12" fill="currentColor">逻辑错误</text>
+<text x="380" y="210" font-size="12" fill="currentColor" opacity="0.7">Hash 与 Eq 不一致、改动 BTreeMap 的键</text>
+<text x="8" y="236" font-size="12" fill="currentColor" opacity="0.7">左边任意一条：整个程序失去全部保证</text>
+<text x="380" y="236" font-size="12" fill="currentColor" opacity="0.7">右边再糟也只是「算错了」，不是 UB</text>
+</svg>
 
 ### 23.8 用 Miri 抓 UB
 

@@ -224,6 +224,43 @@ fn main() {
 
 这是 FFI 里最容易出错的一段，值得单独记住三条事实。
 
+三条事实对应调用链上的三个位置（中间的 C 帧简化成一道 `extern "C"` 缝），三行依次对应下面三条：
+
+<svg viewBox="0 0 760 260" width="100%" role="img" aria-label="FFI 边界与 panic 的三条防线：直接越界导致进程 abort；在回调方函数体内用 catch_unwind 就地接住并转成返回值；全链 extern C-unwind 时 panic 穿透边界，被外层 catch_unwind 接住" xmlns="http://www.w3.org/2000/svg">
+<line x1="428" y1="58" x2="428" y2="244" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.55" />
+<text x="200" y="28" font-size="13" fill="currentColor">Rust 调用方（外层帧）</text>
+<text x="440" y="28" font-size="13" fill="currentColor">回调方（Rust 的 <tspan font-family="monospace">extern "C" fn</tspan>）</text>
+<text x="428" y="48" font-size="12" fill="currentColor" text-anchor="middle">extern "C" ABI 边界</text>
+<circle cx="24" cy="84" r="9" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="24" y="88" font-size="12" fill="currentColor" text-anchor="middle">1</text>
+<text x="42" y="88" font-size="13" fill="currentColor">直接越界</text>
+<text x="700" y="76" font-size="12" font-family="monospace" fill="currentColor" text-anchor="end">panic!()</text>
+<line x1="700" y1="88" x2="450" y2="88" stroke="currentColor" stroke-width="1.5" />
+<polygon points="440,88 449,83 449,93" fill="currentColor" />
+<path d="M420 80 L436 96 M436 80 L420 96" stroke="var(--warning-border)" stroke-width="2" fill="none" />
+<text x="740" y="108" font-size="12" fill="var(--warning-border)" text-anchor="end">越界 → abort：进程立即中止</text>
+<circle cx="24" cy="146" r="9" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="24" y="150" font-size="12" fill="currentColor" text-anchor="middle">2</text>
+<text x="42" y="150" font-size="13" fill="currentColor">边界内侧 <tspan font-family="monospace">catch_unwind</tspan></text>
+<rect x="452" y="126" width="280" height="50" rx="5" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="462" y="142" font-size="12" fill="currentColor" opacity="0.7">extern "C" fn 函数体（边界之内）</text>
+<text x="462" y="166" font-size="12" font-family="monospace" fill="currentColor">catch_unwind(|| { panic!() })</text>
+<line x1="452" y1="152" x2="361" y2="152" stroke="currentColor" stroke-width="1.5" />
+<polygon points="351,152 360,147 360,157" fill="currentColor" />
+<text x="420" y="174" font-size="12" fill="currentColor" text-anchor="end">就地转成返回值（Err）</text>
+<circle cx="24" cy="206" r="9" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="24" y="210" font-size="12" fill="currentColor" text-anchor="middle">3</text>
+<text x="42" y="210" font-size="13" fill="currentColor">全链 <tspan font-family="monospace">extern "C-unwind"</tspan></text>
+<rect x="210" y="186" width="140" height="50" rx="5" fill="none" stroke="var(--links)" stroke-width="1.5" />
+<text x="222" y="208" font-size="12" font-family="monospace" fill="var(--links)">catch_unwind</text>
+<text x="222" y="228" font-size="12" fill="var(--links)">外层 Rust 帧</text>
+<text x="700" y="198" font-size="12" font-family="monospace" fill="var(--links)" text-anchor="end">panic!()</text>
+<line x1="700" y1="210" x2="365" y2="210" stroke="var(--links)" stroke-width="2" />
+<polygon points="355,210 364,205 364,215" fill="var(--links)" />
+<circle cx="428" cy="210" r="4" fill="none" stroke="var(--links)" stroke-width="2" />
+<text x="440" y="232" font-size="12" fill="var(--links)">panic 穿透 → 被外层 catch_unwind 接住</text>
+</svg>
+
 **事实一：panic 不允许越过非 `-unwind` 的 ABI 边界。** 越过会发生什么？Nomicon 写得很直接："panic will cause the process to safely abort."（引自 Nomicon `FFI and unwinding` 一节）注意结果是**中止进程**，不是 UB、也不是把错误交给对方——因为 C 那边根本没有「展开」这个概念，它无法在栈上跑 Rust 的析构。
 
 **事实二：`catch_unwind` 必须放在边界之内。** 如果 panic 已经越过了 `extern "C"` 函数，进程早就中止了，外面再包一层 `catch_unwind` 也没机会执行。正确的位置是：**在 `extern "C" fn` 自己的函数体里**包住可能 panic 的代码。

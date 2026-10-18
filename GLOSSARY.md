@@ -221,8 +221,52 @@ _Avoid_: 模式配对
 _Avoid_: 迭代子、匿名函数（后者只在与其他语言对照时用）
 
 **宏（macro）**：
-`macro_rules!` 声明宏；过程宏单列为「过程宏（proc macro）」。
+`macro_rules!` 声明宏；过程宏单列为「过程宏（procedural macro）」。
 _Avoid_: 宏定义（过泛）
+
+**卫生性（hygiene）**：
+宏展开中名字解析的边界：展开出来的名字按定义处还是调用处的规则解析。
+_Avoid_: 卫生度
+
+**片段说明符（fragment specifier）**：
+`$name:spec` 里 `spec` 那一半（`expr`/`ty`/`tt`…），决定这条规则能匹配什么。
+_Avoid_: 片段类型
+
+**元变量（metavariable）**：
+匹配器里 `$name` 绑定的片段；转写器靠它拼展开结果。
+_Avoid_: 宏变量
+
+**跟随集合（follow set）**：
+片段之后允许出现的 token 白名单（`expr` 后不能直接跟 `=>` 等）。
+_Avoid_: 后随集合
+
+**TT muncher**：
+靠 `tt` 递归「吃」token 的递归宏形态（`$head:tt $($rest:tt)*`）。**保留英文**。
+_Avoid_: token 咀嚼器
+
+**过程宏（procedural macro）**：
+在编译期运行、以代码生成代码的宏；必须是独立的 proc-macro crate，分 derive / 属性 / 函数式三种形态（第 28 章）。
+_Avoid_: proc macro（正文用全称）
+
+**derive 宏 / 属性宏 / 函数式宏（derive / attribute / function-like macro）**：
+过程宏的三种形态：在项后追加实现、替换被标项、像函数调用一样展开。
+_Avoid_: 派生宏
+
+**token 流 / token 树（token stream / token tree）**：
+过程宏的输入输出形态：一串 token（流），括号包住的成组 token（树）。
+_Avoid_: 记号流
+
+**辅助属性（helper attribute）**：
+derive 宏可以声明的惰性（inert）属性，写在被标项上、随输入传给宏。
+_Avoid_: 伴随属性
+
+**不卫生（unhygienic）**：
+过程宏默认展开后名字与调用处共享作用域（与 `macro_rules!` 的卫生性相对）。
+_Avoid_: 无卫生
+
+**语言方言（edition）**：
+同一编译器支持的语言版本方言（2015/2018/2021/2024）；由 crate 级 `edition` 键选择，不是编译器版本。
+_Avoid_: 版本（单独用时歧义）
 
 **panic**：
 不可恢复错误的展开路径，与可恢复的 `Result` 相对。
@@ -598,6 +642,54 @@ _Avoid_: 返回码
 产出可执行文件的 crate 目标（`src/main.rs`）。
 _Avoid_: 可执行文件（谈 Cargo 语境时）
 
+**build script（构建脚本）**：
+Cargo 在编译 crate 前运行的构建时程序（`build.rs`），用来探测环境、生成代码或传链接参数。**保留英文**。
+_Avoid_: 构建脚本（正文用英文）
+
+**虚拟清单（virtual manifest）**：
+只含 `[workspace]`、自身不是包的根清单。
+_Avoid_: 纯工作区清单
+
+**加法性（additive）**：
+feature 只应增添能力、不应削减能力的设计要求。
+_Avoid_: 可加性
+
+**统一（unification）**：
+同一依赖被多条路径带上不同 feature 时，按包取并集解析。
+_Avoid_: 特征合并
+
+**MSRV（最低支持 Rust 版本）**：
+crate 声明并承诺支持的最低 Rust 版本（`rust-version` 键）。
+_Avoid_: 最低版本
+
+**yank**：
+在 crates.io 撤下一个版本（阻止新项目选中，不删代码）。**保留英文**。
+_Avoid_: 撤回
+
+**rustdoc**：
+Rust 官方文档工具；也指它生成的文档与诊断。**保留英文**。
+_Avoid_: 文档工具（泛称时可用）
+
+**clippy**：
+Rust 官方 lint 工具。**保留英文**。
+_Avoid_: —
+
+**intra-doc link（文档内链接）**：
+文档注释里用项路径写的相对链接（`[`Type`]`、`[text](path)`）。
+_Avoid_: 内部链接
+
+**隐藏行（hidden line）**：
+doctest/代码块里以 `#` 开头、渲染时收起但参与编译的行。
+_Avoid_: 隐藏代码
+
+**剖析（profiling）**：
+测「时间花在哪」的通用方法（采样或插桩两类路子）。
+_Avoid_: 性能分析（口语可用）
+
+**插桩（instrumentation）**：
+往程序里插入记录/计数以取证的手段（覆盖率与 PGO 都用它）。
+_Avoid_: 埋点
+
 ## 泛型与 trait
 
 **单态化（monomorphization）**：
@@ -787,6 +879,26 @@ _Avoid_: 测试脚手架
 **文档测试（doctest）**：
 文档代码块被当作测试编译运行（`cargo test` 的 Doc-tests 段）。
 _Avoid_: 文档用例
+
+**表驱动（table-driven）**：
+把用例排成表、用一个 helper 循环跑的参数化组织方式。
+_Avoid_: 参数化（泛指时可用「参数化测试」）
+
+**属性测试（property-based testing）**：
+随机生成大量输入、验证性质而非逐例断言的测试方式（proptest 等）。
+_Avoid_: 性质测试
+
+**快照测试（snapshot testing）**：
+首次运行记录输出为快照、之后对比的测试方式（insta 等）。
+_Avoid_: 记录测试
+
+**假绿（false green）**：
+测试或门禁没真正覆盖就显示通过的现象（本书特指 rustdoc 不编译 `#[cfg(test)]` 块）。非正式用语。
+_Avoid_: 伪绿
+
+**夹具（fixture）**：
+测试前搭好、多处复用的输入或环境（rstest 等框架里的术语）。
+_Avoid_: 固件
 
 ---
 

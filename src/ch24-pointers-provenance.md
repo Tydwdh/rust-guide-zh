@@ -112,6 +112,43 @@ note: function defined here
 
 这是这一章变化最快的一块，所以下面按「稳定的」和「还是 nightly 的」分开列。版本号来自本机 1.98 文档与 `releases.md`。
 
+先把四种「指针形态」摆在一起：地址能不能对上是一回事，能不能拿来用是另一回事。
+
+<svg viewBox="0 0 720 252" width="100%" role="img" aria-label="四种指针形态的地址与来历对照：*mut T 与 NonNull&lt;T&gt; 既有地址又有来历（NonNull 保证非空），usize 与 without_provenance 只有地址、没有来历，因此不能解引用——地址对不等于可用" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="18" font-size="14" fill="currentColor">四种「指针形态」：地址、来历、能不能解引用</text>
+<text x="300" y="46" font-size="13" fill="currentColor" text-anchor="middle">有地址？</text>
+<text x="468" y="46" font-size="13" fill="currentColor" text-anchor="middle">有来历？</text>
+<text x="636" y="46" font-size="13" fill="currentColor" text-anchor="middle">能解引用？</text>
+<g stroke="var(--quote-border)" stroke-width="1.5">
+<line x1="216" y1="54" x2="216" y2="190" />
+<line x1="384" y1="54" x2="384" y2="190" />
+<line x1="552" y1="54" x2="552" y2="190" />
+<line x1="0" y1="88" x2="720" y2="88" />
+<line x1="0" y1="122" x2="720" y2="122" />
+<line x1="0" y1="156" x2="720" y2="156" />
+</g>
+<line x1="0" y1="54" x2="720" y2="54" stroke="currentColor" stroke-width="1.5" />
+<line x1="0" y1="190" x2="720" y2="190" stroke="currentColor" stroke-width="1.5" />
+<text x="8" y="75" font-size="12" font-family="monospace" fill="currentColor">*mut T</text>
+<text x="8" y="109" font-size="12" font-family="monospace" fill="currentColor">NonNull&lt;T&gt;</text>
+<text x="8" y="143" font-size="12" font-family="monospace" fill="currentColor">usize</text>
+<text x="8" y="177" font-size="12" font-family="monospace" fill="currentColor">without_provenance(addr)</text>
+<text x="300" y="75" font-size="12" fill="currentColor" text-anchor="middle">有（可空、可悬垂）</text>
+<text x="300" y="109" font-size="12" fill="currentColor" text-anchor="middle">有（保证非空）</text>
+<text x="300" y="143" font-size="12" fill="currentColor" text-anchor="middle">有（就是地址本身）</text>
+<text x="300" y="177" font-size="12" fill="currentColor" text-anchor="middle">有（你给的数值）</text>
+<text x="468" y="75" font-size="12" fill="var(--links)" text-anchor="middle">有（派生链决定）</text>
+<text x="468" y="109" font-size="12" fill="var(--links)" text-anchor="middle">有</text>
+<text x="468" y="143" font-size="12" fill="var(--warning-border)" text-anchor="middle">无</text>
+<text x="468" y="177" font-size="12" fill="var(--warning-border)" text-anchor="middle">无</text>
+<text x="636" y="75" font-size="12" fill="currentColor" text-anchor="middle">能（unsafe）</text>
+<text x="636" y="109" font-size="12" fill="currentColor" text-anchor="middle">能（unsafe）</text>
+<text x="636" y="143" font-size="12" fill="var(--warning-border)" text-anchor="middle">不能（不是指针）</text>
+<text x="636" y="177" font-size="12" fill="var(--warning-border)" text-anchor="middle">不能（非零大小 UB）</text>
+<text x="0" y="216" font-size="12" fill="currentColor">地址都能对上，不等于能用：解引用要有来历，且这次访问得落在来历覆盖的范围内。</text>
+<text x="0" y="236" font-size="12" fill="currentColor" opacity="0.7">usize 转回指针要显式认领来历（with_exposed_provenance）；without_provenance 不认领，只许对齐的零大小访问。</text>
+</svg>
+
 **稳定面（1.98 上可用，无需 `#![feature]`）**
 
 | API | 语义 | 稳定版本 |

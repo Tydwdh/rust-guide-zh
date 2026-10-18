@@ -3,4 +3,7 @@ name = "sys-probe"
 version = "0.1.0"
 edition = "2024"
 
+# 零依赖：FFI 声明自己写，错误类型自己定。
+# unsafe 只落在两个文件里（src/platform/windows.rs 调系统 API、src/file_time.rs 读裸指针），
+# error.rs / ctrl.rs / platform/unsupported.rs 三个模块用 forbid(unsafe_code) 钉死。
 [dependencies]

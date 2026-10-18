@@ -119,7 +119,7 @@ Reference 一句话概括：能当 trait 对象基 trait 的，才是 dyn 兼容
 | 不能带泛型参数的关联类型（GAT） | `type Item<'a> where Self: 'a;` | ``...because it contains generic associated type `Item` `` |
 | 关联函数要么可分发，要么显式 `where Self: Sized` | `fn put<T>(&self, v: T)` / `fn default_name() -> String` | ``...because method `put` has generic type parameters`` / ``...because associated function `default_name` has no `self` parameter`` |
 | 可分发方法不能有泛型参数、不能用 `Self` 做接收者以外的类型 | `fn duplicate(&self) -> Self` | ``...because method `duplicate` references the `Self` type in its return type`` |
-| 可分发方法不能有隐藏的返回类型 | `async fn fetch(&self)` / `fn next(&mut self) -> impl Iterator<Item = u32>` | ``...because method `fetch` is `async``` / ``...references an `impl Trait` type in its return type`` |
+| 可分发方法不能有隐藏的返回类型 | `async fn fetch(&self)` / `fn next(&mut self) -> impl Iterator<Item = u32>` | `` ...because method `fetch` is `async` `` / ``...references an `impl Trait` type in its return type`` |
 
 「可分发」的接收者只有这几种（Reference 的清单）：`&Self`、`&mut Self`、`Box<Self>`、`Rc<Self>`、`Arc<Self>`，以及 `Pin<P>`（`P` 是前面几种之一）。方法可以带生命周期参数，只是不能带类型参数。
 
