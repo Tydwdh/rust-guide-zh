@@ -19,8 +19,10 @@ mdbook test           # 用 rustdoc 校验书里的代码块
 | 路径 | 用途 |
 | --- | --- |
 | `src/` | 书籍源码（`SUMMARY.md` 即目录） |
-| `examples/` | 示例代码（占位，布局待「06 写作与验收规范」定稿） |
+| `examples/` | 实战项目的示例 crate（workspace；约定见 `WRITING.md` §1） |
 | `.scratch/rust-guide/` | wayfinder 地图与决策票 |
+| `WRITING.md` | 写作规范（章节模板、校验链、DoD、风格） |
+| `GLOSSARY.md` | 术语表（写作一致性依据，将来派生书末附录） |
 | `book/` | 构建产物（已 gitignore） |
 
 ## 状态
