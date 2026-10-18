@@ -132,6 +132,78 @@ _Avoid_: 自动机
 把 future drop 掉——不再被 poll，等待点上的状态随之析构。Rust 的取消就是 drop。
 _Avoid_: 中止
 
+**线程池（thread pool）**：
+固定数量的工作线程从共享队列取任务执行的并发结构。
+_Avoid_: 线程队
+
+**工作线程（worker）**：
+线程池里执行任务的线程。
+_Avoid_: 工人线程
+
+**任务队列（task queue）**：
+存放待执行任务的队列（线程池的工作来源）。
+_Avoid_: 作业队列
+
+**句柄（handle）**：
+代表某个资源或后台任务的轻量标识（如 `TaskHandle`、文件句柄）。
+_Avoid_: 收据
+
+**背压（backpressure）**：
+有界队列满时阻塞生产端，让生产与消费的速率匹配。
+_Avoid_: 反压
+
+**队头阻塞（head-of-line blocking）**：
+慢任务把排在它后面的任务一起卡住；轮询派发的代价。
+_Avoid_: 头部阻塞
+
+**FFI（Foreign Function Interface）**：
+跨语言调用接口。**保留英文缩写**。
+_Avoid_: 外部接口
+
+**ABI（application binary interface）**：
+调用约定 + 符号命名 + 布局的二进制层面约定。**保留英文缩写**。
+_Avoid_: 二进制接口
+
+**调用约定（calling convention）**：
+参数/返回值的传递与栈清理规则。
+_Avoid_: 调用规范
+
+**符号修饰（symbol mangling）**：
+编译器把函数名变成唯一符号名的过程。
+_Avoid_: 名字修饰
+
+**空指针优化（nullable pointer optimization）**：
+`Option<&T>`/`Option<fn>` 等用 null 表示 `None` 的布局保证。
+_Avoid_: 空指针技巧
+
+**不透明句柄（opaque handle）**：
+C 侧只见类型名不见字段的指针；Rust 侧用 `into_raw`/`from_raw` 交接所有权。
+_Avoid_: 黑盒句柄
+
+**契约（contract）**：
+编译器无法检查、由人兑现的前提；`# Safety` 段与 `// SAFETY:` 注释是它的落点。
+_Avoid_: 约定（过泛）
+
+**健全的 / 不健全的（sound / unsound）**：
+对任意安全客户端都不会触发 UB，称健全；否则不健全。
+_Avoid_: 安全（混用）
+
+**裸指针（raw pointer）**：
+`*const T` / `*mut T`，无借用检查、可空、可悬垂。
+_Avoid_: 原始指针
+
+**可变静态（mutable static）**：
+`static mut`；读、写、取引用都要 `unsafe`（2024 起取引用默认 deny）。
+_Avoid_: 可变全局变量
+
+**未初始化（uninitialized）**：
+内存尚未写入有效值；`MaybeUninit` 处理的那段时间。
+_Avoid_: 未赋值
+
+**裸借用运算符（raw borrow operators）**：
+`&raw const` / `&raw mut`（Reference 用语）。
+_Avoid_: 原始借用
+
 **trait**：
 行为契约。**保留英文不译**（首现时用一句话说明；「特征/特质」在中文里歧义大、社区不统一）。
 _Avoid_: 特征、特质
@@ -157,7 +229,7 @@ _Avoid_: 宏定义（过泛）
 _Avoid_: 崩溃
 
 **unsafe**：
-开启四个超能力（解引用裸指针、调用 `unsafe fn`、访问可变静态、实现 `unsafe trait`）的记号；不是「关闭检查」的开关。
+开启五类超能力（解引用裸指针、调用 `unsafe fn`、访问可变静态、实现 `unsafe trait`、访问联合体字段）的记号；不是「关闭检查」的开关（Reference 拆得更细；第 23 章展开）。
 _Avoid_: 不安全代码（作名词时写「unsafe 代码」）
 
 **未定义行为（UB, undefined behavior）**：
@@ -262,6 +334,22 @@ _Avoid_: 拆 pin
 「pin 住外层即 pin 住该字段」的字段级契约。
 _Avoid_: 结构 pinning
 
+**对齐（alignment）**：
+类型地址必须满足的字节边界。
+_Avoid_: 对齐度
+
+**填充（padding）**：
+为满足对齐插在字段之间的空字节。
+_Avoid_: 空隙（歧义）
+
+**判别式（discriminant）**：
+枚举用哪个变体的编号/标志（可独立存在，也可折进 niche）。
+_Avoid_: 标签（歧义）
+
+**空位（niche）**：
+类型中不可能出现的位模式（如空指针）；枚举的空变体可折进去省空间。
+_Avoid_: 空洞
+
 **穷尽性（exhaustiveness）**：
 `match` 必须覆盖全部可能取值，编译器负责检查。
 _Avoid_: 完备性
@@ -355,6 +443,18 @@ _Avoid_: 生命周期区间（两个概念不混用）
 **别名规则（aliasing rules）**：
 同一时刻：共享借用可以有多个，可变借用只能有一个。
 _Avoid_: 借用规则（那还包含作用域等更多内容）
+
+**来历（provenance）**：
+指针携带的「这块地址属于哪块分配、由哪条引用派生」的信息。
+_Avoid_: 出处、来源（易与「引用的来源」混淆）
+
+**严格来历 / 暴露来历（strict / exposed provenance）**：
+std 对两组 provenance API 的分类标签；严格来历可推理，暴露来历只能「尽力而为」。
+_Avoid_: 严格来源
+
+**别名模型（aliasing model）**：
+在 Miri 里实现的候选别名规则（Stacked Borrows / Tree Borrows）——「别名规则」是要求，模型是用来做检查的形式化。
+_Avoid_: 别名理论
 
 **悬垂引用（dangling reference）**：
 指向已被释放数据的引用；安全 Rust 编译期即拒。

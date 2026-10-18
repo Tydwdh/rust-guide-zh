@@ -33,6 +33,33 @@ Rust 的答案是把这件事挪到编译期，代价是类型系统上多两条
 
 第三条路（锁、原子、消息传递）不用新规则：它们内部都建立在 `Send`/`Sync` 与 `unsafe` 之上，对外只暴露「已经消化掉同步」的安全接口。所以这两条规则不是「并发检查的一部分」，而是**全部**——第 17 章那张分布表里的每一格都是它们的推论。
 
+下图把三条路径与各自的 trait 要求摆在一起：
+
+<svg viewBox="0 0 680 230" width="100%" role="img" aria-label="三条路径对照：把值搬过去只需要 T: Send，把共享引用 &amp;T 发过去需要 T: Sync、可变引用 &amp;mut T 需要 T: Send，同步原语共享不引入新 trait" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">三条路径与各自的 trait 要求</text>
+<rect x="0" y="34" width="212" height="140" rx="5" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="12" y="56" font-size="13" fill="var(--links)">① 把值搬过去</text>
+<text x="12" y="80" font-size="12" font-family="monospace" fill="currentColor">move 进 spawn</text>
+<text x="12" y="102" font-size="12" fill="currentColor" opacity="0.7">闭包连同捕获的值</text>
+<text x="12" y="120" font-size="12" fill="currentColor" opacity="0.7">整个交给新线程</text>
+<text x="12" y="150" font-size="13" font-family="monospace" fill="var(--links)">要求 T: Send</text>
+<rect x="234" y="34" width="212" height="140" rx="5" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="246" y="56" font-size="13" fill="var(--links)">② 把引用发过去</text>
+<text x="246" y="80" font-size="12" font-family="monospace" fill="currentColor">&amp;T / &amp;mut T</text>
+<text x="246" y="102" font-size="12" fill="currentColor" opacity="0.7">引用本身也是值</text>
+<text x="246" y="120" font-size="12" fill="currentColor" opacity="0.7">照样要能跨线程</text>
+<text x="246" y="150" font-size="13" font-family="monospace" fill="var(--links)">&amp;T: Send 要 T: Sync</text>
+<text x="246" y="168" font-size="13" font-family="monospace" fill="var(--links)">&amp;mut T: Send 要 T: Send</text>
+<rect x="468" y="34" width="212" height="140" rx="5" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="480" y="56" font-size="13" fill="var(--links)">③ 同步原语共享</text>
+<text x="480" y="80" font-size="12" font-family="monospace" fill="currentColor">Mutex / channel</text>
+<text x="480" y="102" font-size="12" fill="currentColor" opacity="0.7">锁、原子、消息传递</text>
+<text x="480" y="120" font-size="12" fill="currentColor" opacity="0.7">对外只给安全接口</text>
+<text x="480" y="150" font-size="13" fill="var(--links)">不引入新 trait</text>
+<text x="0" y="200" font-size="12" fill="currentColor">两条规则覆盖全部三条路径：Send 管搬值，Sync 管发共享引用，&amp;mut T 只看 Send</text>
+<text x="0" y="220" font-size="12" fill="currentColor" opacity="0.7">第三条路建立在前两条之上：Mutex 与通道内部早已用 Send/Sync 与 unsafe 消化掉同步</text>
+</svg>
+
 `Send`/`Sync` 还有一处特殊：**由编译器自动推导**。std 的说明是：This trait is automatically implemented when the compiler determines it’s appropriate.——这类 trait 叫 auto trait。编译器只看你的字段：每个字段都 `Send`，你这个类型就 `Send`；反过来，**一个 `Rc` 字段就足以把整个结构体拉下水**。这就是「传染」的来源，也是你以后看并发报错的第一反应：哪个字段先不合格。
 
 ### 主线程退出就是进程退出
@@ -132,6 +159,32 @@ scope 结束后 total_len = 19
 - 后两个闭包都借了 `words`，其中还不止一个——**共享借用可以并存**，所以 `&words` 能同时进多个线程；`total_len` 被 `&mut` 借走，只有一个线程拿它，别名规则照样成立。`scope` 没有放宽借用检查，它只是把「借用」和「线程存活」这两件事绑定在了一起。
 - `Scope::spawn` 的约束是 `F: Send + 'scope`，不是 `'static`（`'scope` 是作用域自身的生命周期，由 `thread::scope` 内部提供）。
 - 自动 join 也意味着**panic 会传染**：某个分片线程 panic，`thread::scope` 本身会 panic，信息是 `a scoped thread panicked`。想自己处理就显式 `join` 那个句柄。
+
+下图把 `spawn` 与 `scope` 的存活区间摆在一起：
+
+<svg viewBox="0 0 680 260" width="100%" role="img" aria-label="spawn 与 scope 的存活区间对照：spawn 的闭包捕获必须活到 'static 且要手动 join，scope 允许借用局部数据并在作用域出口自动 join 全部线程" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">spawn 要 'static；scope 借用，出口自动 join</text>
+<text x="0" y="44" font-size="13" fill="var(--links)">① thread::spawn：捕获必须 'static</text>
+<rect x="96" y="52" width="280" height="20" rx="4" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="104" y="66" font-size="12" fill="currentColor">创建线程的作用域</text>
+<rect x="170" y="82" width="380" height="20" rx="4" fill="none" stroke="var(--warning-border)" stroke-width="1.5" stroke-dasharray="5 4" />
+<text x="178" y="96" font-size="12" fill="var(--warning-border)">线程存活（可能超出创建它的作用域）</text>
+<line x1="376" y1="44" x2="376" y2="108" stroke="var(--quote-border)" stroke-width="1.5" stroke-dasharray="4 3" />
+<text x="382" y="58" font-size="12" fill="currentColor" opacity="0.7">作用域结束</text>
+<text x="96" y="124" font-size="12" fill="var(--warning-border)">捕获的引用活不到 'static → 只能 move 拿走所有权，join 还要自己动手</text>
+<text x="0" y="150" font-size="13" fill="var(--links)">② thread::scope：借用 + 出口自动 join</text>
+<rect x="96" y="156" width="430" height="84" rx="5" fill="none" stroke="var(--links)" stroke-width="1.5" />
+<rect x="108" y="166" width="350" height="16" rx="4" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="116" y="178" font-size="11" font-family="monospace" fill="currentColor">s.spawn #1</text>
+<rect x="108" y="188" width="300" height="16" rx="4" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="116" y="200" font-size="11" font-family="monospace" fill="currentColor">s.spawn #2</text>
+<rect x="108" y="210" width="330" height="16" rx="4" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="116" y="222" font-size="11" font-family="monospace" fill="currentColor">s.spawn #3</text>
+<line x1="526" y1="148" x2="526" y2="248" stroke="var(--links)" stroke-width="1.5" stroke-dasharray="4 3" />
+<text x="532" y="190" font-size="12" fill="var(--links)">出口</text>
+<text x="532" y="208" font-size="12" fill="var(--links)">全部 join</text>
+<text x="96" y="256" font-size="12" fill="currentColor" opacity="0.7">借来的 &amp;words 活到 'scope 结束：出口之前所有线程都已结束</text>
+</svg>
 
 `scope` 不豁免 `Send`。下面这段编译不过，而且原因与生命周期无关——作用域解决了「借来的数据活多久」，`Send` 这一关照样要过：
 
@@ -520,6 +573,36 @@ recv -> Err(RecvError)：所有发送端都消失了
 > An unsuccessful operation is normally indicative of the other half of a channel having “hung up” by being dropped in its corresponding thread.
 
 这正是 `rx.iter()` 能当作迭代器用的原因：所有发送端 drop 之后，迭代自然结束。反过来说，**只要还有一个发送端活着，接收端就永远等不到「结束」**——忘了 `drop(tx)` 就会卡死（练习 2）。要临时看一眼而不阻塞，用 `try_recv()`；要带超时用 `recv_timeout()`。
+
+下图把一条通道的拓扑摊开：
+
+<svg viewBox="0 0 680 232" width="100%" role="img" aria-label="mpsc 拓扑：clone 得到的多个 Sender 把消息送进同一条通道，只有一个 Receiver 消费；所有 Sender 消失后接收端结束" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">mpsc 拓扑：多生产者、单消费者</text>
+<text x="0" y="44" font-size="12" fill="var(--links)">Sender（clone 出多份）</text>
+<rect x="0" y="58" width="150" height="34" rx="5" fill="none" stroke="var(--links)" stroke-width="1.5" />
+<text x="8" y="79" font-size="12" font-family="monospace" fill="currentColor">tx.clone() #1</text>
+<rect x="0" y="102" width="150" height="34" rx="5" fill="none" stroke="var(--links)" stroke-width="1.5" />
+<text x="8" y="123" font-size="12" font-family="monospace" fill="currentColor">tx.clone() #2</text>
+<rect x="0" y="146" width="150" height="34" rx="5" fill="none" stroke="var(--links)" stroke-width="1.5" />
+<text x="8" y="167" font-size="12" font-family="monospace" fill="currentColor">tx.clone() #3</text>
+<line x1="150" y1="75" x2="242" y2="75" stroke="currentColor" stroke-width="1.5" />
+<polyline points="242,70 250,75 242,80" fill="none" stroke="currentColor" stroke-width="1.5" />
+<line x1="150" y1="119" x2="242" y2="119" stroke="currentColor" stroke-width="1.5" />
+<polyline points="242,114 250,119 242,124" fill="none" stroke="currentColor" stroke-width="1.5" />
+<line x1="150" y1="163" x2="242" y2="163" stroke="currentColor" stroke-width="1.5" />
+<polyline points="242,158 250,163 242,168" fill="none" stroke="currentColor" stroke-width="1.5" />
+<rect x="250" y="58" width="120" height="110" rx="5" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="310" y="105" font-size="12" fill="currentColor" text-anchor="middle">通道</text>
+<text x="310" y="125" font-size="12" fill="currentColor" opacity="0.7" text-anchor="middle">FIFO 队列</text>
+<line x1="370" y1="113" x2="452" y2="113" stroke="currentColor" stroke-width="1.5" />
+<polyline points="452,108 460,113 452,118" fill="none" stroke="currentColor" stroke-width="1.5" />
+<rect x="460" y="86" width="200" height="54" rx="5" fill="none" stroke="var(--links)" stroke-width="1.5" />
+<text x="560" y="108" font-size="12" font-family="monospace" fill="currentColor" text-anchor="middle">Receiver</text>
+<text x="560" y="128" font-size="12" fill="currentColor" opacity="0.7" text-anchor="middle">单消费者</text>
+<text x="460" y="62" font-size="12" fill="var(--links)">只有一份</text>
+<text x="0" y="200" font-size="12" fill="currentColor" opacity="0.7">原件 tx 也要 drop，否则接收端永远等不到结束</text>
+<text x="0" y="220" font-size="12" fill="currentColor">所有 Sender 消失 → recv() 返回 Err(RecvError)，rx.iter() 自然结束</text>
+</svg>
 
 ### `thread_local!`：每个线程一份
 

@@ -88,7 +88,7 @@ moves_seen = 0
 
 译文：只要你不碰 `unsafe`，就不可能以不安全的方式创建或误用被 pin 的值。
 
-**对 `unsafe` 代码那一面**，责任反转了：谁调用 `Pin::new_unchecked`，谁就得保证这个指针指向的值从此不再移动。库作者在 `unsafe` 块里兑现这个承诺，调用者才能继续用 safe API 享受它。第 23 章会系统讲 `unsafe` 的四个能力与 UB 清单；本章只负责让你知道，在 pin 这套东西里，`unsafe` 到底在担保什么。
+**对 `unsafe` 代码那一面**，责任反转了：谁调用 `Pin::new_unchecked`，谁就得保证这个指针指向的值从此不再移动。库作者在 `unsafe` 块里兑现这个承诺，调用者才能继续用 safe API 享受它。第 23 章会系统讲 `unsafe` 的五个能力与 UB 清单；本章只负责让你知道，在 pin 这套东西里，`unsafe` 到底在担保什么。
 
 ## 机制与规则
 
@@ -149,6 +149,52 @@ pub struct Pin<Ptr> { /* private fields */ }
 ```
 
 它是一个单字段的包装类型（`#[fundamental]` 的包装，第 12 章讲过这个属性），字段私有，所以只能通过官方入口构造。要抓住的关键是：**`Pin` 包住的不是要被 pin 的值，而是指向它的指针**。`Pin<&mut T>` 是把一个 `&mut T` 包起来，承诺它指向的那个 `T` 不再移动；`Pin<Box<T>>` 同理。文档对此的说法是「`Pin<Ptr>` 不 pin `Ptr`，它 pin 的是指针的**被指向值（pointee）**」。
+
+下图把这三层摊开，并用 22.1 那次移动对照说明 pin 契约要挡住什么（右格即实测的 `true → false`）：
+
+<svg viewBox="0 0 660 300" width="100%" role="img" aria-label="Pin&lt;&amp;mut T&gt; 的三层结构：Pin 包装层包住 &amp;mut T 指针层，指针指向 T 的值层；值内部的 ptr 指向自己的 data 字段。移动前值在地址 A，ptr 指向自身、有效（true）；值被搬到新地址 B 后，Pin 与 &amp;mut T 都跟着指向 B，ptr 却仍指向 A，于是失效（false）" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">Pin&lt;&amp;mut T&gt; 的三层结构，与移动前后的对照</text>
+<text x="20" y="40" font-size="12" fill="var(--links)">移动前：原地初始化 → true</text>
+<text x="360" y="40" font-size="12" fill="var(--links)">移动后：值被搬走 → false</text>
+<rect x="90" y="52" width="140" height="32" rx="4" fill="none" stroke="var(--links)" stroke-width="1.5" />
+<text x="160" y="73" font-size="12" font-family="monospace" fill="var(--links)" text-anchor="middle">Pin&lt;&amp;mut T&gt;</text>
+<line x1="160" y1="84" x2="160" y2="92" stroke="currentColor" stroke-width="1.5" />
+<polyline points="156,92 160,100 164,92" fill="none" stroke="currentColor" stroke-width="1.5" />
+<rect x="90" y="100" width="140" height="30" rx="4" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="160" y="120" font-size="12" font-family="monospace" fill="currentColor" text-anchor="middle">&amp;mut T</text>
+<line x1="160" y1="130" x2="160" y2="138" stroke="currentColor" stroke-width="1.5" />
+<polyline points="156,138 160,146 164,138" fill="none" stroke="currentColor" stroke-width="1.5" />
+<rect x="20" y="146" width="280" height="98" rx="5" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="32" y="166" font-size="12" fill="currentColor" opacity="0.7">T 的值（地址 A）</text>
+<rect x="36" y="176" width="112" height="30" rx="4" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="92" y="195" font-size="12" font-family="monospace" fill="currentColor" text-anchor="middle">data = "hello"</text>
+<rect x="176" y="176" width="108" height="30" rx="4" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="230" y="195" font-size="12" font-family="monospace" fill="currentColor" text-anchor="middle">ptr</text>
+<line x1="176" y1="191" x2="152" y2="191" stroke="var(--links)" stroke-width="1.5" />
+<polyline points="158,187 150,191 158,195" fill="none" stroke="var(--links)" stroke-width="1.5" />
+<text x="160" y="228" font-size="12" fill="var(--links)" text-anchor="middle">ptr 指向自身字段 ✓</text>
+<rect x="460" y="52" width="140" height="32" rx="4" fill="none" stroke="var(--links)" stroke-width="1.5" />
+<text x="530" y="73" font-size="12" font-family="monospace" fill="var(--links)" text-anchor="middle">Pin&lt;&amp;mut T&gt;</text>
+<line x1="530" y1="84" x2="530" y2="92" stroke="currentColor" stroke-width="1.5" />
+<polyline points="526,92 530,100 534,92" fill="none" stroke="currentColor" stroke-width="1.5" />
+<rect x="460" y="100" width="140" height="30" rx="4" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="530" y="120" font-size="12" font-family="monospace" fill="currentColor" text-anchor="middle">&amp;mut T</text>
+<line x1="530" y1="130" x2="530" y2="138" stroke="currentColor" stroke-width="1.5" />
+<polyline points="526,138 530,146 534,138" fill="none" stroke="currentColor" stroke-width="1.5" />
+<rect x="440" y="146" width="200" height="98" rx="5" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="452" y="166" font-size="12" fill="currentColor" opacity="0.7">T 的值（新地址 B）</text>
+<rect x="456" y="176" width="100" height="30" rx="4" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="506" y="195" font-size="12" font-family="monospace" fill="currentColor" text-anchor="middle">data = "hello"</text>
+<rect x="566" y="176" width="62" height="30" rx="4" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="597" y="195" font-size="12" font-family="monospace" fill="currentColor" text-anchor="middle">ptr</text>
+<rect x="340" y="176" width="88" height="64" rx="4" fill="none" stroke="var(--warning-border)" stroke-width="1.5" stroke-dasharray="4 3" />
+<text x="384" y="200" font-size="12" fill="var(--warning-border)" text-anchor="middle">旧地址 A</text>
+<text x="384" y="220" font-size="12" fill="var(--warning-border)" text-anchor="middle">已被复用</text>
+<polyline points="628,191 648,191 648,258 384,258 384,246" fill="none" stroke="var(--warning-border)" stroke-width="1.5" />
+<polyline points="380,246 384,240 388,246" fill="none" stroke="var(--warning-border)" stroke-width="1.5" />
+<text x="500" y="276" font-size="12" fill="var(--warning-border)" text-anchor="middle">ptr 仍指旧地址 ✗</text>
+<text x="0" y="292" font-size="12" fill="currentColor" opacity="0.7">移动只复制字节：Pin 与 &amp;mut T 跟着值走，值内部的 ptr 没人通知</text>
+</svg>
 
 访问被 pin 的值，走的是 `Deref`：
 
@@ -383,6 +429,29 @@ note: required because it appears within the type `HasPin`
    |        ^^^^^^
 ...
 ```
+
+下图把字段到类型的这条传播路径摊开：
+
+<svg viewBox="0 0 660 250" width="100%" role="img" aria-label="Unpin 的字段传播：HasPin 的两个字段中，data: String 是 Unpin（✓），_pin: PhantomPinned 不是 Unpin（✗）；只要有一个字段不是 Unpin，整个类型 HasPin 就不是 Unpin" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">Unpin 按字段传播：一个字段说「不」，整个类型就不是 Unpin</text>
+<text x="190" y="40" font-size="12" fill="currentColor" opacity="0.7">类型</text>
+<rect x="190" y="48" width="280" height="56" rx="5" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="330" y="74" font-size="13" font-family="monospace" fill="currentColor" text-anchor="middle">HasPin</text>
+<text x="330" y="92" font-size="12" fill="var(--warning-border)" text-anchor="middle">不是 Unpin ✗</text>
+<text x="90" y="130" font-size="12" fill="currentColor" opacity="0.7">字段</text>
+<rect x="90" y="136" width="480" height="76" rx="5" fill="none" stroke="var(--quote-border)" stroke-width="1.5" stroke-dasharray="4 3" />
+<rect x="110" y="150" width="190" height="48" rx="4" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="205" y="175" font-size="12" font-family="monospace" fill="currentColor" text-anchor="middle">data: String</text>
+<text x="205" y="191" font-size="12" fill="var(--links)" text-anchor="middle">Unpin ✓</text>
+<rect x="360" y="150" width="190" height="48" rx="4" fill="none" stroke="var(--warning-border)" stroke-width="1.5" />
+<text x="455" y="175" font-size="12" font-family="monospace" fill="currentColor" text-anchor="middle">_pin: PhantomPinned</text>
+<text x="455" y="191" font-size="12" fill="var(--warning-border)" text-anchor="middle">不是 Unpin ✗</text>
+<line x1="205" y1="150" x2="205" y2="106" stroke="currentColor" stroke-width="1.5" />
+<polyline points="201,112 205,104 209,112" fill="none" stroke="currentColor" stroke-width="1.5" />
+<line x1="455" y1="150" x2="455" y2="106" stroke="var(--warning-border)" stroke-width="1.5" />
+<polyline points="451,112 455,104 459,112" fill="none" stroke="var(--warning-border)" stroke-width="1.5" />
+<text x="0" y="234" font-size="12" fill="currentColor" opacity="0.7">字段全 Unpin，类型才 Unpin；有一个字段不是，自动推导就在这里停下</text>
+</svg>
 
 第一条的错误标题就很有信息量：`` `PhantomPinned` cannot be unpinned``——它把 `Unpin` 的缺席描述成一种「无法解除 pin」的属性。第二条的 `within HasPin` 则是字段传播的直接证据。
 

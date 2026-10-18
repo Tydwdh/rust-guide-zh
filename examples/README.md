@@ -5,6 +5,8 @@
 | crate | 对应内容 | 入口 |
 |---|---|---|
 | [`todo-cli`](todo-cli/) | 项目 1（基础篇收尾，第 11 章之后） | `cargo run -p todo-cli -- --help` |
+| [`expr-eval`](expr-eval/) | 项目 2（类型与 trait 主干篇收尾，第 18 章之后） | `cargo run -p expr-eval -- --help` |
+| [`task-queue`](task-queue/) | 项目 3（并发与异步篇收尾，第 22 章之后） | `cargo run -p task-queue --example demo` |
 
 在本目录（`examples/`）里跑：
 

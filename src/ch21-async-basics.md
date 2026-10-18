@@ -157,6 +157,42 @@ match operand.into_future() {
 
 「把 future 当成一个普通的、可能很大的值来看待」——这一章后面所有规则都会顺很多：它会被搬动（所以需要 `Pin`）、也会被丢掉（所以取消就是 `drop`）、它是什么类型由里面存了哪些局部变量决定（所以 `Send` 与否要看跨 `.await` 的值）。
 
+把写法和编译器生成的东西并排放，就是下图：
+
+<svg viewBox="0 0 660 256" width="100%" role="img" aria-label="async fn 与它编译出的状态机：左边源码里两个 .await 各是一个挂起点，右边编译器生成的枚举中，每个变体的字段正是跨挂起点还活着的局部变量 a 和 b，跑完后返回 a + b + c" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">async fn 的写法与编译器生成的状态机</text>
+<text x="0" y="42" font-size="12" fill="currentColor">你写的</text>
+<g font-family="monospace" font-size="12" fill="currentColor" xml:space="preserve" style="white-space:pre">
+<text x="0" y="66">async fn f() -&gt; u32 {</text>
+<text x="0" y="88">    let a = read_a();</text>
+<text x="0" y="110">    let b = wait_b().await;  // 切点 1</text>
+<text x="0" y="132">    let c = wait_c().await;  // 切点 2</text>
+<text x="0" y="154">    a + b + c</text>
+<text x="0" y="176">}</text>
+</g>
+<line x1="306" y1="140" x2="344" y2="140" stroke="var(--links)" stroke-width="1.5" />
+<polygon points="356,140 344,134 344,146" fill="var(--links)" />
+<text x="308" y="132" font-size="12" fill="currentColor">编译</text>
+<text x="364" y="42" font-size="12" fill="currentColor">编译器生成的（一个带标签的枚举）</text>
+<rect x="364" y="56" width="290" height="34" rx="5" fill="none" stroke="var(--quote-border)" stroke-width="1.5" />
+<text x="376" y="78" font-size="12" fill="currentColor">变体 0</text>
+<text x="444" y="78" font-size="12" font-family="monospace" fill="var(--links)">{ }</text>
+<text x="520" y="78" font-size="12" fill="currentColor" opacity="0.75">还没推进</text>
+<rect x="364" y="100" width="290" height="34" rx="5" fill="none" stroke="var(--quote-border)" stroke-width="1.5" />
+<text x="376" y="122" font-size="12" fill="currentColor">变体 1</text>
+<text x="444" y="122" font-size="12" font-family="monospace" fill="var(--links)">{ a }</text>
+<text x="520" y="122" font-size="12" fill="currentColor" opacity="0.75">停在切点 1</text>
+<rect x="364" y="144" width="290" height="34" rx="5" fill="none" stroke="var(--quote-border)" stroke-width="1.5" />
+<text x="376" y="166" font-size="12" fill="currentColor">变体 2</text>
+<text x="444" y="166" font-size="12" font-family="monospace" fill="var(--links)">{ a, b }</text>
+<text x="520" y="166" font-size="12" fill="currentColor" opacity="0.75">停在切点 2</text>
+<rect x="364" y="188" width="290" height="34" rx="5" fill="none" stroke="var(--quote-border)" stroke-width="1.5" />
+<text x="376" y="210" font-size="12" fill="currentColor">变体 3</text>
+<text x="444" y="210" font-size="12" font-family="monospace" fill="var(--links)">a + b + c</text>
+<text x="520" y="210" font-size="12" fill="currentColor" opacity="0.75">完成，返回值</text>
+<text x="364" y="244" font-size="12" fill="currentColor" opacity="0.75">每个挂起变体还存着正在等待的内层 future（图中省略）</text>
+</svg>
+
 ### 谁在推进：执行器与 `Waker`
 
 执行器做的事，抽象看只有一个循环：poll 任务，收到 `Pending` 就去睡，等有人叫醒再回来 poll。为了让「唤醒（wake）」这件事有载体，`poll` 会收到一个 `Context`，里面包着一个 `Waker`。`Waker` 的文档定义是：
@@ -164,6 +200,37 @@ match operand.into_future() {
 > A Waker is a handle for waking up a task by notifying its executor that it is ready to be run.
 
 （`Waker` 是一个句柄：通过通知执行器「这个任务可以跑了」，把任务唤醒。）
+
+执行器与 future 之间的往复摊开来看，就是下图：
+
+<svg viewBox="0 0 660 244" width="100%" role="img" aria-label="执行器与 future 的往复：执行器 poll 任务，future 在 .await 处把 Context 里的 Waker 交给事件源并返回 Pending，执行器随即挂起；事件源就绪后调用 waker.wake() 叫醒执行器，执行器再 poll 同一个任务，这次拿到 Ready" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">执行器与 future 的往复：poll → Pending → 登记 Waker → wake → 再 poll</text>
+<rect x="20" y="30" width="170" height="28" rx="5" fill="none" stroke="var(--links)" stroke-width="1.5" />
+<text x="105" y="49" font-size="12" fill="currentColor" text-anchor="middle">执行器</text>
+<rect x="250" y="30" width="170" height="28" rx="5" fill="none" stroke="var(--links)" stroke-width="1.5" />
+<text x="335" y="49" font-size="12" fill="currentColor" text-anchor="middle">future（任务）</text>
+<rect x="470" y="30" width="170" height="28" rx="5" fill="none" stroke="var(--links)" stroke-width="1.5" />
+<text x="555" y="49" font-size="12" fill="currentColor" text-anchor="middle">I/O 或定时器线程</text>
+<line x1="105" y1="58" x2="105" y2="232" stroke="var(--quote-border)" stroke-width="1.5" stroke-dasharray="4 3" />
+<line x1="335" y1="58" x2="335" y2="232" stroke="var(--quote-border)" stroke-width="1.5" stroke-dasharray="4 3" />
+<line x1="555" y1="58" x2="555" y2="232" stroke="var(--quote-border)" stroke-width="1.5" stroke-dasharray="4 3" />
+<line x1="105" y1="84" x2="327" y2="84" stroke="var(--links)" stroke-width="1.5" />
+<polygon points="335,84 326,79 326,89" fill="var(--links)" />
+<text x="120" y="77" font-size="12" fill="currentColor">① poll(cx)</text>
+<line x1="335" y1="112" x2="547" y2="112" stroke="var(--links)" stroke-width="1.5" />
+<polygon points="555,112 546,107 546,117" fill="var(--links)" />
+<text x="352" y="105" font-size="12" fill="currentColor">② 把 cx.waker 登记到事件源</text>
+<line x1="335" y1="140" x2="117" y2="140" stroke="var(--links)" stroke-width="1.5" />
+<polygon points="105,140 114,135 114,145" fill="var(--links)" />
+<text x="143" y="133" font-size="12" fill="currentColor">③ 返回 Poll::Pending</text>
+<text x="20" y="166" font-size="12" fill="currentColor" opacity="0.75">④ 挂起：不再 poll（线程去干别的或睡下）</text>
+<line x1="555" y1="192" x2="117" y2="192" stroke="var(--links)" stroke-width="1.5" />
+<polygon points="105,192 114,187 114,197" fill="var(--links)" />
+<text x="180" y="185" font-size="12" fill="currentColor">⑤ waker.wake()</text>
+<line x1="105" y1="218" x2="327" y2="218" stroke="var(--links)" stroke-width="1.5" />
+<polygon points="335,218 326,213 326,223" fill="var(--links)" />
+<text x="120" y="211" font-size="12" fill="currentColor">⑥ 再 poll(cx)：这次 Ready</text>
+</svg>
 
 `Waker` 是 `Clone + Send + Sync` 的，文档特意点出它的含义：「a waker may be invoked from any thread, including ones not in any way managed by the executor.」——也就是说，一个网络事件线程可以直接拿到 waker，在没有运行时的线程上把任务叫醒。这就是「谁登记唤醒」里的那个「谁」。
 
