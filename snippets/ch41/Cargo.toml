@@ -1,0 +1,7 @@
+[package]
+name = "ch41-no-std"
+version = "0.1.0"
+edition = "2024"
+
+# 独立 crate：snippets/ 下的片段不并入 examples/ 的 workspace。
+[workspace]

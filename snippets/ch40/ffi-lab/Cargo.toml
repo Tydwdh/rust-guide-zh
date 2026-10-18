@@ -1,0 +1,9 @@
+# cdylib 实验：编出 pointops.dll（C 侧动态库），加一个 rlib 便于对照符号表。
+[package]
+name = "ffi-lab"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "pointops"
+crate-type = ["cdylib", "rlib"]

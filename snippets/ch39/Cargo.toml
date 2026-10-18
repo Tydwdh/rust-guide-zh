@@ -1,0 +1,5 @@
+# 第 39 章的探针 workspace：过程宏 crate + 消费它的 crate。
+# 两者都不引外部依赖；`cargo test --manifest-path snippets/ch39/Cargo.toml` 一次跑完。
+[workspace]
+resolver = "3"
+members = ["attr-demo", "attr-demo-use"]

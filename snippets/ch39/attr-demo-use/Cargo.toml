@@ -1,0 +1,7 @@
+[package]
+name = "ch39-attr-demo-use"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+ch39-attr-demo = { path = "../attr-demo" }

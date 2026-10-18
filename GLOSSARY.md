@@ -268,6 +268,14 @@ _Avoid_: 无卫生
 同一编译器支持的语言版本方言（2015/2018/2021/2024）；由 crate 级 `edition` 键选择，不是编译器版本。
 _Avoid_: 版本（单独用时歧义）
 
+**元变量表达式（meta-variable expression）**：
+`macro_rules!` 里在转写期求值的内建表达式（`${count(…)}`/`${index()}`/`${len(…)}` 等）；截至 1.98 仍是 nightly（第 39 章）。
+_Avoid_: 元变量宏
+
+**调用点（call site）**：
+宏被使用的位置（相对「定义处」）；卫生性与诊断归属都围着它与定义处的区别转。
+_Avoid_: 调用处
+
 **panic**：
 不可恢复错误的展开路径，与可恢复的 `Result` 相对。
 _Avoid_: 崩溃
@@ -500,6 +508,38 @@ _Avoid_: 严格来源
 在 Miri 里实现的候选别名规则（Stacked Borrows / Tree Borrows）——「别名规则」是要求，模型是用来做检查的形式化。
 _Avoid_: 别名理论
 
+**重借（reborrow）**：
+不转移原指针/引用、重新借出一次的行为（`&mut *p`、传给函数时）；别名模型里的关键动作。
+_Avoid_: 再借用
+
+**借用栈（borrow stack）**：
+Stacked Borrows 为每个位置维护的「许可栈」：重借压栈，非法访问使上方条目失效。
+_Avoid_: —
+
+**许可树（permission tree）**：
+Tree Borrows 的树状许可结构：子借用挂成树枝，兄弟分支互不干扰。
+_Avoid_: —
+
+**保护符（protector）**：
+在函数参数位置上给借用的临时标记：调用期间对应的许可不得被外部访问砸掉。
+_Avoid_: 保护者
+
+**子对象来历（subobject provenance）**：
+指针携带的「来自哪个子对象」的信息（字段/元素级）；Tree Borrows 的已知不精确处之一。
+_Avoid_: 子对象溯源
+
+**retag**：
+编译器/Miri 在重借时给指针重新贴标记的动作（指针上的标记即 tag）。**保留英文**。
+_Avoid_: —
+
+**FCP（final comment period）**：
+RFC/变更走完流程的收尾公示期；别名模型的规则演进也会经过它。**保留英文**。
+_Avoid_: —
+
+**守卫（guard）**：
+离开作用域时负责收尾的 RAII 小对象（`Drain`、`MutexGuard`…）。与「匹配守卫」（`match` 臂上的 `if`）不同物。
+_Avoid_: 卫语句
+
 **悬垂引用（dangling reference）**：
 指向已被释放数据的引用；安全 Rust 编译期即拒。
 _Avoid_: 野指针（那是裸指针语境）
@@ -690,6 +730,34 @@ _Avoid_: 性能分析（口语可用）
 往程序里插入记录/计数以取证的手段（覆盖率与 PGO 都用它）。
 _Avoid_: 埋点
 
+**中间表示（IR, intermediate representation）**：
+编译器内部的程序形式；rustc 先后用 HIR 与 MIR，再交给 LLVM IR。
+_Avoid_: 中间代码
+
+**基本块（basic block）**：
+一串直进直出的指令（末尾一条终结指令），控制流图的节点。
+_Avoid_: 区块
+
+**终结指令（terminator）**：
+结束基本块的指令（`br`/`switchInt`/`return`/`call`…）。
+_Avoid_: 终止符
+
+**代码生成单元（codegen unit, CGU）**：
+给自己发一份 LLVM 模块的编译批次；`-C codegen-units` 调它的大小与并发度。
+_Avoid_: 编译单元（与 crate 的「编译单元」义混）
+
+**值槽（MIR local）**：
+MIR 里编号的存储位（`_0`、`_1`…）：局部变量、临时值与返回值都放这里。
+_Avoid_: 寄存器（MIR 还没分寄存器）
+
+**交叉编译（cross-compilation）**：
+在一种平台（host）上产出另一种平台（target）的可执行文件/库。
+_Avoid_: 跨平台编译
+
+**目标三元组（target triple）**：
+`<arch>-<vendor>-<os>-<abi>` 形式的平台标识（`thumbv7m-none-eabi`）；`--target` 收它。
+_Avoid_: 目标字符串
+
 ## 泛型与 trait
 
 **单态化（monomorphization）**：
@@ -733,8 +801,20 @@ _Avoid_: 内置方法
 _Avoid_: 毯式实现
 
 **基础类型构造器（fundamental type constructor）**：
-对孤儿规则「透明」的构造器（`&T`/`&mut T`/`Box<T>`）：`Box<本地类型>` 仍算本地类型。
+对孤儿规则「透明」的构造器（`&T`/`&mut T`/`Box<T>`/`Pin<T>`）：`Box<本地类型>` 仍算本地类型；它们不能覆盖内部参数。
 _Avoid_: 基本构造子
+
+**重叠（overlap）**：
+两条 impl 可能匹配同一类型而被禁止的情形（E0119）；「不相交」判定是编译器一致性检查的核心。
+_Avoid_: 重叠实现（作名词时写作「重叠」）
+
+**负实现（negative impls）**：
+`impl !Trait for T`：声明「绝对不实现」。截至 1.98 仍是 nightly（`negative_impls`，第 36 章）。
+_Avoid_: 否定实现
+
+**特化（specialization）**：
+在 blanket impl 之上为更具体类型提供更专门实现的能力；nightly（`specialization`；标准库内部只开 `min_specialization`）。
+_Avoid_: 专门化
 
 **dyn**：
 trait 对象类型的前缀（`dyn Trait` = 「某个实现了 `Trait` 的类型」）。**保留英文**。

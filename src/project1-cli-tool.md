@@ -361,7 +361,7 @@ pub type Result<T, E = AppError> = std::result::Result<T, E>;
 | 6 | 集合与字符串 | `Vec<Task>`、`split('\t')`、`join(" ")`、`contains(['\t', '\n', '\r'])` |
 | 7 | 错误处理 | `AppError`、`Result` 别名、`?`、`From<io::Error>`、退出码 |
 | 8 | 模块、包与依赖 | `mod cli/error/store/task`、`todo-cli` 是 `examples` 工作区的成员 |
-| 9 | 泛型与 trait | `impl Into<PathBuf>`、`render_list<W: Write>`、`FromStr`/`Display`/`Error`/`From` |
+| 9 | 泛型与 trait | `impl Into<PathBuf>`、`render_list<W: Write>`、`Display`/`From`/`Into`（`FromStr`/`Error` 见第 7、10 章） |
 | 10 | 迭代器与闭包 | `parse` 的链、`find`/`position`/`max`、`collect::<Result<…>>()`、`filter` |
 | 11 | 测试与调试 | 各模块 `#[cfg(test)]` + `tests/cli.rs` 端到端 |
 

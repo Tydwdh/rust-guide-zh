@@ -1,8 +1,40 @@
 # 本书第六批示例：项目 5「工程化改造」的样板库。
-# 协调者预置 stub；由票 61 把它工程化到可发布（元数据 / 文档 / CI / 打包验证）。
+# 从 stub 工程化到「可以发布」：清单元数据 / README / CHANGELOG / docs.rs 元数据 /
+# 打包验证 / CI 加固。零依赖：`[lints]`、测试、文档都由标准库与自己写的代码承担。
 [package]
 name = "release-drill"
 version = "0.1.0"
 edition = "2024"
+# MSRV 是承诺，不是描述：edition 2024 的下界就是 1.85（第 30 章 30.4）。
+# 本机只在 1.98 上验证过；「真的能在 1.85 上构建」要靠 CI 装那条工具链跑一遍。
+rust-version = "1.85"
+description = "把字节数格式化成人类可读的大小字符串，并把这种字符串解析回字节数；零依赖。"
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+keywords = ["bytes", "format", "size", "human-readable"]
+categories = ["value-formatting"]
 
+# 显式写一张空的依赖表：这个 crate 的零依赖是承诺，不是「还没加」。
 [dependencies]
+
+# 文档是最容易漏掉的发布件：缺文档直接编译失败。
+# 这些 lint 的取舍原则在第 32 章；`[lints]` 的语法与继承在第 30 章。
+[lints.rust]
+missing_docs = "deny"
+unsafe_code = "forbid"
+
+[lints.rustdoc]
+# 文档里的 intra-doc 链接写错就是发布件出错，本地 `cargo doc` 直接拦下。
+broken_intra_doc_links = "deny"
+
+[lints.clippy]
+# 调试残留不该进发布版本。
+dbg_macro = "deny"
+todo = "deny"
+
+# docs.rs 的构建参数（官方 Metadata 页）。
+# 这个 crate 没有 feature、也没有平台分支，所以只声明「只构建默认目标」，
+# 省掉 docs.rs 对另外四个 tier-one 目标的重复构建。
+# 等长出 feature 时再补 all-features / rustdoc-args（第 32 章 32.5）。
+[package.metadata.docs.rs]
+targets = []

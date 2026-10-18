@@ -1,0 +1,16 @@
+# panic 策略对照实验：同一个程序，两个档位各编一次。
+#   cargo run --release                      → unwind（默认）
+#   cargo run --profile release-abort        → abort
+[package]
+name = "panic-lab"
+version = "0.1.0"
+edition = "2024"
+
+# 默认档位本来就是这个值；显式写出来，好和下面那份对照。
+[profile.release]
+panic = "unwind"
+
+# 自定义档位继承 release，只换 panic 策略。
+[profile.release-abort]
+inherits = "release"
+panic = "abort"

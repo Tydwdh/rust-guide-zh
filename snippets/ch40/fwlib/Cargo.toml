@@ -1,0 +1,8 @@
+# 交叉编译实验：一块只依赖 core 的库，给 thumb 目标编成静态库。
+[package]
+name = "fwlib"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["staticlib"]

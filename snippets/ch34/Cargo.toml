@@ -1,0 +1,13 @@
+# 第 34 章的完整示例 crate：手写的集合与智能指针，带真跑的测试与演示程序。
+#
+# 独立成包、零依赖，所以可以直接跑：
+#   cargo test --manifest-path snippets/ch34/Cargo.toml
+#   cargo run  --manifest-path snippets/ch34/Cargo.toml --example vec_steps
+# 编译产物落在本目录的 target/（仓库根 .gitignore 已忽略 target/）。
+[package]
+name = "ch34-snippets"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]

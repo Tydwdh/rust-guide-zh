@@ -36,3 +36,42 @@ jobs:
           else
             echo "examples/ workspace 尚未就绪，跳过"
           fi
+
+  # 下面四个作业是项目 5 加的发布前门禁（说明与发布清单见 src/project5-engineering.md）。
+  # 每个作业一条 cargo 命令，本地同套命令能跑出同样结果。
+  # 只覆盖 release-drill 这一个包 —— 其余示例 crate 的格式与 lint 状态不在本次范围。
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: rustfmt（格式不一致即失败）
+        run: cargo fmt --manifest-path examples/Cargo.toml -p release-drill --check
+
+  clippy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: clippy（警告即失败，含测试与示例目标）
+        run: cargo clippy --manifest-path examples/Cargo.toml -p release-drill --all-targets -- -D warnings
+
+  doc:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: rustdoc（警告即失败：断链、可疑 HTML 都算）
+        run: cargo doc --manifest-path examples/Cargo.toml -p release-drill --no-deps
+        env:
+          RUSTDOCFLAGS: -D warnings
+
+  # 打包门禁：把 .crate 解开、在干净目录里重新编译一遍。
+  # CI 里的工作树是干净的，所以不需要本地那种 --allow-dirty。
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: cargo package（打包并验证 .crate 能编译）
+        run: cargo package --manifest-path examples/Cargo.toml -p release-drill
