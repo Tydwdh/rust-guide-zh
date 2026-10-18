@@ -1,2 +1,5 @@
 # mdBook build output
 book/
+
+# 校验链临时日志
+.book-build.log

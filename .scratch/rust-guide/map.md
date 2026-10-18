@@ -33,6 +33,7 @@
 - [02 Rust 知识结构基线](issues/02-knowledge-structure-baseline.md): 以本机 1.98 文档快照 + rust-src 源码核对 —— 3 层 37 项主题全集 + 硬依赖 DAG / 6 章节批次；2024 edition 与 1.63→1.98 里程碑、仍未稳定清单；已过时说法 25 条 + 易踩坑 17 条；§6 已备好给 05 的输入与六项深挖票可行性判断。
 - [04 定位与差异化边界](issues/04-positioning-and-differentiation.md): 定位翻转为「从零教程（假定会编程）」；承诺=理解（诊断作方法）；起点线/引用策略/误解暗线/边界（系统层深入、深水与领域进补充章节、不点名任何现有资源）/暂名《Rust 指南（暂定）》全部定稿。
 - [05 内容版图与章节结构](issues/05-content-map-and-structure.md): 版图 v0 定稿 —— 六篇 41 章 + 5 项目（`SUMMARY.md` 草稿条目 + `outline-v0.md`）；顺序吃 02 批次序；每章一张写作票、每章 2–3 道理解题（带答案）；基础篇 13 张写作票（09–21）已开、全部 blocked by 06。
+- [06 写作与验收规范](issues/06-writing-and-acceptance-spec.md): 规范定稿 —— `WRITING.md`（混合示例制 / edition 2024 + 最新 stable / 标准校验链 / 八节章节模板 / 加严 DoD 含交叉审校 / 已知坑）+ `GLOSSARY.md` 草案（trait 保留英文）；`book.toml` 已设 edition 与 create-missing。
 
 ## Not yet specified
 
@@ -44,7 +45,6 @@
 - 书名、副标题与品牌（暂用《Rust 指南（暂定）》；正式书名待定）
 - 许可协议与版权页（公开前必须落定）
 - 公开时机与反馈回路（连载节奏、评论渠道）
-- 章内模板细节（开场、小结、延伸阅读、练习与答案的落位）（待 06/08）
 - 中文搜索体验：03 已结论 —— tokenizer 只按空白/`-` 切，中文整句=1 token，无配置可解（缓解思路见 `research/03-mdbook-capabilities.md` §5）；要不要额外方案，等有正文后拿真内容试搜索再定。
 
 ## Out of scope

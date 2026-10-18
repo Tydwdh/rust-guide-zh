@@ -1,0 +1,112 @@
+# 写作规范（WRITING.md）
+
+> 本书写作的硬约束：每张写作票开工前读一遍，审核以它为准。改动要走地图（`.scratch/rust-guide/map.md`）。
+> 相关：定位与承诺 → `issues/04-positioning-and-differentiation.md`；版图与章节清单 → `outline-v0.md`；术语 → `GLOSSARY.md`。
+
+## 0. 工作流
+
+`mdbook serve --open` 预览 → 按 §4 模板写章 → 章节接进 `src/SUMMARY.md`（草稿条目接上链接）→ 跑 §3 校验链 → 交叉审校（§6）→ 用户验收 → 票内 `## Answer` → `Status: resolved`。
+
+## 1. 示例组织（混合制）
+
+| 场景 | 放哪 | 怎么写 |
+|---|---|---|
+| 短片段（≤15 行，服务叙述） | 章内内联 | 直接写 ```` ```rust ```` 块。**非 Rust 的片段（伪代码/输出/目录树）必须标 `text`/`console`/`toml`…** —— 裸栅栏会被当 Rust 编译测试 |
+| 「读者看 3 行、实际是完整程序」 | `src/snippets/<章号>/foo.rs` | `{{#rustdoc_include ../snippets/ch04/foo.rs:3}}`；文件须保持完整可编译 |
+| 实战项目 | `examples/<项目名>/`（workspace 成员） | 章内 `{{#include}}` 关键片段 + 一句「完整代码在 `examples/…`，跑 `cargo run -p …`」 |
+
+硬规则：
+
+- **被测块里绝不出现外部 crate 的 `use`**：`-L` 只认 `extern crate`，2018+ 的 `use` 需要隐藏行垫片（03 实测）。要引用配套 crate 时：放进 `rust,ignore` 块展示，或走 `{{#include}}`（不参与 `mdbook test`）。
+- 样板噪音用隐藏行 `# `（渲染时自动隐藏）。
+- 要展示 mdBook 指令本身时写 `\{{#…}}` —— 行内代码里也会展开（03 实测踩过）。
+- 以 `#` 开头的展示内容不要放进 `rust` 块（会被当隐藏行吃掉），用 `text`。
+- 教学报错块用 `rust,compile_fail`（正向断言「必须编译失败」）；要读者能点 play 但不断言用 `rust,ignore,mdbook-runnable`。
+- 文件命名：章节 `src/chNN-<slug>.md`；片段与 `snippets/chNN/` 同名对应。
+
+## 2. 版本与基线
+
+- `book.toml` 的 `[rust] edition = "2024"` 必须存在（默认 2015 会让 `async` 等直接编译失败）。
+- 正文声明：示例在**最新 stable**（写书时 1.98）验证；nightly-only 内容必须显式标注（`> [!WARNING]`）。
+- 报错呈现 = **最小复现 + 关键行节选**：`compile_fail` 块 + 紧跟 ```` ```text ```` 的真实输出关键几行（剔噪声），标注「以 Rust 1.98 为例」。不整段粘贴。
+
+## 3. 校验链（每张写作票必过；本地与 CI 同套命令）
+
+```sh
+# 1) 构建 + 扫 ERROR（build 会静默吞错且 exit 0，不能只看退出码）
+mdbook build 2>&1 | tee .book-build.log
+grep -q ERROR .book-build.log && { echo "build 日志有 ERROR"; exit 1; }
+
+# 2) 章内代码块（失败 exit 101，可靠门禁）
+mdbook test
+
+# 3) 示例 crate（workspace 就位后）
+cargo test --manifest-path examples/Cargo.toml
+
+# 4) 链接检查（装了 mdbook-linkcheck2 就自动跑）
+mdbook build
+```
+
+前置：`cargo install mdbook mdbook-linkcheck2`。
+
+## 4. 章节模板（八节；可选加「语言对照角」）
+
+```markdown
+# 第 N 章 标题
+
+## 这一章解决什么问题
+（1–3 段：问题 + 读完能做到什么）
+
+## 为什么这样设计
+（心智模型：对比 GC/手动管理/其他语言，先讲为什么，再给规则）
+
+## 机制与规则
+（逐步展开；每条规则配最小示例）
+
+## 动手看看
+（§1 的示例；能跑的都进校验链）
+
+## 报错现场
+（至少一个真实报错：最小复现 → 报错关键行 → 定位路径 → 修法）
+
+## 小结
+（3–6 条，回指心智模型）
+
+## 练习
+（2–3 道理解题：解释为什么 / 找错 / 预测编译结果）
+
+<details><summary>参考答案</summary>
+（答案与解析）
+</details>
+
+## 延伸阅读
+（官方一手链接：The Book / Reference / Nomicon / std…）
+```
+
+提示盒用内置 admonitions：`> [!NOTE]`、`> [!TIP]`、`> [!WARNING]`。
+可选的「语言对照角」：只在概念跨语言差异大的章加（C++/Java/Python 读者注意点）。
+
+## 5. 风格细则
+
+- 第二人称「你」；句子短；直接 —— 不卖萌、不文学化比喻、不用 emoji。
+- 代码注释用中文；标识符永远英文。术语按 `GLOSSARY.md`（首现「中文（English）」，之后中文为主）。
+- 章末「延伸阅读」只放官方一手来源；不点名任何现有中文资源（04 决定）。
+- 常见误解走暗线：在叙述里纠偏，不设专门装置。
+
+## 6. 写作票 DoD（加严版）
+
+1. **成稿**：按 §4 模板写完，含练习与答案。
+2. **自证**：跑 §3 校验链全绿，把命令与结果写进票。
+3. **自查**：对照本文件逐项过（模板 / 术语 / 报错呈现 / 示例组织）。
+4. **交叉审校**：起一个 `reviewer` 子代理（或另一会话）按 §3+§5 审，问题回票处理。
+5. **用户验收**：通读 + 抽查 1–2 个示例按书中命令跑一遍。
+6. **收尾**：章节接进 `src/SUMMARY.md`；票内 `## Answer` 记录「做了什么 / 验证命令与结果 / 遗留不确定」→ `Status: resolved`。
+
+## 7. 已知坑（03 实测，别踩第二遍）
+
+- `mdbook build` 对非法 `[output.html]` 字段、缺失 `{{#include}}` 都是 **ERROR + exit 0** —— 必须扫日志。
+- 裸栅栏会被当 Rust 测试；非 Rust 片段必须标语言。
+- 行内代码里的 `{{#…}}` 也会展开。
+- `[build] create-missing = false` 已设：SUMMARY 指向缺失文件会报错（默认 true 会静默建空文件）。
+- `[output]` 表多于一个（如 linkcheck2）时，HTML 输出挪到 `book/html/`（部署路径同步改）。
+- `mdbook test` 失败 exit 101（可门禁）；它**不**校验 `[output.html]`。

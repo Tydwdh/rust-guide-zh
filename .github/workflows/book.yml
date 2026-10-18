@@ -1,9 +1,6 @@
-# 书籍构建与校验。
+# 书籍构建与校验（标准链）。
 # 仓库当前无远端，本工作流在公开到 GitHub 后自动生效。
-# 链接检查等更多校验项待「06 写作与验收规范」定稿后加入。
-#
-# 注意：mdbook 0.5.4 在 book.toml 配置非法时只打印 ERROR 日志、仍 exit 0（2026-10-18 实测），
-# 所以「退出码 = 0」不足以证明构建干净 —— 校验链怎么处理这个坑由「06 写作与验收规范」定。
+# 链的说明与本地同套命令见 WRITING.md §3。
 name: book
 
 on:
@@ -12,13 +9,30 @@ on:
   pull_request:
 
 jobs:
-  build:
+  check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install mdBook 0.5.4
-        run: cargo install mdbook --version 0.5.4 --locked
-      - name: Build
-        run: mdbook build
-      - name: Test code blocks
+
+      - name: Install mdBook 与 linkcheck2
+        run: |
+          cargo install mdbook --version 0.5.4 --locked
+          cargo install mdbook-linkcheck2 --locked
+
+      - name: Build（扫日志 ERROR —— build 会静默吞错且 exit 0）
+        run: |
+          mdbook build 2>&1 | tee build.log
+          if grep -q ERROR build.log; then
+            echo "::error::build 日志含 ERROR"; exit 1
+          fi
+
+      - name: Test code blocks（失败 exit 101）
         run: mdbook test
+
+      - name: Test examples workspace
+        run: |
+          if [ -f examples/Cargo.toml ]; then
+            cargo test --manifest-path examples/Cargo.toml
+          else
+            echo "examples/ workspace 尚未就绪，跳过"
+          fi

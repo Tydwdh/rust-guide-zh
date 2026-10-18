@@ -1,7 +1,7 @@
 # 06 写作与验收规范
 
 Type: grilling
-Status: open
+Status: resolved
 Blocked by: 03
 
 ## Question
