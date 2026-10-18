@@ -42,17 +42,17 @@
 - [第 24 章 指针、provenance 与未初始化内存](ch24-pointers-provenance.md)
 - [第 25 章 数据布局与 repr](ch25-data-layout-repr.md)
 - [第 26 章 FFI 与 ABI](ch26-ffi-abi.md)
-- [项目 4：FFI 与 unsafe 小项目]()
+- [项目 4：封装系统 API（FFI 与 unsafe）](project4-ffi-unsafe.md)
 
 # 第五篇 工程实践
 
-- [第 27 章 宏：macro_rules!]()
-- [第 28 章 过程宏]()
-- [第 29 章 性能与剖析]()
-- [第 30 章 Cargo 与 workspace 工程化]()
-- [第 31 章 测试进阶]()
-- [第 32 章 文档与 lint 工程]()
-- [第 33 章 Edition 与迁移]()
+- [第 27 章 宏：macro_rules!](ch27-macro-rules.md)
+- [第 28 章 过程宏](ch28-procedural-macros.md)
+- [第 29 章 性能与剖析](ch29-performance-profiling.md)
+- [第 30 章 Cargo 与 workspace 工程化](ch30-cargo-workspace.md)
+- [第 31 章 测试进阶](ch31-advanced-testing.md)
+- [第 32 章 文档与 lint 工程](ch32-docs-and-lints.md)
+- [第 33 章 Edition 与迁移](ch33-edition-migration.md)
 - [项目 5：工程化改造]()
 
 # 第六篇 补充章节

@@ -3,4 +3,4 @@
 [workspace]
 # MSRV 感知的依赖解析器（1.84 起）；edition 2024 下的默认值，显式写出来。
 resolver = "3"
-members = ["todo-cli", "expr-eval", "task-queue"]
+members = ["todo-cli", "expr-eval", "task-queue", "sys-probe", "macro-demo", "macro-demo-use"]

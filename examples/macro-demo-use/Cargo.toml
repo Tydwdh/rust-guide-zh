@@ -1,0 +1,7 @@
+[package]
+name = "macro-demo-use"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+macro-demo = { path = "../macro-demo" }

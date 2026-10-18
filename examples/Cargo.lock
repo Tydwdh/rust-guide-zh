@@ -7,6 +7,21 @@ name = "expr-eval"
 version = "0.1.0"
 
 [[package]]
+name = "macro-demo"
+version = "0.1.0"
+
+[[package]]
+name = "macro-demo-use"
+version = "0.1.0"
+dependencies = [
+ "macro-demo",
+]
+
+[[package]]
+name = "sys-probe"
+version = "0.1.0"
+
+[[package]]
 name = "task-queue"
 version = "0.1.0"
 
