@@ -1,0 +1,6 @@
+# 本书所有实战示例的 workspace 根。
+# 每个项目是一个成员 crate；`cargo test --manifest-path examples/Cargo.toml` 一次跑完全部。
+[workspace]
+# MSRV 感知的依赖解析器（1.84 起）；edition 2024 下的默认值，显式写出来。
+resolver = "3"
+members = ["todo-cli"]

@@ -2,7 +2,7 @@
 book/
 
 # 校验链临时日志
-.book-build.log
+.book-*.log
 
 # cargo 产物（examples/ workspace）
 target/
