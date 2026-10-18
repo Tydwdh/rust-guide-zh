@@ -523,13 +523,13 @@ error: extern blocks must be unsafe
 定位路径：`extern` 块里每一条声明都是「我对编译器的一句保证」—— 签名错了、ABI 写错了，编译器没法核对，后果是 UB。2024 版要求把这件事写在关键字上（1.82 起各 edition 都支持这个写法），修法就是加一个词：
 
 ```rust
-#[link(name = "kernel32")]
+#[cfg_attr(windows, link(name = "kernel32"))]
 unsafe extern "system" {
     fn GetTickCount64() -> u64;
 }
 ```
 
-（`#[link]` 不参与编译期的检查，它只告诉链接器去哪里找符号；库名写错要到链接阶段才失败，报的是找不到输入文件。）
+（`#[link]` 不参与编译期的检查，它只告诉链接器去哪里找符号；库名写错要到链接阶段才失败，报的是找不到输入文件。这一块把 `#[link]` 用 `#[cfg_attr(windows, …)]` 收在 Windows 上：本书的 CI 在 Linux 上跑 `mdbook test`，不这么收的话链接器会去找并不存在的 `libkernel32`。）
 
 ### 报错三：动了布局，布局断言先炸（E0080）
 
