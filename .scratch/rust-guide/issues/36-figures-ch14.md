@@ -1,7 +1,7 @@
 # 36 进阶篇图示：第 14 章（impl Trait 与 opaque type）
 
 Type: task
-Status: open
+Status: claimed
 
 ## Question
 
@@ -16,3 +16,36 @@ Status: open
 - **DoD**：§8 协议 —— 独占 `src/ch14-impl-trait-opaque.md` + 本票；禁 `git`/禁 build；加图后自验 `mdbook test -c ch14-impl-trait-opaque.md` 绿；SVG 自查项同票 34；栅格化目视 `.scratch/tmp-36/`（收尾删）；票尾 `## Comments` 逐图记录。
 
 ## Comments
+
+**2026-10-19 图落地（独占 `src/ch14-impl-trait-opaque.md` + 本票）**
+
+改动清单：只新增 2 处「一句引出句 + 内嵌 SVG」；正文文字、代码块、表格一字未动。
+
+### 图 1：APIT vs RPIT 角色方向（必做，已落地）
+
+- 位置：`### 同一处语法，两处相反的角色` 小节末尾。引出句 `src/ch14-impl-trait-opaque.md:37`（「下图把这两种角色并排摆开：同一处语法，箭头方向正好相反。」）；SVG `:39-64`（插在 `:35` 的 APIT/RPIT 小结段之后、`### 藏掉返回类型买到了什么` 之前）。
+- `viewBox="0 0 700 250"`；aria-label：「APIT 与 RPIT 的角色方向对照：参数位置的 impl Trait 由调用者选类型，箭头从调用者指向函数；返回位置的 impl Trait 由函数选类型，箭头从函数指向调用者」。
+- 画法：固定两列「调用者（调用点）」／「函数（定义处）」，两行共用同一组列标题——上行 APIT 箭头 调用者→函数（`show(1u32)` vs `fn show(x: impl Debug)`），下行 RPIT 箭头 函数→调用者（`fn make() -> impl Debug` vs `let v = make();`），箭头方向相反即「角色相反」；底部一行脚注重申「参数位置：类型由调用者给出；返回位置：类型由函数给出，调用者只见约束」。
+
+### 图 2：捕获集合 2021 vs 2024（必做，已落地）
+
+- 位置：`### 捕获：隐藏类型能用到哪些泛型参数` 小节内。引出句 `:217`（「下图用本章开头那个 `evens` 把两版 edition 的捕获集合并排对照（图里把它省略的输入生命周期写成 `'a`）：」）；SVG `:219-246`（插在「2021 及更早……两者在所有 edition 都是全捕获」段之后、`这次改动的收益，看本章开头那个签名就够了` 之前，正好把接着出现的 E0700 输出块铺垫出来）。
+- `viewBox="0 0 720 252"`；aria-label：「捕获集合对照：evens 作用域内的生命周期参数 'a 在 edition 2021 不被捕获、在 2024 被捕获；类型与 const 参数两版都捕获，use 精确捕获语法两版也都可用；捕获集合越宽，调用者的约束越多」。
+- 内容：顶部给出 `fn evens<'a>(xs: &'a [u32]) -> impl Iterator<Item = u32>`（把正文里被省略的输入生命周期写出来，引出句已说明），三行 × 两列勾/叉：`'a`（生命周期）2021 ✗ 未捕获 / 2024 ✓ 已捕获；类型 / const 参数两版 ✓；`use<'a>` 精确写出两版 ✓（对应正文「所有 edition 都可用」）。底部按票标注实画了「捕获集合」双向箭头：左「窄：隐藏类型能借的少」，右「宽：调用者约束更多」，对应正文「捕获集合越宽……越少」那句。
+- 事实口径：行 1 的 ✗/✓ 与 Edition Guide 措辞一致（2021 只捕「出现在返回类型约束里的」生命周期；类型/const 参数在所有 edition 都隐式捕获）；`use<..>` 自 1.82 起所有 edition 可用。未引入新术语。
+
+### 图 3（可选）：三条路（分派方式与分配代价）——**跳过**
+
+- 理由：内容已被本章两张现成表格说清——「两种『隐藏』的分工」（`-> impl Trait` vs `-> Box<dyn Trait>` 的隐藏时机/分派/分配/类型数/调用者能要求什么）与「三条路的选择」（`impl Trait` / `Box<dyn Trait>` / enum 的适用情形与代价）。再画一张只会与表格重复，违反 §9「一张表或三行文字能说清的就不画」。若日后想让「分配发生在哪一层」有空间感，可另开票。
+
+### ASCII 草图核查
+
+本章 `text` 围栏共 20 处（grep 清点），逐条看过：全部是编译器报错/运行输出/`type_name_of_val` 打印，**没有 ASCII 结构草图**，因此无「被新图完整覆盖」的可删对象（票要求的逐条论证结论 = 无可删）。
+
+### 自验
+
+- `mdbook test -c ch14-impl-trait-opaque.md` → ` INFO Testing chapter '第 14 章 impl Trait 与 opaque type'`，`EXIT=0`（加图后跑的，两图前后栅栏未受影响）。
+- SVG 结构自查（脚本扫两处 `<svg>…</svg>`，口径同票 34）：块内无空行 ✓（fig1 26 行、fig2 28 行，`blank_inside=[]`）；无 `<script>` ✓；无外链/`url(`/`href` ✓；根标签 `viewBox` + `width="100%"`、**无 `height`** ✓；`role="img"` + `aria-label` ✓；`xmlns` ✓；颜色只用 `currentColor` / `var(--links)` / `var(--warning-border)` / `var(--quote-border)` + `fill="none"`（无写死色）✓；`&`/`<`/`>` 已实体化（`&amp;` / `&lt;` / `&gt;`）✓；字号 12/14、线宽 1.5/2、`rx=5` ✓。列对齐文本未复刻工具输出，无需 `xml:space="preserve"`。
+- 栅格化目视（`.scratch/tmp-36/preview.html` + 托管 Chromium 截图，收尾已 `rm -rf .scratch/tmp-36`）：两图文字不溢出、不重叠、箭头方向与列标题对齐正确；fig2 的三行两列勾/叉与底部双向箭头层级清楚。目视结论：通过。
+- 未测：`mdbook build`（票内禁）、深色主题下的对比度（配色只用主题变量，理论上随主题走；HTML 渲染与主题确认留给协调者收尾 build）。
+- 遗留不确定：无阻塞项。fig2 第 2、3 行两列同为 ✓ 是有意的（本章改动只影响生命周期那一半），若审校认为冗余可合并为一行（待协调者/审校裁决）。

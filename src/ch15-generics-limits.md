@@ -314,13 +314,33 @@ trait LendingIterator {
 }
 ```
 
-`type Item<'a>` 就是 GAT：关联类型自己带一个生命周期参数。`fn next` 也带一个 `'a`，并且要求返回的 `Item<'a>` 与**这一次**借用的 `'a` 绑定。下图把「每次调用一个新类型」摊开：
+`type Item<'a>` 就是 GAT：关联类型自己带一个生命周期参数。`fn next` 也带一个 `'a`，并且要求返回的 `Item<'a>` 与**这一次**借用的 `'a` 绑定。下图把「每次调用一个新类型」摊开成时间轴——每轮借一段新的 `'a`，产出的 `Item` 只在这一段里有效：
 
-```text
-next(&'a1 mut self) -> Option<Item<'a1>>   ← 第 1 次调用
-next(&'a2 mut self) -> Option<Item<'a2>>   ← 第 2 次调用（'a1 已结束）
-next(&'a3 mut self) -> Option<Item<'a3>>   ← 第 3 次调用
-```
+<svg viewBox="0 0 780 266" width="100%" role="img" aria-label="GAT 借用区间时间轴：三次 next 各借一段互不重叠的 'a（'a1、'a2、'a3），产出的 Item&lt;'a1&gt;、Item&lt;'a2&gt;、Item&lt;'a3&gt; 是三个不同的类型，且都必须在下一次借 self 之前用完" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">GAT 借用区间时间轴：三次 next，三段互不重叠的 'a</text>
+<text x="310" y="48" font-size="12" fill="currentColor" opacity="0.75">第 1 次 next</text>
+<text x="460" y="48" font-size="12" fill="currentColor" opacity="0.75">第 2 次 next</text>
+<text x="610" y="48" font-size="12" fill="currentColor" opacity="0.75">第 3 次 next</text>
+<line x1="460" y1="54" x2="460" y2="196" stroke="var(--warning-border)" stroke-width="1.5" stroke-dasharray="4 3" />
+<line x1="610" y1="54" x2="610" y2="196" stroke="var(--warning-border)" stroke-width="1.5" stroke-dasharray="4 3" />
+<g font-size="12" font-family="monospace" fill="currentColor">
+<text x="0" y="80">next(&amp;'a1 mut self) -&gt; Option&lt;Item&lt;'a1&gt;&gt;</text>
+<text x="0" y="125">next(&amp;'a2 mut self) -&gt; Option&lt;Item&lt;'a2&gt;&gt;</text>
+<text x="0" y="170">next(&amp;'a3 mut self) -&gt; Option&lt;Item&lt;'a3&gt;&gt;</text>
+</g>
+<rect x="310" y="67" width="150" height="18" rx="4" fill="none" stroke="currentColor" stroke-width="1.5" />
+<rect x="460" y="112" width="150" height="18" rx="4" fill="none" stroke="currentColor" stroke-width="1.5" />
+<rect x="610" y="157" width="150" height="18" rx="4" fill="none" stroke="currentColor" stroke-width="1.5" />
+<g font-size="12" font-family="monospace" fill="var(--links)" text-anchor="middle">
+<text x="385" y="80">'a1</text>
+<text x="535" y="125">'a2</text>
+<text x="685" y="170">'a3</text>
+</g>
+<text x="460" y="212" font-size="12" fill="var(--warning-border)" text-anchor="middle">Item&lt;'a1&gt; 到此失效</text>
+<text x="610" y="212" font-size="12" fill="var(--warning-border)" text-anchor="middle">Item&lt;'a2&gt; 到此失效</text>
+<text x="0" y="240" font-size="12" fill="currentColor">实线＝一次 next 借 self 的区间；虚线＝下次 next 的时刻：上一次的 Item 必须在此之前用完</text>
+<text x="0" y="260" font-size="12" fill="currentColor">继续持有它（跨过虚线）就借不出第二次 next（E0499）；三段区间互不重叠，所以三个 Item 是三个不同的类型</text>
+</svg>
 
 `'a1`/`'a2`/`'a3` 是三次**不同**的借用区间，`Item<'a1>` 与 `Item<'a2>` 是不同的类型——普通关联类型做不到这一点。而 `where Self: 'a` 的意思是：要谈 `Item<'a>`，先要求 `Self` 活得比 `'a` 长（否则 `Item<'a>` 里的借用没有来源）。
 

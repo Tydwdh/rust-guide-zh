@@ -244,6 +244,47 @@ fn main() {
 }
 ```
 
+把上面三个验证块并排摊开，方向就是箭头方向（图里把「长」记作 `'long`、「短」记作 `'short`）：
+
+<svg viewBox="0 0 720 236" width="100%" role="img" aria-label="三种型变的赋值方向：协变时 Co&lt;'long&gt; 能放进要求 Co&lt;'short&gt; 的位置（箭头向右通过），逆变时 Contra&lt;'short&gt; 能放进要求 Contra&lt;'long&gt; 的位置（箭头向左通过），不变时 Inv 两个方向都不通过" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">三种型变的赋值方向：哪些箭头能通</text>
+<text x="0" y="36" font-size="12" fill="currentColor" opacity="0.7">左箱是 'long 的值，右箱是要求 'short 的位置；✓ 表示这份值能放进那个位置</text>
+<text x="0" y="68" font-size="13" fill="currentColor">协变</text>
+<text x="0" y="84" font-size="12" font-family="monospace" fill="currentColor" opacity="0.7">struct Co</text>
+<rect x="110" y="56" width="150" height="34" rx="5" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="185" y="78" font-size="12" font-family="monospace" fill="currentColor" text-anchor="middle">Co&lt;'long&gt;</text>
+<line x1="268" y1="73" x2="344" y2="73" stroke="var(--links)" stroke-width="2" />
+<polygon points="352,73 342,68 342,78" fill="var(--links)" />
+<text x="310" y="63" font-size="12" fill="var(--links)" text-anchor="middle">✓ 通过</text>
+<rect x="360" y="56" width="150" height="34" rx="5" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="435" y="78" font-size="12" font-family="monospace" fill="currentColor" text-anchor="middle">Co&lt;'short&gt;</text>
+<text x="540" y="68" font-size="12" fill="currentColor">长的能当短的用</text>
+<text x="540" y="84" font-size="12" fill="currentColor" opacity="0.7">（方向不变）</text>
+<text x="0" y="134" font-size="13" fill="currentColor">逆变</text>
+<text x="0" y="150" font-size="12" font-family="monospace" fill="currentColor" opacity="0.7">struct Contra</text>
+<rect x="110" y="122" width="150" height="34" rx="5" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="185" y="144" font-size="12" font-family="monospace" fill="currentColor" text-anchor="middle">Contra&lt;'long&gt;</text>
+<line x1="352" y1="139" x2="276" y2="139" stroke="var(--links)" stroke-width="2" />
+<polygon points="268,139 278,134 278,144" fill="var(--links)" />
+<text x="310" y="129" font-size="12" fill="var(--links)" text-anchor="middle">✓ 通过</text>
+<rect x="360" y="122" width="150" height="34" rx="5" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="435" y="144" font-size="12" font-family="monospace" fill="currentColor" text-anchor="middle">Contra&lt;'short&gt;</text>
+<text x="540" y="134" font-size="12" fill="currentColor">短的能当长的用</text>
+<text x="540" y="150" font-size="12" fill="currentColor" opacity="0.7">（参数位置反转）</text>
+<text x="0" y="200" font-size="13" fill="currentColor">不变</text>
+<text x="0" y="216" font-size="12" font-family="monospace" fill="currentColor" opacity="0.7">struct Inv</text>
+<rect x="110" y="188" width="150" height="34" rx="5" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="185" y="210" font-size="12" font-family="monospace" fill="currentColor" text-anchor="middle">Inv&lt;'long&gt;</text>
+<line x1="276" y1="205" x2="344" y2="205" stroke="var(--warning-border)" stroke-width="2" stroke-dasharray="5 3" />
+<polygon points="352,205 342,200 342,210" fill="var(--warning-border)" />
+<polygon points="268,205 278,200 278,210" fill="var(--warning-border)" />
+<text x="310" y="199" font-size="12" fill="var(--warning-border)" text-anchor="middle">✗ 都不过</text>
+<rect x="360" y="188" width="150" height="34" rx="5" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="435" y="210" font-size="12" font-family="monospace" fill="currentColor" text-anchor="middle">Inv&lt;'short&gt;</text>
+<text x="540" y="200" font-size="12" fill="currentColor">两个方向都不通过</text>
+<text x="540" y="216" font-size="12" fill="currentColor" opacity="0.7">（不变赢得所有冲突）</text>
+</svg>
+
 > [!NOTE]
 > 1.98 给 `&mut` 的缩短开了一个小口子。release notes 原文：**“Allow shortening lifetime of `&mut` when unsize-coercing, even in an invariant position.”** 例子是把 `Cell<&'long mut i32>` 变成 `Cell<&'short mut dyn Send>`；同一段说明还指出，「把 `&mut` 强转成 `&`」与「把 `&` 强转成 `&`」时这种缩短一直是被允许的。本机 1.98 实测这个例子可编译。上面的不变性结论针对的是**没有 unsize 强转的普通子类型**，两者不要混起来。
 
@@ -451,6 +492,28 @@ alpha gamma
 
 译文：一个泛型类型要能健全地实现析构，它的泛型参数必须**严格地**比它活得更久。注意是「严格」：`'a: 'b` 允许两者同时结束，而析构要求析构点落在被借用数据的借用区间**内部**。
 
+下图把这条「严格」摊在时间轴上（持有者与被借用数据的名字沿用 Nomicon 的 `World` / `days`）：
+
+<svg viewBox="0 0 720 240" width="100%" role="img" aria-label="借用区间与析构点的两条时间轴：days 是 world 的字段时，借用区间 'a 恰好结束在 world 的析构点上，被 dropck 拒绝；days 移到 world 之外并声明在 world 之前时，world 先析构、被借用的数据后析构，析构点严格落在借用区间内部，通过" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">借用区间 vs 析构点：「严格」就是析构点不能落在借用区间的端点上</text>
+<text x="0" y="40" font-size="12" fill="currentColor" opacity="0.7">横条 = 借用 &amp;days 的区间 'a（从借用开始到被借用数据被析构）；虚线 = 持有者 world 的析构点</text>
+<text x="0" y="70" font-size="12" fill="var(--warning-border)">✗ days 是 world 的字段：两者一起走，'a 恰好结束在析构点上</text>
+<rect x="180" y="82" width="340" height="16" rx="4" fill="none" stroke="var(--links)" stroke-width="1.5" />
+<text x="350" y="94" font-size="12" fill="var(--links)" text-anchor="middle">借用区间 'a</text>
+<line x1="520" y1="74" x2="520" y2="104" stroke="var(--warning-border)" stroke-width="1.5" stroke-dasharray="4 3" />
+<text x="528" y="94" font-size="12" fill="var(--warning-border)">析构点（= 'a 终点）→ 拒绝</text>
+<text x="180" y="120" font-size="12" fill="currentColor" opacity="0.7">借用开始</text>
+<text x="520" y="120" font-size="12" fill="currentColor" opacity="0.7" text-anchor="end">world.days 析构</text>
+<text x="0" y="150" font-size="12" fill="var(--links)">✓ days 在 world 之外、声明在 world 之前：world 先析构，数据还在</text>
+<rect x="180" y="162" width="380" height="16" rx="4" fill="none" stroke="var(--links)" stroke-width="1.5" />
+<text x="370" y="174" font-size="12" fill="var(--links)" text-anchor="middle">借用区间 'a</text>
+<line x1="470" y1="154" x2="470" y2="184" stroke="var(--warning-border)" stroke-width="1.5" stroke-dasharray="4 3" />
+<text x="568" y="174" font-size="12" fill="var(--warning-border)">析构点落在内部 → 通过</text>
+<text x="180" y="200" font-size="12" fill="currentColor" opacity="0.7">借用开始</text>
+<text x="560" y="200" font-size="12" fill="currentColor" opacity="0.7" text-anchor="end">world.days 析构（'a 终点）</text>
+<text x="0" y="228" font-size="12" fill="currentColor" opacity="0.7">'a: 'world 这样的 outlives 关系允许两边同点结束；dropck 要的是「内部」，端点不算。</text>
+</svg>
+
 之所以要「独立检查」，核心在于信息不可见：分析调用方时，编译器看不到 `Drop::drop` 的函数体（跨 crate 时更不可能看到），只能假设它可能访问字段里的借用。所以下面这段代码——析构函数明确不碰借用数据、实际完全安全——**照样被拒**：
 
 ```rust
@@ -586,6 +649,48 @@ dropck 这一侧有个现代结论值得记住：**如果一个类型已经写�
 | 每个省略的输入生命周期各是一个独立参数 | `fn f(a: &str, b: &str)` → `fn f<'a, 'b>(a: &'a str, b: &'b str)` |
 | 输入里**恰有一个**生命周期 → 输出全部用它 | `fn substr(s: &str, until: usize) -> &str` → `<'a>(s: &'a str, until: usize) -> &'a str` |
 | 方法接收者是 `&self`/`&mut self` → 输出全部用它 | `fn get_mut(&mut self) -> &mut dyn T` → `<'a>(&'a mut self) -> &'a mut dyn T` |
+
+把这三条按「输入里有几个生命周期」重排，就是下面这棵树：
+
+<svg viewBox="0 0 720 270" width="100%" role="img" aria-label="省略规则决策树：先数输入里有几个生命周期。0 个时输出再省略会报 E0106；恰 1 个时所有省略的输出都用它（规则 2）；多个时再看接收者是不是 &amp;self 或 &amp;mut self，是就全用它的生命周期（规则 3），不是就报 E0106" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">省略规则：输入里数出几个生命周期，输出就怎么填</text>
+<rect x="150" y="28" width="420" height="28" rx="5" fill="none" stroke="var(--quote-border)" stroke-width="1.5" />
+<text x="360" y="47" font-size="12" fill="currentColor" text-anchor="middle">前提：每个省略的输入各自成为一个独立参数（规则 1）</text>
+<line x1="360" y1="56" x2="360" y2="74" stroke="currentColor" stroke-width="1.5" />
+<polygon points="360,82 355,73 365,73" fill="currentColor" />
+<rect x="200" y="82" width="320" height="34" rx="5" fill="none" stroke="var(--links)" stroke-width="1.5" />
+<text x="360" y="104" font-size="13" fill="currentColor" text-anchor="middle">输入里有几个生命周期？</text>
+<polyline points="360,116 360,134 110,134 110,143" fill="none" stroke="currentColor" stroke-width="1.5" />
+<line x1="360" y1="116" x2="360" y2="143" stroke="currentColor" stroke-width="1.5" />
+<polyline points="360,116 360,134 610,134 610,143" fill="none" stroke="currentColor" stroke-width="1.5" />
+<polygon points="110,152 105,143 115,143" fill="currentColor" />
+<polygon points="360,152 355,143 365,143" fill="currentColor" />
+<polygon points="610,152 605,143 615,143" fill="currentColor" />
+<text x="235" y="129" font-size="12" fill="currentColor" opacity="0.7" text-anchor="middle">0 个</text>
+<text x="368" y="129" font-size="12" fill="currentColor" opacity="0.7">恰 1 个</text>
+<text x="486" y="129" font-size="12" fill="currentColor" opacity="0.7" text-anchor="middle">多个</text>
+<rect x="10" y="152" width="200" height="48" rx="5" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="110" y="172" font-size="12" fill="var(--warning-border)" text-anchor="middle">输出省略 → E0106</text>
+<text x="110" y="188" font-size="12" fill="currentColor" opacity="0.7" text-anchor="middle">输入里没有可借的来源</text>
+<rect x="255" y="152" width="210" height="48" rx="5" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="360" y="172" font-size="12" fill="var(--links)" text-anchor="middle">所有省略的输出都用它</text>
+<text x="360" y="188" font-size="12" fill="currentColor" opacity="0.7" text-anchor="middle">（规则 2）</text>
+<rect x="510" y="152" width="200" height="48" rx="5" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="610" y="172" font-size="12" fill="currentColor" text-anchor="middle">接收者是 &amp;self /</text>
+<text x="610" y="188" font-size="12" fill="currentColor" text-anchor="middle">&amp;mut self 吗？</text>
+<line x1="610" y1="200" x2="610" y2="210" stroke="currentColor" stroke-width="1.5" />
+<line x1="500" y1="210" x2="665" y2="210" stroke="currentColor" stroke-width="1.5" />
+<line x1="500" y1="210" x2="500" y2="223" stroke="currentColor" stroke-width="1.5" />
+<line x1="665" y1="210" x2="665" y2="223" stroke="currentColor" stroke-width="1.5" />
+<text x="508" y="224" font-size="12" fill="currentColor" opacity="0.7">是</text>
+<text x="657" y="224" font-size="12" fill="currentColor" opacity="0.7" text-anchor="end">否</text>
+<polygon points="500,232 495,223 505,223" fill="currentColor" />
+<polygon points="665,232 660,223 670,223" fill="currentColor" />
+<rect x="410" y="232" width="180" height="32" rx="5" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="500" y="253" font-size="12" fill="var(--links)" text-anchor="middle">是 → 全用它（规则 3）</text>
+<rect x="610" y="232" width="110" height="32" rx="5" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="665" y="253" font-size="12" fill="var(--warning-border)" text-anchor="middle">否 → E0106</text>
+</svg>
 
 「恰有一个」是字面意思：`&Words` 其实含**两个**生命周期（引用的、以及 `Words` 自己的），所以下面这种写法无法推断：
 

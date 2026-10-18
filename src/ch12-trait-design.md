@@ -65,6 +65,28 @@ pub trait Add<Rhs = Self> {
 | 同一类型可能有多种解释，由调用方挑选 | 泛型参数 | `Add::Rhs`、`From<T>` |
 | 同一类型可能有多种解释，但常见情况只有一种 | 泛型参数 + 默认值 | `Add<Rhs = Self>`、`PartialEq<Rhs = Self>` |
 
+把这两种写法落到「表」上，差别就是同一个类型能在同一张表里填几次：
+
+<svg viewBox="0 0 660 232" width="100%" role="img" aria-label="关联类型与泛型参数对照：关联类型每个类型只有一格，再填就被判重叠报 E0119；泛型参数让同一类型并存多份实现，如 Add&lt;Meters&gt; 与 Add&lt;f64&gt;" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">同一张表能填几次：关联类型钉死一格，泛型参数可开多份</text>
+<rect x="0" y="32" width="318" height="190" rx="6" fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5"/>
+<text x="14" y="58" font-size="13" fill="var(--links)">关联类型：type Item</text>
+<text x="14" y="86" font-size="12" font-family="monospace" fill="currentColor">impl Iterator for Counter</text>
+<rect x="14" y="98" width="290" height="30" rx="4" fill="none" stroke="var(--links)" stroke-width="1.5"/>
+<text x="159" y="118" font-size="12" font-family="monospace" fill="var(--links)" text-anchor="middle">type Item = u32; ← 只有一格</text>
+<rect x="14" y="138" width="290" height="30" rx="4" fill="none" stroke="var(--warning-border)" stroke-width="1.5" stroke-dasharray="5 3"/>
+<text x="159" y="158" font-size="12" fill="var(--warning-border)" text-anchor="middle">再填一格 → 重叠，E0119</text>
+<text x="14" y="196" font-size="12" fill="currentColor" opacity="0.7">一个类型只有一种解释，答案钉在类型上</text>
+<rect x="342" y="32" width="318" height="190" rx="6" fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5"/>
+<text x="356" y="58" font-size="13" fill="var(--links)">泛型参数：Add&lt;Rhs&gt;</text>
+<rect x="356" y="78" width="290" height="30" rx="4" fill="none" stroke="var(--links)" stroke-width="1.5"/>
+<text x="501" y="98" font-size="12" font-family="monospace" fill="var(--links)" text-anchor="middle">impl Add&lt;Meters&gt; for Meters</text>
+<rect x="356" y="116" width="290" height="30" rx="4" fill="none" stroke="var(--links)" stroke-width="1.5"/>
+<text x="501" y="136" font-size="12" font-family="monospace" fill="var(--links)" text-anchor="middle">impl Add&lt;f64&gt; for Meters</text>
+<text x="356" y="170" font-size="12" fill="currentColor">同一类型的两份 impl 并存，互不冲突</text>
+<text x="356" y="196" font-size="12" fill="currentColor" opacity="0.7">可能有多种解释，选哪份由调用方决定</text>
+</svg>
+
 还有三条实践差异值得记住（下面用到 `Report`/`Detail`/`ReportAs`，它们出自本章「动手看看」第 1 个程序）：
 
 - **关联类型能在边界里被钉住。** 你可以写 `fn f<T: Report<Detail = String>>(x: &T)`，把「报告类型必须是 `String`」写进约束。泛型参数版本只能写 `T: ReportAs<String>`，看起来差不多，但它是「挑一种解释」，不是「断言唯一答案」。
@@ -108,12 +130,28 @@ pub trait Greet: private::Sealed {
 
 机制只有一句话：`Greet` 要求实现者同时实现 `private::Sealed`，而 `private` 模块在 crate 外部不可命名——那个 `impl Sealed` 根本写不出来。
 
-```text
-crate greet（假设库名就叫 greet）
-├── mod private          （不是 pub）
-│   └── trait Sealed     ← 外部不可命名 → 无法实现
-└── trait Greet: Sealed  （pub → 外部可命名、可当边界）
-```
+同一句话换成模块可见性的分层图，那道墙的位置就清楚了：
+
+<svg viewBox="0 0 680 252" width="100%" role="img" aria-label="密封 trait 的分层：外部 crate 能命名 pub trait Greet、能把它当边界，却不能命名 private 模块里的 trait Sealed，所以写不出 impl Greet，报 E0277；虚线那道墙隔开可实现区与不可实现区" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">密封 trait：名字照样公开，实现者集合锁在 crate 内</text>
+<rect x="0" y="42" width="176" height="196" rx="6" fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5"/>
+<text x="88" y="64" font-size="13" fill="currentColor" text-anchor="middle">外部 crate（下游）</text>
+<text x="10" y="92" font-size="12" fill="var(--links)">✓ 命名 Greet、当边界</text>
+<text x="10" y="114" font-size="11" font-family="monospace" fill="currentColor">fn f&lt;G: Greet&gt;(&amp;g)</text>
+<text x="10" y="172" font-size="12" fill="var(--warning-border)">✗ impl Greet for</text>
+<text x="10" y="192" font-size="12" fill="var(--warning-border)">MyType → E0277</text>
+<line x1="182" y1="36" x2="182" y2="244" stroke="var(--warning-border)" stroke-width="2" stroke-dasharray="7 5"/>
+<text x="182" y="30" font-size="12" fill="var(--warning-border)" text-anchor="middle">墙：外部不可实现</text>
+<rect x="190" y="42" width="470" height="196" rx="6" fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5"/>
+<text x="202" y="64" font-size="13" fill="currentColor">crate greet</text>
+<rect x="206" y="78" width="440" height="60" rx="5" fill="none" stroke="var(--links)" stroke-width="1.5"/>
+<text x="218" y="102" font-size="12" font-family="monospace" fill="currentColor">pub trait Greet: private::Sealed</text>
+<text x="218" y="124" font-size="12" fill="var(--links)">外部可命名、可当边界</text>
+<rect x="206" y="152" width="440" height="72" rx="5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.55"/>
+<text x="218" y="176" font-size="12" font-family="monospace" fill="currentColor">mod private（不是 pub）</text>
+<text x="218" y="198" font-size="12" font-family="monospace" fill="currentColor">└ trait Sealed</text>
+<text x="218" y="218" font-size="12" fill="var(--warning-border)">← 外部不可命名 → impl Sealed 写不出来</text>
+</svg>
 
 几条容易踩的细节：
 
@@ -204,6 +242,31 @@ impl<T> VecExt<T> for Vec<T> {
 | 类型本地 | `impl fmt::Display for WordList` | 允许（第 9 章的 newtype） |
 | 都外部、且没有本地类型 | `impl fmt::Display for Vec<i32>` | E0117（第 9 章报错现场见过） |
 | 都外部、类型参数裸露 | `impl<T> fmt::Display for T` | E0210 |
+
+把「trait 的位置」与「类型的位置」当成两个轴，四种组合的去留就摊成一张 2×2：
+
+<svg viewBox="0 0 660 264" width="100%" role="img" aria-label="孤儿规则 2×2：trait 本地时两格都允许；trait 外部而类型本地也允许；trait 与类型都外部则写不出来——具体外部类型报 E0117，裸露类型参数报 E0210；本地类型由 newtype 提供" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">孤儿规则的两个维度：trait 与类型，至少有一个是本地（你的）</text>
+<text x="8" y="42" font-size="12" fill="currentColor" opacity="0.7">行 trait ／ 列 类型</text>
+<text x="263" y="42" font-size="13" fill="currentColor" text-anchor="middle">类型：本地（你的）</text>
+<text x="525" y="42" font-size="13" fill="currentColor" text-anchor="middle">类型：外部（别人的）</text>
+<text x="8" y="102" font-size="13" fill="currentColor">trait：本地</text>
+<text x="8" y="196" font-size="13" fill="currentColor">trait：外部</text>
+<rect x="134" y="52" width="258" height="90" rx="6" fill="none" stroke="var(--links)" stroke-width="1.5"/>
+<text x="263" y="92" font-size="14" fill="var(--links)" text-anchor="middle">✓ 允许</text>
+<text x="263" y="118" font-size="12" font-family="monospace" fill="currentColor" text-anchor="middle">impl Describe for WordList</text>
+<rect x="396" y="52" width="258" height="90" rx="6" fill="none" stroke="var(--links)" stroke-width="1.5"/>
+<text x="525" y="92" font-size="14" fill="var(--links)" text-anchor="middle">✓ 允许</text>
+<text x="525" y="118" font-size="12" font-family="monospace" fill="currentColor" text-anchor="middle">impl&lt;T&gt; Describe for T</text>
+<rect x="134" y="146" width="258" height="90" rx="6" fill="none" stroke="var(--links)" stroke-width="1.5"/>
+<text x="263" y="186" font-size="14" fill="var(--links)" text-anchor="middle">✓ 允许</text>
+<text x="263" y="212" font-size="12" font-family="monospace" fill="currentColor" text-anchor="middle">impl fmt::Display for WordList</text>
+<rect x="396" y="146" width="258" height="90" rx="6" fill="none" stroke="var(--warning-border)" stroke-width="1.5"/>
+<text x="525" y="186" font-size="14" fill="var(--warning-border)" text-anchor="middle">✗ 不能写</text>
+<text x="525" y="206" font-size="12" fill="var(--warning-border)" text-anchor="middle">具体外部类型 → E0117</text>
+<text x="525" y="224" font-size="12" fill="var(--warning-border)" text-anchor="middle">裸露类型参数 → E0210</text>
+<text x="0" y="254" font-size="12" fill="currentColor" opacity="0.7">角注：本地类型由 newtype 提供——包一层本地类型，同时给出本地类型与覆盖类型参数的位置</text>
+</svg>
 
 把第二行与第三行连起来看，newtype 为什么能当逃生门就清楚了：「包一层本地类型」同时提供了本地类型**和**覆盖类型参数的位置。`impl<T> fmt::Display for Wrapper<T>` 合法（`Wrapper` 本地、`T` 被它覆盖）；而 `impl<T> fmt::Display for Box<T>` 不合法——`Box` 本身是外部的，这个外壳不算本地类型（实测报 E0210）。
 

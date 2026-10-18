@@ -187,6 +187,29 @@ fn main() {
 
 `downcast_ref` 定义在 `dyn Error` 上（`impl dyn Error`，另在 `dyn Error + Send`、`dyn Error + Sync + Send` 上各有一份转发），签名要求 `T: Error + 'static`。也就是说：**这条路能用，但每次都要先猜类型**。库把错误类型做成具体 enum，就是为了让调用者不必猜。
 
+把两侧摆在一起，分工与它们之间的流转是这样：
+
+<svg viewBox="0 0 720 220" width="100%" role="img" aria-label="库与应用的分工：库给出具体 enum 并保留根因，应用用 Box&lt;dyn Error&gt; 一网打尽并负责呈现，两者由 ? 的 From 与 source() 相连" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="18" font-size="14" fill="currentColor">库与应用：两种错误类型的形状，以及它们之间的流转</text>
+<rect x="8" y="44" width="268" height="132" rx="6" fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5"/>
+<text x="142" y="74" font-size="13" fill="var(--links)" text-anchor="middle">库（library crate）</text>
+<text x="142" y="102" font-size="12" font-family="monospace" fill="currentColor" text-anchor="middle">具体 enum + impl Error</text>
+<text x="142" y="126" font-size="12" font-family="monospace" fill="currentColor" text-anchor="middle">#[non_exhaustive]：能加变体</text>
+<text x="142" y="150" font-size="12" fill="currentColor" text-anchor="middle">Display 一句话，细节交给 source()</text>
+<rect x="444" y="44" width="268" height="132" rx="6" fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5"/>
+<text x="578" y="74" font-size="13" fill="var(--links)" text-anchor="middle">应用（application crate）</text>
+<text x="578" y="102" font-size="12" font-family="monospace" fill="currentColor" text-anchor="middle">Box&lt;dyn Error&gt; 一网打尽</text>
+<text x="578" y="126" font-size="12" fill="currentColor" text-anchor="middle">决定打印 / 日志 / 退出码</text>
+<text x="578" y="150" font-size="12" fill="currentColor" text-anchor="middle" opacity="0.7">不依赖具体变体</text>
+<line x1="280" y1="84" x2="436" y2="84" stroke="var(--links)" stroke-width="2"/>
+<polygon points="436,78 436,90 444,84" fill="var(--links)"/>
+<text x="360" y="76" font-size="12" fill="var(--links)" text-anchor="middle">Err 经 ? 的 From 转换</text>
+<line x1="440" y1="132" x2="284" y2="132" stroke="var(--warning-border)" stroke-width="2"/>
+<polygon points="284,126 284,138 276,132" fill="var(--warning-border)"/>
+<text x="360" y="150" font-size="12" fill="var(--warning-border)" text-anchor="middle">source() 一路问根因</text>
+<text x="8" y="204" font-size="12" fill="currentColor" opacity="0.7">分工：库把错误做成具体类型并保留根因，应用负责呈现，source() 保证信息不丢</text>
+</svg>
+
 ### 18.2 `From` 归谁、错误链怎么搭
 
 `From` 的归属不自由，孤儿规则（第 9 章）已经定死：你只能写「外部类型 → 自己的类型」。所以策略问题只剩一个——**该不该写**。
@@ -314,6 +337,33 @@ warning: the `Err`-variant returned from this function is very large
 | 单元 / 元组变体上 | 该变体在外部**不可构造** | `E0603`：`unit variant A is private` / `tuple variant B is private` |
 | `struct` 上 | 不可用结构体字面量构造（含函数式更新语法） | `E0639`：`cannot create non-exhaustive struct using struct expression` |
 | 结构体变体上 | 同上 | `E0639`：`cannot create non-exhaustive variant using struct expression` |
+
+把两侧并排看：同一份代码，定义它的 crate 内照旧、外部才多出约束——
+
+<svg viewBox="0 0 720 260" width="100%" role="img" aria-label="#[non_exhaustive] 的两个视角：在定义它的 crate 内没有效果，到了外部 crate 才生效——枚举匹配要留通配分支、单元与元组变体不可构造、struct 不能用字面量构造" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="18" font-size="14" fill="currentColor">#[non_exhaustive] 的两个视角：同一份代码，crate 内 / 外两种语义</text>
+<text x="246" y="56" font-size="13" fill="var(--links)" text-anchor="middle">定义它的 crate 内</text>
+<text x="246" y="74" font-size="11" fill="currentColor" text-anchor="middle" opacity="0.7">non_exhaustive 无效果</text>
+<text x="556" y="56" font-size="13" fill="var(--links)" text-anchor="middle">外部 crate</text>
+<text x="556" y="74" font-size="11" fill="currentColor" text-anchor="middle" opacity="0.7">约束都在这里生效</text>
+<line x1="394" y1="36" x2="394" y2="232" stroke="var(--quote-border)" stroke-width="1.5"/>
+<text x="52" y="116" font-size="12" font-family="monospace" fill="currentColor" text-anchor="middle">enum 上</text>
+<rect x="104" y="96" width="284" height="32" rx="4" fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5"/>
+<text x="246" y="116" font-size="12" fill="currentColor" text-anchor="middle">照常穷尽匹配、照常构造变体</text>
+<rect x="400" y="96" width="312" height="32" rx="4" fill="none" stroke="var(--warning-border)" stroke-width="1.5"/>
+<text x="556" y="116" font-size="12" fill="currentColor" text-anchor="middle">必须留通配分支（E0004）</text>
+<text x="52" y="162" font-size="12" font-family="monospace" fill="currentColor" text-anchor="middle">变体上</text>
+<rect x="104" y="142" width="284" height="32" rx="4" fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5"/>
+<text x="246" y="162" font-size="12" fill="currentColor" text-anchor="middle">照常构造</text>
+<rect x="400" y="142" width="312" height="32" rx="4" fill="none" stroke="var(--warning-border)" stroke-width="1.5"/>
+<text x="556" y="162" font-size="12" fill="currentColor" text-anchor="middle">不可构造（E0603）</text>
+<text x="52" y="208" font-size="12" font-family="monospace" fill="currentColor" text-anchor="middle">struct 上</text>
+<rect x="104" y="188" width="284" height="32" rx="4" fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5"/>
+<text x="246" y="208" font-size="12" fill="currentColor" text-anchor="middle">字面量照常可用</text>
+<rect x="400" y="188" width="312" height="32" rx="4" fill="none" stroke="var(--warning-border)" stroke-width="1.5"/>
+<text x="556" y="208" font-size="12" fill="currentColor" text-anchor="middle">不可用结构体字面量（E0639）</text>
+<text x="8" y="248" font-size="12" fill="currentColor" opacity="0.7">结构体变体（struct variant）同 struct：同样不可用字面量构造（E0639）</text>
+</svg>
 
 在枚举整体上标 `#[non_exhaustive]` 之后，外部匹配的样子（库与用户代码各一个文件，真跑）：
 

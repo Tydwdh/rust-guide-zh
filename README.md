@@ -28,4 +28,4 @@ mdbook test           # 用 rustdoc 校验书里的代码块（全量；`-c <章
 
 ## 状态
 
-基础篇（前言 + 第 1–11 章 + 项目 1）与进阶篇（第 12–18 章）初稿完成：两批都已过交叉审校与逐票修回，全量校验链全绿（`mdbook build` 0 ERROR/0 警告、`mdbook test` 20 章 exit 0、examples 19+2 passed）；基础篇 12 章配有内嵌 SVG 图示（共 36 张）。`SUMMARY.md` 已挂到第 18 章（其余各篇为草稿条目，未接链接）。写作规范 / 校验链见 `WRITING.md`，术语见 `GLOSSARY.md`。
+基础篇（前言 + 第 1–11 章 + 项目 1）、类型与 trait 主干篇（第 12–18 章）与并发与异步篇（第 19–22 章）初稿完成：三批都已过交叉审校与逐票修回，全量校验链全绿（`mdbook build` 0 ERROR/0 警告、`mdbook test` 24 章 exit 0、examples 19+2 passed）；插图：基础篇 12 章 36 张 + 进阶篇 7 章 19 张（内嵌 SVG）。`SUMMARY.md` 已挂到第 22 章（其余各篇为草稿条目，未接链接）。写作规范 / 校验链见 `WRITING.md`，术语见 `GLOSSARY.md`。

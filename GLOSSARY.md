@@ -52,6 +52,86 @@ _Avoid_: 互斥体
 持锁线程 panic 后锁被标记为脏：之后 `lock` 返回 `Err`（`PoisonError`），可用 `into_inner` 取回。
 _Avoid_: 中毒状态
 
+**通道（channel）**：
+线程间的消息传递设施（`std::sync::mpsc`）。
+_Avoid_: 信道
+
+**交会（rendezvous）**：
+容量为 0 的 `sync_channel`：发送方必须等到接收方取走。
+_Avoid_: 会合
+
+**原子类型（atomic type）**：
+以原子操作访问的类型（`AtomicUsize` 等），不靠锁保证无数据竞争。
+_Avoid_: 原子量
+
+**读-改-写（read-modify-write，RMW）**：
+`fetch_add`/`compare_exchange` 这类一步完成读与写、对外原子可见的操作。
+_Avoid_: 原子的读改
+
+**CAS（compare-and-swap）**：
+比较并交换：值符合预期才写入，失败时告诉你当前值。**保留英文缩写**。
+_Avoid_: 比较交换（首现可括注英文）
+
+**先行发生（happens-before）**：
+跨线程可见性顺序的关系：A 先行发生于 B，B 就一定能看到 A 的结果。
+_Avoid_: 发生在前
+
+**顺序一致性（sequential consistency）**：
+`SeqCst` 提供的全局单一次序；代价最高、直觉最接近「按程序顺序执行」。
+_Avoid_: 强一致
+
+**伪失败（spurious failure）**：
+CAS 的失败之一：值其实没变，只是这次没成功；`compare_exchange_weak` 允许它出现。
+_Avoid_: 假失败
+
+**无锁（lock-free）**：
+进度保证：任一时刻至少一个线程能推进（不是「不用锁」的字面意思）。
+_Avoid_: 免锁
+
+**无等待（wait-free）**：
+更强的进度保证：每个线程都能在有限步内完成。
+_Avoid_: 免等待
+
+**存储缓冲（store buffer）**：
+CPU 为写操作排队的缓冲；它的乱序可见性是 `Relaxed` 生效场景的来源之一。
+_Avoid_: 写缓冲（可混用，全书统一「存储缓冲」）
+
+**自旋锁（spinlock）**：
+拿不到锁就循环重试的锁；适合临界区极短的场合。
+_Avoid_: 忙等锁
+
+**ABA 问题（ABA problem）**：
+CAS 循环的经典陷阱：值从 A 变 B 又变回 A，旧比较会误判「没变过」。
+_Avoid_: AB 问题
+
+**完整屏障（memory barrier）**：
+`SeqCst` 语境要求的全序屏障。
+_Avoid_: 内存栅栏
+
+**执行器（executor）**：
+驱动 future 前进的组件：负责 poll，并在 `Waker` 被调用后重新调度。
+_Avoid_: 调度器（那是 OS 概念）
+
+**任务（task）**：
+交给执行器的一份已装箱的 future（`spawn` 的单位）。
+_Avoid_: 作业
+
+**运行时（runtime）**：
+驱动 async 程序的整套环境（执行器 + I/O 支持）。
+_Avoid_: 运行环境
+
+**唤醒（wake）与唤醒句柄（`Waker`）**：
+future 通知执行器「可以再 poll 我」的机制；`Waker` 可跨线程调用。
+_Avoid_: 通知器
+
+**状态机（state machine）**：
+`async` 块展开后的形态：每个 `.await` 是一个状态。
+_Avoid_: 自动机
+
+**取消（cancellation）**：
+把 future drop 掉——不再被 poll，等待点上的状态随之析构。Rust 的取消就是 drop。
+_Avoid_: 中止
+
 **trait**：
 行为契约。**保留英文不译**（首现时用一句话说明；「特征/特质」在中文里歧义大、社区不统一）。
 _Avoid_: 特征、特质
@@ -161,6 +241,26 @@ _Avoid_: 空类型（与单元类型歧义）
 **typestate**：
 用类型表示值的状态的模式：状态推进表现为类型变化，把误用挡在编译期。**保留英文**。
 _Avoid_: 类型状态（首现可括注英文）
+
+**自引用（self-referential）**：
+类型内部持有指向自己某部分的指针。
+_Avoid_: 自指
+
+**地址敏感（address-sensitive）**：
+值的状态要求地址不变：一旦移动即失效（`std` 文档用语）。
+_Avoid_: 地址相关
+
+**pin**：
+动词：钉住、固定就位——承诺在其析构前不再移动。**保留英文**。
+_Avoid_: 固定（单用）
+
+**pin 投影（pin projection）**：
+把 `Pin` 保证按字段拆开的写法（手写需要 `unsafe`；第 38 章展开）。
+_Avoid_: 拆 pin
+
+**结构化 pinning（structural pinning）**：
+「pin 住外层即 pin 住该字段」的字段级契约。
+_Avoid_: 结构 pinning
 
 **穷尽性（exhaustiveness）**：
 `match` 必须覆盖全部可能取值，编译器负责检查。

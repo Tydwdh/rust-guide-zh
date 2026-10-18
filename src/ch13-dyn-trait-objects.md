@@ -31,13 +31,43 @@
 
 第 9 章已经量过泛型那条路：三个调用点，机器码里三份 `show`，各自直接调用。`dyn` 那条路只有一份函数体，但它拿到的指针是「两只手」：
 
-```text
-泛型（单态化）                         dyn（动态分发）
-show::<u32>  ─┐                        show_dyn(&dyn Display)
-show::<&str> ─┼─→ 每个类型一份代码       └─→ data 指针 → 值
-show::<f64>  ─┘    直接调用                  vtable 指针 → 方法槽 → 实际实现
-                   （可内联）                 （间接调用，无法内联）
-```
+<svg viewBox="0 0 760 224" width="100%" role="img" aria-label="泛型与 dyn 两条代码路径对照：单态化按类型生成 show 的三份实例、调用点直接跳转且可内联；dyn 只有一份 show_dyn，收到 data 与 vtable 两个指针，每次调用经 vtable 取槽后间接跳转，挡住内联" xmlns="http://www.w3.org/2000/svg">
+<line x1="368" y1="28" x2="368" y2="216" stroke="var(--quote-border)" stroke-width="1.5" stroke-dasharray="4 3" />
+<text x="0" y="16" font-size="14" fill="currentColor">泛型（单态化）：每个类型一份代码</text>
+<text x="384" y="16" font-size="14" fill="currentColor">dyn（动态分发）：只有一份代码</text>
+<g fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5">
+<rect x="0" y="40" width="210" height="30" rx="5" />
+<rect x="0" y="93" width="210" height="30" rx="5" />
+<rect x="0" y="146" width="210" height="30" rx="5" />
+</g>
+<g font-size="12" font-family="monospace" fill="currentColor">
+<text x="10" y="60">show::&lt;u32&gt;</text>
+<text x="10" y="113">show::&lt;&amp;str&gt;</text>
+<text x="10" y="166">show::&lt;f64&gt;</text>
+</g>
+<path d="M220,40 h6 v136 h-6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.55" />
+<text x="234" y="102" font-size="12" fill="var(--links)">3 份机器码</text>
+<text x="234" y="120" font-size="12" fill="currentColor" opacity="0.7">每个类型一份</text>
+<rect x="384" y="40" width="210" height="30" rx="5" fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5" />
+<text x="394" y="60" font-size="12" font-family="monospace" fill="currentColor">show_dyn(&amp;dyn Display)</text>
+<line x1="489" y1="70" x2="489" y2="80" stroke="currentColor" stroke-width="1.5" />
+<polygon points="489,88 484,78 494,78" fill="currentColor" />
+<rect x="384" y="88" width="210" height="40" rx="5" fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5" />
+<line x1="384" y1="108" x2="594" y2="108" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.35" />
+<g font-size="12" font-family="monospace" fill="currentColor">
+<text x="394" y="104">data 指针 → 实际值</text>
+<text x="394" y="124">vtable 指针 → 表</text>
+</g>
+<line x1="489" y1="128" x2="489" y2="138" stroke="currentColor" stroke-width="1.5" />
+<polygon points="489,146 484,136 494,136" fill="currentColor" />
+<rect x="384" y="146" width="210" height="30" rx="5" fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5" />
+<text x="394" y="166" font-size="12" font-family="monospace" fill="currentColor">取槽 → 实际实现</text>
+<text x="602" y="166" font-size="12" fill="currentColor" opacity="0.7">间接调用</text>
+<text x="0" y="196" font-size="12" fill="var(--links)">✓ 直接调用：跳转目标编译期定死，可内联</text>
+<text x="0" y="212" font-size="12" fill="currentColor" opacity="0.7">代价：代码体积与编译时间随用到的类型数增长</text>
+<text x="384" y="196" font-size="12" fill="var(--warning-border)">✗ vtable 取址 + 间接跳转，挡住内联</text>
+<text x="384" y="212" font-size="12" fill="currentColor" opacity="0.7">代价：每次调用多一次取址</text>
+</svg>
 
 两条路的账不一样：泛型把「哪个类型」在编译期填死，代价落到代码体积与编译时间上；`dyn` 把「哪个类型」留到运行时，代价落到每次调用上。没有零代价的第三条路。
 
@@ -196,15 +226,50 @@ dyn Trait + Send + 'static
 
 trait 对象是**动态大小类型（DST）**：编译器不知道被擦掉的类型有多大，所以它永远得待在某种指针后面。这种指针是**胖指针**——两个机器字，一个指向数据，一个指向 vtable：
 
-```text
-      &dyn Shape               被擦掉的具体值            vtable（每个具体类型一份）
-   ┌──────────────┐          ┌──────────────┐         ┌────────────────────────────┐
-   │ data   ──────┼─────────▶│ Circle{x, y} │         │ 头部元数据（1.98 实测 24 字节）│
-   ├──────────────┤          └──────────────┘         ├────────────────────────────┤
-   │ vtable ──────┼──────────────────────────────────▶│ area  → Circle::area       │
-   └──────────────┘                                   │ name  → Circle::name       │
-                                                      └────────────────────────────┘
-```
+<svg viewBox="0 0 700 262" width="100%" role="img" aria-label="胖指针与 vtable 布局：&amp;dyn Shape 的两个机器字分别指向具体值和该类型的 vtable，Circle 与 Square 各有一张表，表头是元数据、后面每个可分发方法一格" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">胖指针 + vtable：两个机器字各司其职，表归类型所有</text>
+<text x="0" y="38" font-size="12" font-family="monospace" fill="var(--links)">&amp;dyn Shape（16 字节：两个 8 字节机器字）</text>
+<rect x="0" y="44" width="130" height="60" rx="5" fill="none" stroke="currentColor" stroke-width="1.5" />
+<line x1="0" y1="74" x2="130" y2="74" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.35" />
+<g font-size="12" font-family="monospace" fill="currentColor">
+<text x="10" y="66">data</text>
+<text x="10" y="96">vtable</text>
+</g>
+<line x1="130" y1="62" x2="176" y2="62" stroke="currentColor" stroke-width="1.5" />
+<polygon points="186,62 176,57 176,67" fill="currentColor" />
+<rect x="188" y="48" width="140" height="28" rx="4" fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5" />
+<text x="258" y="67" font-size="12" font-family="monospace" text-anchor="middle" fill="currentColor">Circle { x, y }</text>
+<line x1="130" y1="92" x2="340" y2="92" stroke="currentColor" stroke-width="1.5" />
+<polygon points="350,92 340,87 340,97" fill="currentColor" />
+<rect x="352" y="40" width="348" height="76" rx="5" fill="none" stroke="var(--links)" stroke-width="1.5" />
+<text x="364" y="60" font-size="12" font-family="monospace" fill="var(--links)">头部元数据：size / align / drop（1.98 实测 24 字节）</text>
+<line x1="352" y1="70" x2="700" y2="70" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.35" />
+<g font-size="12" font-family="monospace" fill="currentColor">
+<text x="364" y="88">area → Circle::area</text>
+<text x="364" y="106">name → Circle::name</text>
+</g>
+<text x="0" y="150" font-size="12" fill="currentColor" opacity="0.75">换个具体类型：指针形状一个字节不变，换的是指向哪张表</text>
+<rect x="0" y="156" width="130" height="60" rx="5" fill="none" stroke="currentColor" stroke-width="1.5" />
+<line x1="0" y1="186" x2="130" y2="186" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.35" />
+<g font-size="12" font-family="monospace" fill="currentColor">
+<text x="10" y="178">data</text>
+<text x="10" y="208">vtable</text>
+</g>
+<line x1="130" y1="174" x2="176" y2="174" stroke="currentColor" stroke-width="1.5" />
+<polygon points="186,174 176,169 176,179" fill="currentColor" />
+<rect x="188" y="160" width="140" height="28" rx="4" fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5" />
+<text x="258" y="179" font-size="12" font-family="monospace" text-anchor="middle" fill="currentColor">Square { side }</text>
+<line x1="130" y1="204" x2="340" y2="204" stroke="currentColor" stroke-width="1.5" />
+<polygon points="350,204 340,199 340,209" fill="currentColor" />
+<rect x="352" y="152" width="348" height="76" rx="5" fill="none" stroke="var(--links)" stroke-width="1.5" />
+<text x="364" y="172" font-size="12" font-family="monospace" fill="var(--links)">头部元数据：size / align / drop</text>
+<line x1="352" y1="182" x2="700" y2="182" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.35" />
+<g font-size="12" font-family="monospace" fill="currentColor">
+<text x="364" y="200">area → Square::area</text>
+<text x="364" y="218">name → Square::name</text>
+</g>
+<text x="0" y="252" font-size="12" fill="currentColor" opacity="0.7">表归类型所有：同一个类型的所有实例共用一张；表里一格对应一个可分发方法</text>
+</svg>
 
 vtable 里除了每个可分发方法的函数指针，还放着运行时需要的元数据——`size_of_val` 能从 trait 对象上读出对象大小，靠的就是它（不依赖具体类型是不可行的）。头部里各项的排布是编译器实现细节，不是稳定 ABI；`unsafe` 视角的布局在第 25 章，本章只需记住「每个方法占一格」。
 
@@ -280,6 +345,53 @@ start:
 当 `trait Pet: Animal` 时，`dyn Pet` 的 trait 对象可以在保持同一个数据指针的前提下，换成 `dyn Animal` 的视图——这就是向上转型。Reference 把它写成一条内建强转规则：
 
 > `dyn T` to `dyn U`, when `U` is one of `T`'s supertraits.
+
+下图把这次转型摊开：两处 `data` 指向同一个值，换掉的只是 vtable 视图。
+
+<svg viewBox="0 0 700 258" width="100%" role="img" aria-label="向上转型的两步：dyn Pet 与 dyn Animal 共用同一个数据指针，只把 vtable 换成父 trait 的视图；横向转到无关 trait 不合法，报 E0605" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">向上转型：数据指针一个字节不动，只换 vtable 视图</text>
+<text x="0" y="38" font-size="12" font-family="monospace" fill="var(--links)">&amp;dyn Pet</text>
+<rect x="0" y="44" width="140" height="56" rx="5" fill="none" stroke="currentColor" stroke-width="1.5" />
+<line x1="0" y1="72" x2="140" y2="72" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.35" />
+<g font-size="12" font-family="monospace" fill="currentColor">
+<text x="10" y="64">data</text>
+<text x="10" y="92">vtable</text>
+</g>
+<line x1="140" y1="60" x2="186" y2="60" stroke="var(--links)" stroke-width="1.5" />
+<polygon points="196,60 186,55 186,65" fill="var(--links)" />
+<rect x="200" y="46" width="110" height="28" rx="4" fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5" />
+<text x="255" y="65" font-size="12" font-family="monospace" text-anchor="middle" fill="currentColor">Dog</text>
+<line x1="140" y1="88" x2="336" y2="88" stroke="currentColor" stroke-width="1.5" />
+<polygon points="346,88 336,83 336,93" fill="currentColor" />
+<rect x="348" y="42" width="352" height="64" rx="5" fill="none" stroke="var(--links)" stroke-width="1.5" />
+<text x="360" y="60" font-size="12" font-family="monospace" fill="var(--links)">Pet 视图：name + owner</text>
+<line x1="348" y1="68" x2="700" y2="68" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.35" />
+<g font-size="12" font-family="monospace" fill="currentColor">
+<text x="360" y="84">name → Dog::name</text>
+<text x="360" y="102">owner → Dog::owner</text>
+</g>
+<text x="142" y="118" font-size="12" fill="var(--links)">两处 data 指向同一个值：指针逐位不变</text>
+<text x="0" y="146" font-size="12" font-family="monospace" fill="var(--links)">&amp;dyn Animal</text>
+<rect x="0" y="152" width="140" height="56" rx="5" fill="none" stroke="currentColor" stroke-width="1.5" />
+<line x1="0" y1="180" x2="140" y2="180" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.35" />
+<g font-size="12" font-family="monospace" fill="currentColor">
+<text x="10" y="172">data</text>
+<text x="10" y="200">vtable</text>
+</g>
+<line x1="140" y1="168" x2="186" y2="168" stroke="var(--links)" stroke-width="1.5" />
+<polygon points="196,168 186,163 186,173" fill="var(--links)" />
+<rect x="200" y="154" width="110" height="28" rx="4" fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5" />
+<text x="255" y="173" font-size="12" font-family="monospace" text-anchor="middle" fill="currentColor">Dog</text>
+<line x1="140" y1="196" x2="336" y2="196" stroke="currentColor" stroke-width="1.5" />
+<polygon points="346,196 336,191 336,201" fill="currentColor" />
+<rect x="348" y="150" width="352" height="64" rx="5" fill="none" stroke="var(--links)" stroke-width="1.5" />
+<text x="360" y="168" font-size="12" font-family="monospace" fill="var(--links)">Animal 视图：只有 name</text>
+<line x1="348" y1="176" x2="700" y2="176" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.35" />
+<text x="360" y="194" font-size="12" font-family="monospace" fill="currentColor">name → Dog::name</text>
+<text x="360" y="212" font-size="12" fill="currentColor" opacity="0.7">owner 不在这个视图里</text>
+<text x="0" y="234" font-size="12" fill="var(--links)">✓ 只沿父 trait 方向：dyn Pet → dyn Animal（1.86 起）</text>
+<text x="0" y="252" font-size="12" fill="var(--warning-border)">✗ 横向不合法：&amp;dyn Shape as &amp;dyn Named → E0605</text>
+</svg>
 
 这条能力在 **Rust 1.86（2025-04-03）** 稳定；1.98 上引用、`Box`、`Arc`、`Rc` 形式全部可用：
 

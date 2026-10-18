@@ -34,6 +34,35 @@ fn evens(xs: &[u32]) -> impl Iterator<Item = u32> {
 
 一句话：参数位置是「存在一个类型，你给」；返回位置是「存在一个类型，我不说」。前者常写作 APIT（argument-position impl Trait），后者写作 RPIT（return-position impl Trait）。
 
+下图把这两种角色并排摆开：同一处语法，箭头方向正好相反。
+
+<svg viewBox="0 0 700 250" width="100%" role="img" aria-label="APIT 与 RPIT 的角色方向对照：参数位置的 impl Trait 由调用者选类型，箭头从调用者指向函数；返回位置的 impl Trait 由函数选类型，箭头从函数指向调用者" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">同一处 <tspan font-family="monospace">impl Trait</tspan>，两处相反的角色：谁选类型？</text>
+<text x="95" y="42" font-size="12" fill="currentColor" opacity="0.7" text-anchor="middle">调用者（调用点）</text>
+<text x="605" y="42" font-size="12" fill="currentColor" opacity="0.7" text-anchor="middle">函数（定义处）</text>
+<rect x="10" y="52" width="170" height="76" rx="5" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="95" y="78" font-size="12" font-family="monospace" fill="currentColor" text-anchor="middle">show(1u32)</text>
+<text x="95" y="102" font-size="12" fill="currentColor" opacity="0.75" text-anchor="middle">调用者决定类型</text>
+<rect x="520" y="52" width="170" height="76" rx="5" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="605" y="78" font-size="12" font-family="monospace" fill="currentColor" text-anchor="middle">fn show(x:</text>
+<text x="605" y="94" font-size="12" font-family="monospace" fill="currentColor" text-anchor="middle">impl Debug)</text>
+<text x="605" y="118" font-size="12" fill="currentColor" opacity="0.75" text-anchor="middle">函数不知道具体类型</text>
+<line x1="190" y1="90" x2="508" y2="90" stroke="var(--links)" stroke-width="2" />
+<polygon points="520,90 508,84 508,96" fill="var(--links)" />
+<text x="350" y="82" font-size="12" fill="var(--links)" text-anchor="middle">调用者选类型</text>
+<rect x="10" y="146" width="170" height="76" rx="5" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="95" y="172" font-size="12" font-family="monospace" fill="currentColor" text-anchor="middle">let v = make();</text>
+<text x="95" y="196" font-size="12" fill="currentColor" opacity="0.75" text-anchor="middle">只知道满足约束</text>
+<rect x="520" y="146" width="170" height="76" rx="5" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="605" y="172" font-size="12" font-family="monospace" fill="currentColor" text-anchor="middle">fn make() -&gt;</text>
+<text x="605" y="188" font-size="12" font-family="monospace" fill="currentColor" text-anchor="middle">impl Debug</text>
+<text x="605" y="212" font-size="12" fill="currentColor" opacity="0.75" text-anchor="middle">函数决定类型</text>
+<line x1="510" y1="184" x2="192" y2="184" stroke="var(--links)" stroke-width="2" />
+<polygon points="180,184 192,178 192,190" fill="var(--links)" />
+<text x="350" y="176" font-size="12" fill="var(--links)" text-anchor="middle">函数选类型</text>
+<text x="0" y="242" font-size="12" fill="currentColor" opacity="0.7">参数位置（APIT）：类型由调用者给出；返回位置（RPIT）：类型由函数给出，调用者只见约束</text>
+</svg>
+
 ### 藏掉返回类型买到了什么
 
 第一层好处是「不用写出不可能写出的类型」——闭包、迭代器链。第二层更值钱：**具体类型不在签名里，它就不属于契约的一部分**。
@@ -184,6 +213,37 @@ true
 - **生命周期参数**：这就是 2024 改动的那一半。
 
 2021 及更早，普通函数与固有 `impl` 里的方法只捕获「出现在返回类型约束里的」生命周期。隐藏类型偷偷用了某个生命周期时，你得用 `+ '_`、`+ 'a`，或者社区那套 `Captures<..>` 戏法，把它「说出来」。2024 起无条件捕获**作用域内的全部**生命周期参数，与 RPITIT（return-position impl Trait in trait）和 AFIT（`async fn in trait`）的行为拉齐——两者在所有 edition 都是全捕获（详见「trait 里的 RPIT 与 `async fn`」）。
+
+下图用本章开头那个 `evens` 把两版 edition 的捕获集合并排对照（图里把它省略的输入生命周期写成 `'a`）：
+
+<svg viewBox="0 0 720 252" width="100%" role="img" aria-label="捕获集合对照：evens 作用域内的生命周期参数 'a 在 edition 2021 不被捕获、在 2024 被捕获；类型与 const 参数两版都捕获，use 精确捕获语法两版也都可用；捕获集合越宽，调用者的约束越多" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">同一个 <tspan font-family="monospace">evens</tspan>，两版 edition 的捕获集合不同</text>
+<text x="0" y="38" font-size="12" font-family="monospace" fill="currentColor" opacity="0.8">fn evens&lt;'a&gt;(xs: &amp;'a [u32]) -&gt; impl Iterator&lt;Item = u32&gt;</text>
+<line x1="10" y1="52" x2="690" y2="52" stroke="var(--quote-border)" stroke-width="1.5" />
+<text x="95" y="70" font-size="12" fill="currentColor" text-anchor="middle">作用域内的参数</text>
+<text x="312" y="70" font-size="12" fill="var(--links)" text-anchor="middle">edition 2021（只捕约束里写到的）</text>
+<text x="565" y="70" font-size="12" fill="var(--links)" text-anchor="middle">edition 2024（捕全部生命周期）</text>
+<line x1="10" y1="82" x2="690" y2="82" stroke="var(--quote-border)" stroke-width="1.5" />
+<text x="95" y="108" font-size="12" fill="currentColor" text-anchor="middle"><tspan font-family="monospace">'a</tspan>（生命周期）</text>
+<text x="312" y="108" font-size="12" fill="var(--warning-border)" text-anchor="middle">✗ 未捕获</text>
+<text x="565" y="108" font-size="12" fill="var(--links)" text-anchor="middle">✓ 已捕获</text>
+<line x1="10" y1="120" x2="690" y2="120" stroke="var(--quote-border)" stroke-width="1.5" />
+<text x="95" y="144" font-size="12" fill="currentColor" text-anchor="middle">类型 / const 参数</text>
+<text x="312" y="144" font-size="12" fill="var(--links)" text-anchor="middle">✓ 已捕获</text>
+<text x="565" y="144" font-size="12" fill="var(--links)" text-anchor="middle">✓ 已捕获</text>
+<line x1="10" y1="156" x2="690" y2="156" stroke="var(--quote-border)" stroke-width="1.5" />
+<text x="95" y="180" font-size="12" fill="currentColor" text-anchor="middle"><tspan font-family="monospace">use&lt;'a&gt;</tspan> 精确写出</text>
+<text x="312" y="180" font-size="12" fill="var(--links)" text-anchor="middle">✓ 已捕获</text>
+<text x="565" y="180" font-size="12" fill="var(--links)" text-anchor="middle">✓ 已捕获</text>
+<line x1="10" y1="192" x2="690" y2="192" stroke="var(--quote-border)" stroke-width="1.5" />
+<text x="10" y="208" font-size="12" fill="currentColor" opacity="0.7">2021 里 <tspan font-family="monospace">'a</tspan> 未被捕获：隐藏类型要用它，就是下面那条 E0700</text>
+<text x="360" y="226" font-size="12" fill="currentColor" text-anchor="middle">捕获集合</text>
+<line x1="190" y1="240" x2="530" y2="240" stroke="currentColor" stroke-width="1.5" opacity="0.6" />
+<polygon points="190,240 200,235 200,245" fill="currentColor" opacity="0.6" />
+<polygon points="530,240 520,235 520,245" fill="currentColor" opacity="0.6" />
+<text x="180" y="244" font-size="12" fill="currentColor" opacity="0.75" text-anchor="end">窄：隐藏类型能借的少</text>
+<text x="540" y="244" font-size="12" fill="currentColor" opacity="0.75" text-anchor="start">宽：调用者约束更多</text>
+</svg>
 
 这次改动的收益，看本章开头那个签名就够了：它在 edition 2024 下直接编译通过，在 2021 下报错：
 

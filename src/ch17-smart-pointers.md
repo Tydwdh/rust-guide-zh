@@ -80,6 +80,30 @@ fn main() {
 | 共享的同时还要能改 | `Cell<T>` / `RefCell<T>` | `Mutex<T>` / `RwLock<T>` |
 | 只是把值放到堆上 | `Box<T>` | `Box<T>`（是否可用取决于内层的 `Send`/`Sync`） |
 
+这张表摊平了就是一张十字图：横轴问「跨不跨线程」，纵轴问「要不要改」。
+
+<svg viewBox="0 0 640 254" width="100%" role="img" aria-label="四个格子：按要不要改与跨不跨线程把本章类型分成 Rc、Arc、Cell 与 RefCell、Mutex 与 RwLock 四格，横向换列就是换件清单" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">四个格子：先问要不要改，再问跨不跨线程</text>
+<text x="245" y="52" font-size="12" fill="currentColor" text-anchor="middle">单线程</text>
+<text x="495" y="52" font-size="12" fill="currentColor" text-anchor="middle">跨线程</text>
+<text x="110" y="100" font-size="12" fill="currentColor" text-anchor="end">只要共享</text>
+<text x="110" y="178" font-size="12" fill="currentColor" text-anchor="end">还要能改</text>
+<rect x="120" y="60" width="250" height="70" rx="5" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="245" y="92" font-size="13" font-family="monospace" fill="currentColor" text-anchor="middle">Rc&lt;T&gt;</text>
+<text x="245" y="114" font-size="12" fill="currentColor" opacity="0.7" text-anchor="middle">计数非原子</text>
+<rect x="370" y="60" width="250" height="70" rx="5" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="495" y="92" font-size="13" font-family="monospace" fill="currentColor" text-anchor="middle">Arc&lt;T&gt;</text>
+<text x="495" y="114" font-size="12" fill="currentColor" opacity="0.7" text-anchor="middle">计数原子</text>
+<rect x="120" y="138" width="250" height="70" rx="5" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="245" y="170" font-size="13" font-family="monospace" fill="currentColor" text-anchor="middle">Cell&lt;T&gt; / RefCell&lt;T&gt;</text>
+<text x="245" y="192" font-size="12" fill="currentColor" opacity="0.7" text-anchor="middle">检查挪到运行期</text>
+<rect x="370" y="138" width="250" height="70" rx="5" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="495" y="170" font-size="13" font-family="monospace" fill="currentColor" text-anchor="middle">Mutex&lt;T&gt; / RwLock&lt;T&gt;</text>
+<text x="495" y="192" font-size="12" fill="currentColor" opacity="0.7" text-anchor="middle">检查挪到锁上</text>
+<text x="0" y="232" font-size="12" fill="currentColor" opacity="0.7">横向换列就是换件清单：Rc&lt;RefCell&lt;T&gt;&gt; → Arc&lt;Mutex&lt;T&gt;&gt;</text>
+<text x="0" y="250" font-size="12" fill="currentColor" opacity="0.7">Box&lt;T&gt; 不进这张表：它只决定值放在哪儿，能不能跨线程看内层</text>
+</svg>
+
 `std::cell` 文档把中间一行写成现成句子：`RefCell<T>` 的 `Sync` 版本是 `RwLock<T>`，`OnceCell<T>` 的 `Sync` 版本是 `OnceLock<T>`。它没说 `Cell<T>` 的版本是 `Mutex<T>`——原因见 `Cell` 一节。
 
 ### Box\<T\>：堆上的独占所有权
@@ -127,18 +151,58 @@ size_of::<List>() = 16
 
 `Box<dyn Trait>` 同样是胖指针，它会带一个 vtable 指针（第 13 章）。另外，`Box<T>` 是**唯一**能从解引用里把值「搬出来」的智能指针，这一点在 `Deref` 一节细说。
 
+上表的 8 与 16 差在哪儿，摊开就是下图：
+
+<svg viewBox="0 0 660 200" width="100%" role="img" aria-label="瘦指针与胖指针对比：瘦指针只有一个地址机器字，胖指针多带一个长度或 vtable 指针，因此是 16 字节" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">瘦指针与胖指针：差的那一个机器字</text>
+<text x="0" y="64" font-size="12" fill="currentColor">瘦指针</text>
+<rect x="110" y="44" width="180" height="32" rx="4" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="200" y="65" font-size="12" font-family="monospace" fill="currentColor" text-anchor="middle">地址</text>
+<text x="310" y="65" font-size="12" fill="currentColor" opacity="0.7">8 字节，如 Box&lt;u64&gt;</text>
+<text x="0" y="128" font-size="12" fill="currentColor">胖指针</text>
+<rect x="110" y="108" width="180" height="32" rx="4" fill="none" stroke="var(--links)" stroke-width="1.5" />
+<text x="200" y="129" font-size="12" font-family="monospace" fill="var(--links)" text-anchor="middle">地址</text>
+<rect x="290" y="108" width="180" height="32" rx="4" fill="none" stroke="var(--links)" stroke-width="1.5" />
+<text x="380" y="129" font-size="12" font-family="monospace" fill="var(--links)" text-anchor="middle">长度 / vtable 指针</text>
+<text x="482" y="129" font-size="12" fill="currentColor" opacity="0.7">16 字节</text>
+<text x="0" y="170" font-size="12" fill="currentColor" opacity="0.7">带长度的：Box&lt;[u64]&gt;、Box&lt;str&gt;、&amp;str、&amp;[T]　带 vtable 的：Box&lt;dyn Trait&gt;、&amp;dyn Trait</text>
+<text x="0" y="190" font-size="12" fill="currentColor" opacity="0.7">指针自身的大小取决于要不要带长度信息，与堆上数据有多大无关</text>
+</svg>
+
 何时用 `Box`：递归类型；值很大而想避免整块拷贝（移动 `Box` 只移动指针）；`Box<dyn Trait>` 做类型擦除（第 13 章）；`Box<[T]>`/`Box<str>` 这类长度固定的堆数组。第 22 章的 `Box::pin` 留给自引用类型。
 
 ### Rc\<T\> 与 Arc\<T\>：共享所有权
 
 `Rc<T>` 自己是这么自我介绍的：A single-threaded reference-counting pointer. `Rc` stands for "Reference Counted"（单线程引用计数指针）。它的模型很简单：
 
-```text
-Rc<String> a ─┐
-              ├──► 堆上的一块：[ strong = 2 | weak = 1 | "共享的字符串" ]
-Rc<String> b ─┘                        ▲
-                                       └── Weak<String> w（不计入 strong）
-```
+<svg viewBox="0 0 700 244" width="100%" role="img" aria-label="Rc 与 Arc 的堆布局：a、b、w 三个句柄各占 8 字节指向同一块堆分配；分配里有 strong 与 weak 两档计数和值，Weak 不计入 strong" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">Rc/Arc 的布局：句柄在栈上，计数与值在同一块堆分配里</text>
+<text x="0" y="40" font-size="12" fill="var(--links)">三个句柄各占 8 字节（实测 size_of::&lt;Rc&lt;String&gt;&gt;() == 8）</text>
+<rect x="20" y="60" width="150" height="34" rx="5" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="95" y="82" font-size="12" font-family="monospace" fill="currentColor" text-anchor="middle">Rc&lt;String&gt; a</text>
+<rect x="20" y="110" width="150" height="34" rx="5" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="95" y="132" font-size="12" font-family="monospace" fill="currentColor" text-anchor="middle">Rc&lt;String&gt; b</text>
+<rect x="20" y="160" width="150" height="34" rx="5" fill="none" stroke="var(--quote-border)" stroke-width="1.5" stroke-dasharray="4 3" />
+<text x="95" y="182" font-size="12" font-family="monospace" fill="currentColor" text-anchor="middle">Weak&lt;String&gt; w</text>
+<line x1="170" y1="77" x2="398" y2="94" stroke="var(--links)" stroke-width="2" />
+<polyline points="398,89 406,94 398,99" fill="none" stroke="var(--links)" stroke-width="2" />
+<line x1="170" y1="127" x2="398" y2="112" stroke="var(--links)" stroke-width="2" />
+<polyline points="398,107 406,112 398,117" fill="none" stroke="var(--links)" stroke-width="2" />
+<line x1="170" y1="177" x2="398" y2="139" stroke="var(--quote-border)" stroke-width="2" stroke-dasharray="5 3" />
+<polyline points="398,134 406,139 398,144" fill="none" stroke="var(--quote-border)" stroke-width="2" />
+<rect x="406" y="52" width="274" height="164" rx="6" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="543" y="72" font-size="12" fill="currentColor" opacity="0.7" text-anchor="middle">堆上同一块分配</text>
+<rect x="418" y="82" width="250" height="32" rx="4" fill="none" stroke="var(--links)" stroke-width="1.5" />
+<text x="430" y="103" font-size="12" font-family="monospace" fill="var(--links)">strong = 2</text>
+<text x="656" y="103" font-size="12" fill="var(--links)" text-anchor="end">强引用计数</text>
+<rect x="418" y="120" width="250" height="32" rx="4" fill="none" stroke="var(--quote-border)" stroke-width="1.5" />
+<text x="430" y="141" font-size="12" font-family="monospace" fill="currentColor">weak = 1</text>
+<text x="656" y="141" font-size="12" fill="currentColor" opacity="0.7" text-anchor="end">弱引用计数</text>
+<rect x="418" y="160" width="250" height="44" rx="4" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="543" y="187" font-size="13" font-family="monospace" fill="currentColor" text-anchor="middle">"共享的字符串"</text>
+<text x="0" y="212" font-size="12" fill="currentColor" opacity="0.7">Weak 只保证分配不被回收，不强留内容，也不计入 strong</text>
+<text x="0" y="234" font-size="12" fill="currentColor" opacity="0.7">Rc 与 Arc 布局相同，只差计数怎么写：一个普通整数、一个原子操作</text>
+</svg>
 
 图里三个句柄各占 8 字节（实测 `size_of::<Rc<String>>() == 8`），共享的是右边那块带计数的分配。实测一遍计数怎么变：
 
@@ -358,7 +422,65 @@ try_borrow_mut -> Err(BorrowMutError)
 - 不想 panic 就用 `try_borrow()` / `try_borrow_mut()`，返回 `Result<_, BorrowError>` / `Result<_, BorrowMutError>`；std 的方法文档也这么建议（For a non-panicking variant, use `try_borrow`）。「失败可以被处理」的场合该选它。
 - `RefCell<T>` 不会让「两个 `&mut` 同时存在」变成 UB，它只是 panic。代价是多一个借用计数：实测 `RefCell<u64>` 是 16 字节，`RefCell<String>` 是 32 字节。
 
+把 guard 的生命周期画成区间，冲突就一目了然：
+
+<svg viewBox="0 0 660 264" width="100%" role="img" aria-label="Ref 与 RefMut guard 的借用区间：两个共享 guard 的区间可以重叠、可变 guard 另起一段；若共享借用落在可变 guard 的区间内，就在运行期 panic" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">guard 的作用域就是借用的区间：创建时计数加一，drop 时减一</text>
+<rect x="310" y="30" width="26" height="9" rx="4" fill="none" stroke="var(--links)" stroke-width="1.5" />
+<text x="342" y="39" font-size="12" fill="var(--links)">共享 guard（Ref）</text>
+<rect x="480" y="30" width="26" height="9" rx="4" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="512" y="39" font-size="12" fill="currentColor">可变 guard（RefMut）</text>
+<text x="0" y="58" font-size="12" fill="var(--links)">① 两个共享 guard 重叠、可变 guard 另起一段：运行期放行</text>
+<g font-size="12" font-family="monospace" fill="currentColor">
+<text x="0" y="80">let r1 = c.borrow();</text>
+<text x="0" y="102">let r2 = c.borrow();</text>
+<text x="0" y="124">println!(“{r1} {r2}”);</text>
+<text x="0" y="146">let m = c.borrow_mut();</text>
+</g>
+<rect x="250" y="72" width="230" height="16" rx="4" fill="none" stroke="var(--links)" stroke-width="1.5" />
+<text x="365" y="84" font-size="12" fill="var(--links)" text-anchor="middle">Ref</text>
+<rect x="300" y="94" width="180" height="16" rx="4" fill="none" stroke="var(--links)" stroke-width="1.5" />
+<text x="390" y="106" font-size="12" fill="var(--links)" text-anchor="middle">Ref</text>
+<rect x="520" y="138" width="120" height="16" rx="4" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="580" y="150" font-size="12" fill="currentColor" text-anchor="middle">RefMut</text>
+<line x1="480" y1="68" x2="480" y2="160" stroke="var(--quote-border)" stroke-width="1.5" stroke-dasharray="4 3" />
+<text x="486" y="116" font-size="12" fill="currentColor" opacity="0.7">最后一次使用</text>
+<text x="0" y="184" font-size="12" fill="var(--warning-border)">② 可变 guard 还没 drop 就又借一次：区间重叠（运行期 panic）</text>
+<g font-size="12" font-family="monospace" fill="currentColor">
+<text x="0" y="206">let m = c.borrow_mut();</text>
+<text x="0" y="228">let b = c.borrow();</text>
+</g>
+<rect x="250" y="198" width="330" height="16" rx="4" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="415" y="210" font-size="12" fill="currentColor" text-anchor="middle">RefMut（活到函数末尾）</text>
+<rect x="400" y="220" width="180" height="16" rx="4" fill="none" stroke="var(--warning-border)" stroke-width="1.5" stroke-dasharray="5 3" />
+<text x="490" y="232" font-size="12" fill="var(--warning-border)" text-anchor="middle">Ref（拒绝）</text>
+<line x1="480" y1="194" x2="480" y2="242" stroke="var(--quote-border)" stroke-width="1.5" stroke-dasharray="4 3" />
+<text x="0" y="258" font-size="12" fill="var(--warning-border)">✗ 共享借用落在可变 guard 的区间内 → panic：RefCell already mutably borrowed</text>
+</svg>
+
 `Rc<RefCell<T>>` 是单线程里最常见的组合：`Rc` 提供共享，`RefCell` 提供可变。std 文档给的正是这个用法，并警告：上一个借用没先离开作用域，下一次借用就会造成 dynamic thread panic——用 `RefCell` 的主要危险。
+
+两层检查叠在同一个类型上，各管一件事：
+
+<svg viewBox="0 0 700 236" width="100%" role="img" aria-label="Rc 与 RefCell 的两层检查：Rc 的强引用计数在堆上、编译期不可见，RefCell 的借用计数在运行期决定这次借出放不放行" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">Rc&lt;RefCell&lt;T&gt;&gt; 的两层检查：一层计持有者，一层计借用者</text>
+<text x="0" y="40" font-size="12" fill="var(--links)">两层的数字都不在类型里，只有运行期才知道</text>
+<rect x="20" y="94" width="150" height="40" rx="5" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="95" y="119" font-size="12" font-family="monospace" fill="currentColor" text-anchor="middle">Rc&lt;RefCell&lt;T&gt;&gt;</text>
+<line x1="170" y1="114" x2="246" y2="114" stroke="var(--links)" stroke-width="2" />
+<polyline points="246,109 254,114 246,119" fill="none" stroke="var(--links)" stroke-width="2" />
+<rect x="254" y="52" width="426" height="160" rx="6" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="467" y="72" font-size="12" fill="currentColor" opacity="0.7" text-anchor="middle">堆上同一块分配：里面是一个 RefCell&lt;T&gt;</text>
+<rect x="268" y="82" width="192" height="56" rx="4" fill="none" stroke="var(--links)" stroke-width="1.5" />
+<text x="278" y="104" font-size="12" font-family="monospace" fill="var(--links)">strong = 2</text>
+<text x="278" y="126" font-size="12" fill="currentColor" opacity="0.7">编译期不可见</text>
+<rect x="474" y="82" width="192" height="56" rx="4" fill="none" stroke="var(--warning-border)" stroke-width="1.5" />
+<text x="484" y="104" font-size="12" font-family="monospace" fill="var(--warning-border)">borrow = 1</text>
+<text x="484" y="126" font-size="12" fill="currentColor" opacity="0.7">运行期决定放行</text>
+<rect x="268" y="148" width="398" height="50" rx="4" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="467" y="178" font-size="13" font-family="monospace" fill="currentColor" text-anchor="middle">T 的值</text>
+<text x="0" y="230" font-size="12" fill="currentColor" opacity="0.7">Rc 管谁还持有、RefCell 管此刻谁在借；冲突只会发生在第二层，也只在运行期爆发</text>
+</svg>
 
 > [!WARNING]
 > `RefCell` 的 panic 是**运行期**的：编译器不会替你挡住它，测试没跑到那条路径就看不出来。看到 `Rc<RefCell<T>>` 时先问：所有借用的作用域能一眼看清吗？看不清就别用它。
