@@ -11,5 +11,17 @@ edition = "2024"
 # SUMMARY 指向缺失文件时报错；默认 true 会静默建空文件（03 实测）
 create-missing = false
 
-# [output.html] 渲染 / 搜索 / 数学等配置按需再加。
-# [output.linkcheck2] 属 06 定义的标准校验链（需先 `cargo install mdbook-linkcheck2`）；启用后 HTML 输出会挪到 book/html/。
+[output.html]
+# 渲染 / 搜索 / 数学等配置按需再加（搜索行为见 03；MathJax 内置）。
+
+[output.linkcheck2]
+# 06 标准校验链第 4 步（`cargo install mdbook-linkcheck2`）。
+# 注意：多出这个 [output] 表后，HTML 输出会挪到 book/html/（mdbook 规则，03 实测）。
+# 只查书内链接（默认 false）：不追网络链接，离线可跑、结果确定。
+follow-web-links = false
+# 禁止链接逃出书目录（默认 false）：渲染后的 HTML 里，仓库相对路径对读者无意义。
+traverse-parent-directories = false
+# 书内链接统一写 .md（mdbook 渲染时改写为 .html）。
+require-md-extension = true
+# 断链是 error（构建失败）；一般警告只打印。
+warning-policy = "warn"
