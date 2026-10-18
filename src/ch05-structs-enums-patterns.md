@@ -41,6 +41,46 @@ struct Job {                                    enum Status {
 
 左边可以同时 `is_downloading == true` 且 `done_path != ""`；右边不可能同时是 `Downloading` 和 `Done`。规则也不多：一个值在任何时刻只属于一个变体（variant）。
 
+下图把「3 个 bool 的 8 种组合」与「enum 的 4 个变体」摆在一起：
+
+<svg viewBox="0 0 640 220" width="100%" role="img" aria-label="同一条状态：3 个 bool 有 8 种组合、其中 4 种自相矛盾，用一个四变体 enum 则非法组合构造不出来" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">同一条状态：3 个 bool 有 2³ = 8 种组合，enum Status 只有 4 个变体</text>
+<text x="0" y="40" font-size="12" fill="currentColor">3 个 bool，位序依次是 downloading、done、failed</text>
+<g font-family="monospace" font-size="13" text-anchor="middle" fill="currentColor">
+<rect x="0" y="52" width="46" height="22" rx="4" fill="none" stroke="var(--links)" stroke-width="1.5"/><text x="23" y="67">000</text>
+<rect x="0" y="82" width="46" height="22" rx="4" fill="none" stroke="var(--links)" stroke-width="1.5"/><text x="23" y="97">100</text>
+<rect x="0" y="112" width="46" height="22" rx="4" fill="none" stroke="var(--links)" stroke-width="1.5"/><text x="23" y="127">010</text>
+<rect x="0" y="142" width="46" height="22" rx="4" fill="none" stroke="var(--links)" stroke-width="1.5"/><text x="23" y="157">001</text>
+<rect x="150" y="52" width="46" height="22" rx="4" fill="none" stroke="var(--warning-border)" stroke-width="1.5" stroke-dasharray="4 3"/><text x="173" y="67">110</text>
+<rect x="150" y="82" width="46" height="22" rx="4" fill="none" stroke="var(--warning-border)" stroke-width="1.5" stroke-dasharray="4 3"/><text x="173" y="97">101</text>
+<rect x="150" y="112" width="46" height="22" rx="4" fill="none" stroke="var(--warning-border)" stroke-width="1.5" stroke-dasharray="4 3"/><text x="173" y="127">011</text>
+<rect x="150" y="142" width="46" height="22" rx="4" fill="none" stroke="var(--warning-border)" stroke-width="1.5" stroke-dasharray="4 3"/><text x="173" y="157">111</text>
+</g>
+<g font-size="12" fill="currentColor">
+<text x="56" y="67">Pending</text>
+<text x="56" y="97">Downloading</text>
+<text x="56" y="127">Done</text>
+<text x="56" y="157">Failed</text>
+<text x="206" y="67">下载中 + 完成</text>
+<text x="206" y="97">下载中 + 失败</text>
+<text x="206" y="127">完成 + 失败</text>
+<text x="206" y="157">三种同时为真</text>
+</g>
+<line x1="316" y1="34" x2="316" y2="170" stroke="var(--quote-border)" stroke-width="1.5" stroke-dasharray="4 3"/>
+<text x="336" y="40" font-size="12" fill="currentColor">enum Status：4 个变体，每个只带自己那份数据</text>
+<g font-family="monospace" font-size="13" fill="currentColor">
+<rect x="336" y="50" width="296" height="26" rx="5" fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5"/><text x="348" y="68">Pending</text>
+<rect x="336" y="80" width="296" height="26" rx="5" fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5"/><text x="348" y="98">Downloading { progress: u8 }</text>
+<rect x="336" y="110" width="296" height="26" rx="5" fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5"/><text x="348" y="128">Done { path: String }</text>
+<rect x="336" y="140" width="296" height="26" rx="5" fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5"/><text x="348" y="158">Failed { reason: String }</text>
+</g>
+<line x1="0" y1="182" x2="14" y2="182" stroke="var(--links)" stroke-width="2"/>
+<text x="20" y="186" font-size="12" fill="currentColor">合法：能构造出来</text>
+<line x1="170" y1="182" x2="184" y2="182" stroke="var(--warning-border)" stroke-width="2" stroke-dasharray="4 3"/>
+<text x="190" y="186" font-size="12" fill="currentColor">非法：同一个状态里两个都为真</text>
+<text x="0" y="210" font-size="12" fill="currentColor" opacity="0.7">左边 8 种组合里只有 4 种合法；右边的 4 个变体之外没有别的值。</text>
+</svg>
+
 ## 机制与规则
 
 ### 5.1 结构体（struct）：三种形态
@@ -117,6 +157,49 @@ println!("{n}");             // 2
 - `Self` 是「当前类型」的别名，`-> Self` 和 `-> Counter` 等价。
 
 调用 `c.into_count()`（或把 `c` 传给别的函数）之后，`c` 已被移走，再用就是第 4 章的移动报错。
+
+下图把三种接收者对原值做了什么摊开：
+
+<svg viewBox="0 0 640 228" width="100%" role="img" aria-label="self、&amp;self、&amp;mut self 三种接收者对原值分别做了什么：移动所有权、共享借用、独占可变借用" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">self 三形态：第 4 章的所有权与借用规则投影到方法上</text>
+<g stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5" fill="none">
+<rect x="0" y="32" width="176" height="44" rx="5"/>
+<rect x="0" y="90" width="176" height="44" rx="5"/>
+<rect x="0" y="148" width="176" height="44" rx="5"/>
+<rect x="298" y="32" width="342" height="44" rx="5"/>
+<rect x="298" y="90" width="342" height="44" rx="5"/>
+<rect x="298" y="148" width="342" height="44" rx="5"/>
+</g>
+<g font-family="monospace" font-size="13" text-anchor="middle" fill="currentColor">
+<text x="88" y="59">fn into_count(self)</text>
+<text x="88" y="117">fn count(&amp;self)</text>
+<text x="88" y="175">fn bump(&amp;mut self)</text>
+</g>
+<g stroke="currentColor" stroke-width="1.5">
+<line x1="182" y1="54" x2="292" y2="54"/>
+<line x1="182" y1="112" x2="292" y2="112"/>
+<line x1="182" y1="170" x2="292" y2="170"/>
+</g>
+<polygon points="294,54 286,49 286,59" fill="currentColor"/>
+<polygon points="294,112 286,107 286,117" fill="currentColor"/>
+<polygon points="294,170 286,165 286,175" fill="currentColor"/>
+<g font-size="12" fill="currentColor" opacity="0.7" text-anchor="middle">
+<text x="237" y="46">调用</text>
+<text x="237" y="104">调用</text>
+<text x="237" y="162">调用</text>
+</g>
+<g fill="var(--links)" font-size="12">
+<text x="310" y="50">移动所有权：c 被移走</text>
+<text x="310" y="108">共享借用 &amp;T：c 仍可用，只读</text>
+<text x="310" y="166">独占可变借用 &amp;mut T：c 仍可用，而且能改</text>
+</g>
+<g fill="currentColor" font-size="12">
+<text x="310" y="68">之后再用 c 就是 E0382</text>
+<text x="310" y="126">可以同时有多个 &amp;c</text>
+<text x="310" y="184">需 let mut c；调用期间不能有别的借用</text>
+</g>
+<text x="0" y="216" font-size="12" fill="currentColor" opacity="0.7">三种接收者就是三种访问方式；Self 是「当前类型」的别名，-&gt; Self 与 -&gt; Counter 等价。</text>
+</svg>
 
 ### 5.3 derive：按需索取常用能力
 
@@ -286,6 +369,51 @@ for n in [0, 7, 42, -1] {
 分支自上而下尝试，第一个命中的生效；所以 `_ if n < 0` 必须写在 `_` 前面。守卫不是模式，是模式后面附加的 `if` 条件（1.95 起守卫里也能写 `if let`）。
 
 `_` 兜底能少写很多分支，但它也是「静音键」：以后给 enum 加变体，编译器不会再提醒你这里的 `_` 吃掉了新情况。建模状态时优先把变体写全；只在确实「其余都一样」的地方用 `_`。
+
+下图把 `match` 的两件事摊开：分支自上而下怎么试、穷尽性检查在查什么。
+
+<svg viewBox="0 0 640 252" width="100%" role="img" aria-label="match 自上而下尝试分支、首个命中生效，以及编译器按变体清单做穷尽性检查、缺分支就报 E0004" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">match 的两件事：自上而下尝试（首个命中生效）与穷尽性检查</text>
+<text x="0" y="40" font-size="12" fill="currentColor">① 自上而下：从第一个分支开始试，命中之后就停</text>
+<rect x="0" y="46" width="68" height="26" rx="4" fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5"/>
+<text x="34" y="64" font-size="13" font-family="monospace" text-anchor="middle" fill="currentColor">n = 7</text>
+<g stroke="currentColor" stroke-width="1.5" fill="none">
+<line x1="68" y1="59" x2="104" y2="59"/>
+<line x1="104" y1="59" x2="104" y2="137"/>
+</g>
+<polygon points="112,59 105,55 105,63" fill="currentColor"/>
+<polygon points="112,85 105,81 105,89" fill="currentColor"/>
+<polygon points="112,111 105,107 105,115" fill="currentColor"/>
+<polygon points="112,137 105,133 105,141" fill="currentColor"/>
+<g font-family="monospace" font-size="12" fill="currentColor">
+<rect x="112" y="48" width="190" height="22" rx="4" fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5"/><text x="122" y="63">0 =&gt;</text>
+<rect x="112" y="74" width="190" height="22" rx="4" fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5"/><text x="122" y="89">p @ 1..=9 =&gt;</text>
+<rect x="112" y="100" width="190" height="22" rx="4" fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5"/><text x="122" y="115">_ if n &lt; 0 =&gt;</text>
+<rect x="112" y="126" width="190" height="22" rx="4" fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5"/><text x="122" y="141">_ =&gt;</text>
+</g>
+<g font-size="12" fill="currentColor" opacity="0.6">
+<text x="312" y="63">未命中，继续往下</text>
+<text x="312" y="115">不再尝试</text>
+<text x="312" y="141">不再尝试</text>
+</g>
+<text x="312" y="89" font-size="12" fill="var(--links)">✓ 生效：后面的分支不再尝试</text>
+<line x1="0" y1="164" x2="640" y2="164" stroke="var(--quote-border)" stroke-width="1.5" stroke-dasharray="4 3"/>
+<text x="0" y="186" font-size="12" fill="currentColor">② 穷尽性检查：编译器知道 enum 的全部变体，每个变体都要有分支接住</text>
+<g font-family="monospace" font-size="12" fill="currentColor">
+<rect x="0" y="196" width="148" height="26" rx="5" fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5"/><text x="12" y="214">Pending</text>
+<rect x="158" y="196" width="148" height="26" rx="5" fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5"/><text x="170" y="214">Downloading</text>
+<rect x="474" y="196" width="148" height="26" rx="5" fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5"/><text x="486" y="214">Failed</text>
+</g>
+<g font-size="12" fill="currentColor" opacity="0.6" text-anchor="end">
+<text x="136" y="214">✓</text>
+<text x="294" y="214">✓</text>
+<text x="610" y="214">✓</text>
+</g>
+<rect x="316" y="196" width="148" height="26" rx="5" fill="none" stroke="var(--warning-border)" stroke-width="1.5" stroke-dasharray="4 3"/>
+<text x="328" y="214" font-family="monospace" font-size="12" fill="var(--warning-border)">Done</text>
+<text x="452" y="214" font-size="12" fill="var(--warning-border)" text-anchor="end">✗</text>
+<text x="316" y="242" font-size="12" fill="var(--warning-border)">缺一个变体 → error[E0004]: non-exhaustive patterns</text>
+</svg>
 
 ### 5.7 模式（pattern）能写什么
 

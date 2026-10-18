@@ -89,6 +89,37 @@ help: ……                            <- ⑦ 建议，可能是可直接照抄
 
 编译器其实在说一句话：「你把 `&str` 放进声明为 `i32` 的变量里了，而这个变量的类型就在这一行」。习惯性地把两个 span 拼成一句话，大部分报错就不用猜了。
 
+下图把这条诊断摊开——七个部位各归各位：
+
+<svg viewBox="0 0 660 226" width="100%" role="img" aria-label="E0308 诊断的解剖：级别与错误代码、位置、源码行、主 span、次级 span、note、help 七个部位" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">一条诊断的骨架：消息 → 位置（span）→ 上下文（note）→ 建议（help）</text>
+<rect x="8" y="26" width="410" height="174" rx="4" fill="none" stroke="var(--quote-border)" stroke-width="1.5" />
+<g font-family="monospace" font-size="12" fill="currentColor" xml:space="preserve" style="white-space:pre">
+<text x="18" y="46">error[E0308]: mismatched types</text>
+<text x="18" y="66">  --&gt; main.rs:2:18</text>
+<text x="18" y="86">2 |     let n: i32 = "42";</text>
+<text x="18" y="106">  |            ---   ^^^^ expected `i32`, found `&amp;str`</text>
+<text x="18" y="126">  |            |</text>
+<text x="18" y="146">  |            expected due to this</text>
+<text x="18" y="166">  = note: ……</text>
+<text x="18" y="186">help: ……</text>
+</g>
+<g stroke="var(--quote-border)" stroke-width="1.5">
+<line x1="424" y1="42" x2="438" y2="42" /><line x1="424" y1="62" x2="438" y2="62" /><line x1="424" y1="82" x2="438" y2="82" /><line x1="424" y1="102" x2="438" y2="102" /><line x1="424" y1="122" x2="438" y2="122" /><line x1="424" y1="142" x2="438" y2="142" /><line x1="424" y1="162" x2="438" y2="162" /><line x1="424" y1="182" x2="438" y2="182" />
+</g>
+<g font-size="12" fill="currentColor">
+<text x="444" y="46">① 级别 + 错误代码 + 结论</text>
+<text x="444" y="66">② 位置：文件:行:列</text>
+<text x="444" y="86">③ 相关源码行</text>
+<text x="444" y="106">④ 主 span（^^^^）与它的标签</text>
+<text x="444" y="126">⑤ 次级 span（---）与它的标签</text>
+<text x="444" y="146">　　（为什么这里会错）</text>
+<text x="444" y="166">⑥ note：编译器补的事实</text>
+<text x="444" y="186">⑦ help：能照抄的建议或 diff</text>
+</g>
+<text x="0" y="218" font-size="12" fill="currentColor" opacity="0.7">主 span 说「在哪儿」，次级 span 说「为什么」——两个合起来读</text>
+</svg>
+
 头部的错误代码不是装饰：`rustc --explain E0308` 会打印这个错误的完整解释和例子，末尾那行提示就是在告诉你这件事。
 
 ### warning 与 error
@@ -198,6 +229,31 @@ error: aborting due to 2 previous errors
 3. **看上下文与建议**：`= note:` 补了什么事实？`help:` 给了什么改法？有 diff 就照抄。
 4. **缩到最小复现**：一眼看不出来，就把程序削到只剩出错的部分（见下一节）。
 5. **修完复验**：重新编译。报错消失才算修好，别靠感觉。
+
+下图把这五步串成一条循环——每轮只修一条，然后回到第 ① 步：
+
+<svg viewBox="0 0 660 172" width="100%" role="img" aria-label="五步读报错流程：读第一行、看位置、看 note 与 help、缩到最小复现、修完复验，还有错就回到第一步" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">五步读报错：每轮只修一条，改完重编</text>
+<g fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5">
+<rect x="12" y="40" width="108" height="56" rx="4" /><rect x="144" y="40" width="108" height="56" rx="4" /><rect x="276" y="40" width="108" height="56" rx="4" /><rect x="408" y="40" width="108" height="56" rx="4" /><rect x="540" y="40" width="108" height="56" rx="4" />
+</g>
+<g font-size="12" fill="currentColor" text-anchor="middle">
+<text x="66" y="64">① 读第一行</text><text x="66" y="82">级别 + 结论</text>
+<text x="198" y="64">② 看位置</text><text x="198" y="82">文件:行:列</text>
+<text x="330" y="64">③ 看上下文</text><text x="330" y="82">note + help</text>
+<text x="462" y="64">④ 缩到最小</text><text x="462" y="82">删掉无关代码</text>
+<text x="594" y="64">⑤ 修完复验</text><text x="594" y="82">重新编译</text>
+</g>
+<g stroke="var(--links)" stroke-width="1.5" fill="var(--links)">
+<line x1="122" y1="68" x2="136" y2="68" /><polygon points="136,63 143,68 136,73" />
+<line x1="254" y1="68" x2="268" y2="68" /><polygon points="268,63 275,68 268,73" />
+<line x1="386" y1="68" x2="400" y2="68" /><polygon points="400,63 407,68 400,73" />
+<line x1="518" y1="68" x2="532" y2="68" /><polygon points="532,63 539,68 532,73" />
+</g>
+<polyline points="594,96 594,124 66,124 66,102" fill="none" stroke="var(--links)" stroke-width="1.5" />
+<polygon points="61,110 66,101 71,110" fill="var(--links)" />
+<text x="330" y="146" font-size="12" fill="var(--links)" text-anchor="middle">还有错 → 回到第 ① 步：一次只修一条，改完就重编</text>
+</svg>
 
 ### 最小复现：从 8 行到 5 行
 
@@ -421,6 +477,35 @@ help: consider cloning the value if the performance cost is acceptable
 
 为什么：`String` 这类类型没有实现 `Copy`。所以 `let t = s;` 不是「复制一份」，而是把 `s` 的值**移动**给了 `t`；移动之后 `s` 不再有效，第 4 行再读它就是错的。那句 `move occurs because `s` has type `String`, which does not implement the `Copy` trait` 注解，就是在交代这条错误的病因。
 
+下图把这次移动摆到时间轴上——`s` 的有效区间在第 3 行被切断：
+
+<svg viewBox="0 0 640 200" width="100%" role="img" aria-label="E0382 的时序：s 的有效区间到第 3 行的移动为止，第 4 行再读 s 即报错" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">E0382 的时序：移动在第 3 行切断 s 的有效区间</text>
+<g fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5">
+<rect x="140" y="44" width="210" height="22" rx="4" />
+<rect x="350" y="92" width="230" height="22" rx="4" />
+</g>
+<g font-size="12" fill="currentColor" font-family="monospace">
+<text x="245" y="59" text-anchor="middle">String::from("hi")</text>
+<text x="465" y="107" text-anchor="middle">t: String</text>
+</g>
+<g font-size="12" fill="currentColor">
+<text x="0" y="59">s（行 2 建）</text>
+<text x="0" y="107">t（行 3 起）</text>
+</g>
+<line x1="350" y1="36" x2="350" y2="114" stroke="var(--links)" stroke-width="2" />
+<text x="350" y="32" font-size="12" fill="var(--links)" text-anchor="middle">移动：let t = s;</text>
+<line x1="540" y1="30" x2="540" y2="150" stroke="var(--warning-border)" stroke-width="2" stroke-dasharray="4 3" />
+<line x1="140" y1="140" x2="600" y2="140" stroke="currentColor" stroke-opacity="0.45" stroke-width="1.5" />
+<g stroke="currentColor" stroke-opacity="0.45" stroke-width="1.5">
+<line x1="140" y1="140" x2="140" y2="148" /><line x1="350" y1="140" x2="350" y2="148" /><line x1="540" y1="140" x2="540" y2="148" />
+</g>
+<g font-size="12" fill="currentColor" text-anchor="middle">
+<text x="140" y="164">行 2</text><text x="350" y="164">行 3</text><text x="540" y="164">行 4</text>
+</g>
+<text x="0" y="188" font-size="12" fill="var(--warning-border)">✗ 第 4 行再读 s：值已在第 3 行移动给 t，s 不再有效</text>
+</svg>
+
 修法取决于你想要什么：
 
 ```rust
@@ -463,6 +548,37 @@ error[E0502]: cannot borrow `v` as mutable because it is also borrowed as immuta
 ```
 
 为什么：第 3 行的 `&v[0]` 是共享借用（`&`），第 4 行的 `push` 需要可变借用（`&mut`）。规则是：同一时刻，共享借用可以有多个，可变借用只能有一个，且不能与共享借用共存。这条规则由借用检查器（borrow checker）在编译期执行。三条 span 组成一条完整证据链——共享借用在此发生、可变借用在此发生、共享借用**此后还要用**；最后一条是关键，没有它就不算冲突。
+
+下图把这条证据链摆到时间轴上：
+
+<svg viewBox="0 0 640 218" width="100%" role="img" aria-label="E0502 的时间轴：共享借用从第 3 行活到第 5 行，第 4 行的可变借用落在它的区间内" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">E0502 的时序：共享借用活到第 5 行，可变借用插在中间</text>
+<rect x="350" y="30" width="190" height="86" fill="var(--warning-border)" fill-opacity="0.1" />
+<g fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5">
+<rect x="140" y="44" width="400" height="22" rx="4" />
+<rect x="350" y="92" width="92" height="22" rx="4" />
+</g>
+<g font-size="12" fill="currentColor" font-family="monospace">
+<text x="340" y="59" text-anchor="middle">let first = &amp;v[0];</text>
+<text x="396" y="107" text-anchor="middle">v.push(4)</text>
+</g>
+<g font-size="12" fill="currentColor">
+<text x="0" y="59">共享借用</text>
+<text x="0" y="107">可变借用</text>
+</g>
+<line x1="540" y1="26" x2="540" y2="150" stroke="var(--warning-border)" stroke-width="2" stroke-dasharray="4 3" />
+<line x1="140" y1="140" x2="600" y2="140" stroke="currentColor" stroke-opacity="0.45" stroke-width="1.5" />
+<g stroke="currentColor" stroke-opacity="0.45" stroke-width="1.5">
+<line x1="140" y1="140" x2="140" y2="148" /><line x1="350" y1="140" x2="350" y2="148" /><line x1="540" y1="140" x2="540" y2="148" />
+</g>
+<g font-size="12" fill="currentColor" text-anchor="middle">
+<text x="140" y="164">行 3</text><text x="350" y="164">行 4</text><text x="540" y="164">行 5</text>
+</g>
+<g font-size="12" fill="var(--warning-border)">
+<text x="0" y="190">✗ 第 4 行的可变借用落在第 3 行共享借用的存活区间里</text>
+<text x="0" y="208">第 5 行还要用 first，所以第 3 行的借用不能提前结束</text>
+</g>
+</svg>
 
 注意这条错误**没有 `help`**：编译器也不确定你想做什么，只能把事实摆出来（第 4 章会把这条规则和它的理由讲全）。修法：调整顺序，让两个借用不重叠：
 

@@ -194,6 +194,39 @@ fn main() {
 
 两条硬规则：两个分支必须是同一个类型（否则 E0308，见「报错现场」②）；没有 `else` 的 `if` 值是 `()`，所以 `let x: i32 = if c { 1 };` 报 E0317。分支超过两三种、或者要按「值的形状」分支时，用 `match`——它同样是表达式（第 5 章）。
 
+下图把块、`if`、赋值三种写法的值并排摊开：
+
+<svg viewBox="0 0 640 240" width="100%" role="img" aria-label="块、if、赋值三种写法各自的值：只有不带分号的尾表达式留下来" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">块、if、赋值各自交出什么值：只有不带分号的尾表达式留下来</text>
+<text x="12" y="42" font-size="12" fill="currentColor" opacity="0.7">写法</text>
+<text x="300" y="42" font-size="12" fill="currentColor" opacity="0.7">它的值</text>
+<text x="390" y="42" font-size="12" fill="currentColor" opacity="0.7">为什么</text>
+<g stroke="currentColor" stroke-opacity="0.35" fill="none">
+<rect x="8" y="52" width="624" height="40" rx="6" />
+<rect x="8" y="100" width="624" height="40" rx="6" />
+<rect x="8" y="148" width="624" height="40" rx="6" />
+<rect x="8" y="196" width="624" height="40" rx="6" />
+</g>
+<g font-size="13" font-family="monospace" fill="currentColor">
+<text x="20" y="77">{ 1 + 1 }</text>
+<text x="20" y="125">{ 1 + 1; }</text>
+<text x="20" y="173">if c { 1 } else { 2 }</text>
+<text x="20" y="221">x = 5</text>
+</g>
+<g font-size="13" font-family="monospace">
+<text x="300" y="77" fill="var(--links)">2</text>
+<text x="300" y="125" fill="var(--warning-border)">()</text>
+<text x="300" y="173" fill="var(--links)">1 或 2</text>
+<text x="300" y="221" fill="var(--warning-border)">()</text>
+</g>
+<g font-size="12" fill="currentColor" opacity="0.85">
+<text x="390" y="77">尾表达式 1 + 1 就是块的值</text>
+<text x="390" y="125">分号丢值，另附 unused 警告</text>
+<text x="390" y="173">两臂同类型，选中哪臂就是哪臂的值</text>
+<text x="390" y="221">赋值与 += 的值都是 ()</text>
+</g>
+</svg>
+
 ### 函数：尾表达式与 `return`
 
 ```rust
@@ -459,6 +492,38 @@ fn main() {
 127
 None
 ```
+
+下图把这三条路并排摊开 —— 编译期拦下、debug panic、release 环绕：
+
+<svg viewBox="0 0 640 272" width="100%" role="img" aria-label="整数溢出的三条出路：编译期常量折叠被 lint 拦下、debug 构建 panic、release 构建按补码环绕" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">一次整数溢出走哪条路：编译期能算出来就先拦下，否则看构建 profile</text>
+<rect x="8" y="104" width="150" height="56" rx="6" fill="none" stroke="currentColor" stroke-opacity="0.5" />
+<text x="83" y="127" font-size="13" text-anchor="middle" fill="currentColor">整数溢出</text>
+<text x="83" y="147" font-size="12" text-anchor="middle" font-family="monospace" fill="currentColor" opacity="0.8">a + b 超出范围</text>
+<g stroke="currentColor" stroke-opacity="0.6" stroke-width="1.5">
+<line x1="158" y1="132" x2="196" y2="132" />
+<line x1="196" y1="52" x2="196" y2="212" />
+<line x1="196" y1="52" x2="232" y2="52" />
+<line x1="196" y1="132" x2="232" y2="132" />
+<line x1="196" y1="212" x2="232" y2="212" />
+</g>
+<g fill="none" stroke="currentColor" stroke-opacity="0.5">
+<rect x="236" y="20" width="396" height="64" rx="6" />
+<rect x="236" y="100" width="396" height="64" rx="6" />
+<rect x="236" y="180" width="396" height="64" rx="6" />
+</g>
+<g font-size="13" fill="currentColor">
+<text x="248" y="43">编译期就能算出（常量折叠）</text>
+<text x="248" y="123">运行期 + debug（dev profile）</text>
+<text x="248" y="203">运行期 + release（release profile）</text>
+</g>
+<g font-size="12">
+<text x="248" y="64" fill="var(--warning-border)">arithmetic_overflow lint（默认 deny）→ 编译失败</text>
+<text x="248" y="144" fill="var(--warning-border)">overflow-checks 开 → panic（退出码 101）</text>
+<text x="248" y="224" fill="currentColor" opacity="0.85">overflow-checks 关 → 按补码环绕：127 + 1 = -128</text>
+</g>
+<text x="0" y="262" font-size="12" fill="currentColor" opacity="0.7">想写死语义就用 wrapping_add / saturating_add / checked_add —— 别赌 profile 配置</text>
+</svg>
 
 ### ④ 类型不匹配：数值类型之间没有隐式转换
 

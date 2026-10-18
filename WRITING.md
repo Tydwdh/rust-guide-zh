@@ -137,7 +137,7 @@ mdbook build
 - **独占写**：本票的章文件、`snippets/chNN/`、本票文件 `.scratch/rust-guide/issues/NN-*.md`。
 - **禁写（只读）**：`src/SUMMARY.md`、`book.toml`、`WRITING.md`、`GLOSSARY.md`、`README.md`、地图与其他票 —— 防止同文件互相覆盖；术语新词在票里回报，协调者统一并表。
 - **禁止** `git`（协调者统一提交）；**禁止** `mdbook build` / `mdbook serve`（`book/` 竞态）；自验只用 `mdbook test -c <本章>`。
-- 运行输出必须真跑真粘；探针与临时编译放 `.scratch/tmp-<票号>/`（已 gitignore），收尾删除。
+- 运行输出必须真跑真粘；探针与临时编译放 `.scratch/tmp-<票号>/`（已 gitignore），收尾删除 —— **一张票有多个代理时加章号区分**（如 `.scratch/tmp-f22-ch07/`；共享同一目录会互相覆盖，实测踩过）。
 - 只写本章范围；指向别章写一句「（第 N 章展开）」。
 - 收尾：票 `Status:` 置 `claimed`；追加 `## Comments` 一条（文件 / 自验命令与结果 / 实测过的输出清单 / 遗留不确定 / 新增术语 / 衔接提示 / 图示需求）。**不写** `## Answer`、**不置** `resolved`。
 
@@ -153,6 +153,7 @@ mdbook build
 - **颜色只用主题变量**：`currentColor`（线/字）、`var(--links)`（强调）、`var(--warning-border)`（错误/警告）、`var(--quote-border)`（次要线）。**不写死颜色**（换主题会看不清）。
 - **字号**：正文标注 12–14，图题 14；`font-family="monospace"` 用于代码样文本。
 - **无障碍**：`role="img"` + `aria-label="一句话说清这张图要说明什么"`。
-- **风格**：线宽 1.5–2、圆角 `rx` 4–6、不用渐变/阴影/装饰；图内文字中文、标识符英文原样（`&str`、`capacity`）。
+- **风格**：线宽 1.5–2、圆角 `rx` 4–6、不用渐变/阴影/装饰；图内文字中文、标识符英文原样（`&str`、`capacity`）—— 但 **`&`、`<`、`>` 在图上要写成 `&amp;`、`&lt;`、`&gt;`**（HTML 实体；裸 `&` 在 `aria-label` 与 `<text>` 里都是隐患）。
+- **列对齐文本要加 `xml:space="preserve"`**：复刻工具输出（报错里的 `^^^`、`|` 栏目、`---` 分隔）时，SVG 默认会折叠连续空格、列会错位 —— 给对应 `<text>`/`<g>` 加 `xml:space="preserve"`（第 2 章实测踩过）。
 - 图前后各留一个空行；不写图注编号，正文用一句话引出（「下图把……摊开：」）。
 - 插入后自查：`mdbook test -c <章>` 仍绿（图不参与代码测试，但要确认没碰坏栅栏）；HTML 渲染由协调者在收尾 build 统一确认。

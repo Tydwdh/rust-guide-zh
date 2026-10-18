@@ -45,6 +45,37 @@ mod tests {
 - `#[cfg(test)]` 是条件编译（第 2 章见过 `cfg`）：只有跑 `cargo test` 时这个模块才被编译，`cargo build` 会把它整个删掉。所以测试既不拖慢正式构建，也不会进入发布产物。
 - `use super::*;` 把被测模块里的东西引进测试模块。`tests` 是 `count_words` 所在模块的子模块，`super` 就指父模块（模块系统见第 8 章）。
 
+下图对比同一个 `src/lib.rs` 在两条命令下的编译结果：
+
+<svg viewBox="0 0 660 232" width="100%" role="img" aria-label="同一份 src/lib.rs 在 cargo build 下丢掉 cfg(test) 模块，在 cargo test 下把该模块编译并注册进测试运行器" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">同一份 src/lib.rs，两条命令编出不同的东西</text>
+<g text-anchor="middle">
+<text x="165" y="44" font-size="13" font-family="monospace" fill="var(--links)">cargo build</text>
+<text x="165" y="62" font-size="12" fill="currentColor">test 配置关闭</text>
+<text x="495" y="44" font-size="13" font-family="monospace" fill="var(--links)">cargo test</text>
+<text x="495" y="62" font-size="12" fill="currentColor">test 配置打开</text>
+</g>
+<line x1="330" y1="28" x2="330" y2="206" stroke="var(--quote-border)" stroke-width="1.5" stroke-dasharray="4 3" />
+<g fill="none">
+<rect x="25" y="72" width="280" height="44" rx="5" stroke="currentColor" stroke-opacity="0.55" />
+<rect x="25" y="128" width="280" height="46" rx="5" stroke="var(--quote-border)" />
+<rect x="355" y="72" width="280" height="44" rx="5" stroke="currentColor" stroke-opacity="0.55" />
+<rect x="355" y="128" width="280" height="46" rx="5" stroke="currentColor" stroke-opacity="0.55" />
+</g>
+<g font-size="12" text-anchor="middle">
+<text x="165" y="92" font-family="monospace" fill="currentColor">pub fn count_words(…)</text>
+<text x="165" y="109" fill="currentColor">普通代码，照常编译进库产物</text>
+<text x="165" y="149" font-family="monospace" fill="var(--quote-border)">#[cfg(test)] mod tests {…}</text>
+<text x="165" y="166" fill="var(--quote-border)">整块不编译，不进库产物</text>
+<text x="495" y="92" font-family="monospace" fill="currentColor">pub fn count_words(…)</text>
+<text x="495" y="109" fill="currentColor">普通代码，照常编译进库产物</text>
+<text x="495" y="149" font-family="monospace" fill="var(--links)">#[cfg(test)] mod tests {…}</text>
+<text x="495" y="166" fill="var(--links)">编译并注册进测试运行器</text>
+</g>
+<text x="0" y="198" font-size="12" fill="currentColor">cfg(test) 是条件编译：只有 cargo test 打开 test 配置，这个模块才参与编译。</text>
+<text x="0" y="218" font-size="12" fill="currentColor">所以测试既不拖慢正式构建，也不会进入发布产物。</text>
+</svg>
+
 ### 断言宏
 
 主力是三个宏：
@@ -151,6 +182,37 @@ test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 ```
 
 这行从左到右就是你的体检报告：通过几个、失败几个、被忽略（`#[ignore]`）几个、被过滤掉几个。**关键规则**：任何一段失败，它后面的段就不跑了——所以单元测试一片红时，看不到集成测试的结果是正常的，先把单元测试修绿。
+
+下图把这三段目标摊开，看清每段各自来自哪里、按什么顺序跑：
+
+<svg viewBox="0 0 680 212" width="100%" role="img" aria-label="cargo test 依次运行单元测试、集成测试、文档测试三段目标，任一段失败后面的段就不跑" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">cargo test 依次跑三段目标，每段的来源不同</text>
+<g fill="none" stroke="currentColor" stroke-opacity="0.55">
+<rect x="10" y="38" width="190" height="92" rx="5" />
+<rect x="245" y="38" width="190" height="92" rx="5" />
+<rect x="480" y="38" width="190" height="92" rx="5" />
+</g>
+<g font-size="12" text-anchor="middle" fill="currentColor">
+<text x="105" y="60" font-size="13" fill="var(--links)">① 单元测试</text>
+<text x="105" y="82" font-family="monospace">#[cfg(test)] mod tests</text>
+<text x="105" y="100">与代码同文件</text>
+<text x="105" y="118">能测私有项</text>
+<text x="340" y="60" font-size="13" fill="var(--links)">② 集成测试</text>
+<text x="340" y="82" font-family="monospace">tests/</text>
+<text x="340" y="100">每个文件是独立 crate</text>
+<text x="340" y="118">只能碰公开 API</text>
+<text x="575" y="60" font-size="13" fill="var(--links)">③ 文档测试</text>
+<text x="575" y="82" font-family="monospace">///</text>
+<text x="575" y="100">从文档注释抽出代码块</text>
+<text x="575" y="118">Doc-tests</text>
+</g>
+<g stroke="var(--links)" stroke-width="2" fill="var(--links)">
+<line x1="204" y1="84" x2="237" y2="84" /><polygon points="237,79 245,84 237,89" />
+<line x1="439" y1="84" x2="472" y2="84" /><polygon points="472,79 480,84 472,89" />
+</g>
+<text x="0" y="156" font-size="12" fill="currentColor">每段都以一行 test result: … 汇总收尾。</text>
+<text x="0" y="180" font-size="12" fill="var(--warning-border)">✗ 任何一段失败，它后面的段就不跑——单元测试全红时看不到集成测试结果。</text>
+</svg>
 
 常用的三个开关：
 
@@ -298,6 +360,42 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 ```
 
 回看整条路径：**复现**（跑出失败）→ **最小化**（失败名的输入就是最小例子）→ **假设**（按单个空格拆是错的）→ **验证**（换 `split_whitespace` 后全绿）。这条路后面每章都会用到，尤其是第 16、22 章那种和借用检查器、`Pin` 较劲的地方。
+
+下图把这个循环摊开，并标上刚才这个 bug 在每一步的样子：
+
+<svg viewBox="0 0 680 244" width="100%" role="img" aria-label="复现、最小化、假设、验证四步循环，每轮只改一处再重跑，验证不过就回到假设" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">从失败走到修复的循环：复现 → 最小化 → 假设 → 验证</text>
+<g fill="none" stroke="currentColor" stroke-opacity="0.55">
+<rect x="20" y="32" width="230" height="66" rx="5" />
+<rect x="430" y="32" width="230" height="66" rx="5" />
+<rect x="20" y="150" width="230" height="66" rx="5" />
+<rect x="430" y="150" width="230" height="66" rx="5" />
+</g>
+<g text-anchor="middle" fill="currentColor">
+<text x="135" y="56" font-size="13" fill="var(--links)">① 复现</text>
+<text x="135" y="76" font-size="12">跑 cargo test 拿到两条 FAILED</text>
+<text x="135" y="92" font-size="12" opacity="0.7">输入固定，可以反复重来</text>
+<text x="545" y="56" font-size="13" fill="var(--links)">② 最小化</text>
+<text x="545" y="76" font-size="12">空串、连续空格两个边界输入</text>
+<text x="545" y="92" font-size="12" opacity="0.7">失败名里的输入就是最小例子</text>
+<text x="545" y="174" font-size="13" fill="var(--links)">③ 假设</text>
+<text x="545" y="194" font-size="12">按单个空格拆分是错的</text>
+<text x="545" y="210" font-size="12" opacity="0.7">可证伪，每轮只改一处</text>
+<text x="135" y="174" font-size="13" fill="var(--links)">④ 验证</text>
+<text x="135" y="194" font-size="12">换成 split_whitespace</text>
+<text x="135" y="210" font-size="12" opacity="0.7">重跑，三段目标全绿</text>
+</g>
+<g stroke="var(--links)" stroke-width="2" fill="var(--links)">
+<line x1="252" y1="55" x2="422" y2="55" /><polygon points="422,50 430,55 422,60" />
+<line x1="545" y1="100" x2="545" y2="142" /><polygon points="540,142 545,150 550,142" />
+<line x1="428" y1="175" x2="258" y2="175" /><polygon points="258,170 250,175 258,180" />
+<line x1="135" y1="148" x2="135" y2="106" /><polygon points="130,106 135,98 140,106" />
+</g>
+<g text-anchor="middle" fill="currentColor">
+<text x="340" y="112" font-size="12">一轮只改一处，跑完再定下一步</text>
+<text x="340" y="130" font-size="12" opacity="0.7">验证不过就回到假设</text>
+</g>
+</svg>
 
 顺带一提，用子串过滤只跑想看的测试也很快，名字同时匹配单元与集成测试：
 

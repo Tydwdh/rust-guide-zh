@@ -70,6 +70,33 @@ panic = "abort"
 
 展开更安全（保证清理能跑），abort 的二进制更小、崩溃更快；选择理由属于工程策略（第 40 章展开）。本书全部示例用默认的展开。
 
+下图把这两条路径并排摊开 —— 差别只在「回退时跑不跑 `Drop`」：
+
+<svg viewBox="0 0 640 200" width="100%" role="img" aria-label="panic 的两条路径对比：默认的展开逐帧运行 Drop 后退出，abort 直接终止进程不做清理" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="18" font-size="14" fill="currentColor">panic 之后的两条路：清理后退出，或直接终止</text>
+<line x1="316" y1="32" x2="316" y2="190" stroke="var(--quote-border)" stroke-width="1.5"/>
+<text x="8" y="46" font-size="13" fill="var(--links)">展开（unwind，默认）</text>
+<g font-size="12" font-family="monospace" fill="currentColor" text-anchor="middle">
+<rect x="16" y="54" width="104" height="24" rx="4" fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5"/><text x="68" y="70">g()</text>
+<rect x="16" y="82" width="104" height="24" rx="4" fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5"/><text x="68" y="98">f()</text>
+<rect x="16" y="110" width="104" height="24" rx="4" fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5"/><text x="68" y="126">main()</text>
+</g>
+<line x1="190" y1="118" x2="190" y2="64" stroke="var(--links)" stroke-width="2"/>
+<polygon points="186,64 194,64 190,54" fill="var(--links)"/>
+<text x="200" y="92" font-size="12" fill="var(--links)">逐帧回退</text>
+<text x="200" y="112" font-size="12" fill="currentColor">每帧跑 Drop</text>
+<text x="16" y="162" font-size="12" fill="currentColor">清理各帧的局部值，再退出（状态码 101）</text>
+<text x="336" y="46" font-size="13" fill="var(--warning-border)">直接终止（abort，需显式选择）</text>
+<rect x="336" y="54" width="104" height="24" rx="4" fill="none" stroke="var(--warning-border)" stroke-width="1.5"/>
+<text x="388" y="70" font-size="12" font-family="monospace" fill="currentColor" text-anchor="middle">panic!</text>
+<line x1="388" y1="78" x2="388" y2="100" stroke="var(--warning-border)" stroke-width="2"/>
+<polygon points="384,100 392,100 388,108" fill="var(--warning-border)"/>
+<rect x="336" y="108" width="150" height="24" rx="4" fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5"/>
+<text x="411" y="124" font-size="12" fill="currentColor" text-anchor="middle">立即终止进程</text>
+<text x="336" y="156" font-size="12" fill="var(--warning-border)">不跑 Drop，内存交还操作系统</text>
+<text x="336" y="180" font-size="12" fill="currentColor">Cargo.toml: panic = "abort"</text>
+</svg>
+
 panic 的终端输出长这样（下例是对 `None` 调 `unwrap` 的实测输出）：
 
 ```text
@@ -154,6 +181,34 @@ match foo() {
     Err(e) => return Err(From::from(e)),   // 提前返回，顺便把错误类型转成当前函数的 E
 }
 ```
+
+下图把这两条出口摊开 —— `Ok` 的出口继续往下走，`Err` 的出口先转换再 `return`：
+
+<svg viewBox="0 0 640 250" width="100%" role="img" aria-label="? 运算符的两条出口：Ok 时取出值继续执行，Err 时经 From 转换后提前 return，由同一行代码决定" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="18" font-size="14" fill="currentColor">? 运算符的两条出口：取值继续，或转换后提前 return</text>
+<rect x="8" y="96" width="136" height="40" rx="5" fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5"/>
+<text x="76" y="112" font-size="13" font-family="monospace" fill="currentColor" text-anchor="middle">foo()?</text>
+<text x="76" y="128" font-size="12" fill="currentColor" text-anchor="middle">得到 Result&lt;T, E&gt;</text>
+<line x1="144" y1="116" x2="204" y2="116" stroke="currentColor" stroke-width="1.5"/>
+<polygon points="204,110 204,122 212,116" fill="currentColor"/>
+<polygon points="250,88 294,116 250,144 206,116" fill="none" stroke="var(--links)" stroke-width="2"/>
+<text x="250" y="121" font-size="13" fill="var(--links)" text-anchor="middle">Ok?</text>
+<polyline points="250,88 250,56 372,56" fill="none" stroke="var(--links)" stroke-width="2"/>
+<polygon points="372,50 372,62 380,56" fill="var(--links)"/>
+<text x="288" y="48" font-size="12" fill="var(--links)">Ok(v)</text>
+<rect x="380" y="38" width="250" height="36" rx="5" fill="none" stroke="var(--links)" stroke-width="1.5"/>
+<text x="505" y="61" font-size="12" fill="currentColor" text-anchor="middle">取出 v，继续往下执行</text>
+<polyline points="250,144 250,176 372,176" fill="none" stroke="var(--warning-border)" stroke-width="2"/>
+<polygon points="372,170 372,182 380,176" fill="var(--warning-border)"/>
+<text x="262" y="168" font-size="12" fill="var(--warning-border)">Err(e)</text>
+<rect x="380" y="152" width="250" height="36" rx="5" fill="none" stroke="var(--warning-border)" stroke-width="1.5"/>
+<text x="505" y="175" font-size="12" fill="currentColor" text-anchor="middle">From::from(e)：转成当前函数的 E</text>
+<line x1="505" y1="188" x2="505" y2="202" stroke="var(--warning-border)" stroke-width="2"/>
+<polygon points="499,202 511,202 505,210" fill="var(--warning-border)"/>
+<rect x="380" y="210" width="250" height="36" rx="5" fill="none" stroke="var(--warning-border)" stroke-width="1.5"/>
+<text x="505" y="233" font-size="12" fill="currentColor" text-anchor="middle">return Err(..)：失败交给调用者</text>
+<text x="8" y="200" font-size="12" fill="currentColor" opacity="0.7">两条出口都正常离开作用域，值照常 Drop</text>
+</svg>
 
 注意 `?` 只负责「`Ok` 就取值、`Err` 就提前返回」，**不负责清理**——无论 `?` 还是 `panic` 离开作用域，值都会正常 `Drop`。
 
@@ -283,13 +338,28 @@ fn parse_port(s: &str) -> Result<u16, ConfigError> {
 # fn main() {}
 ```
 
-错误链最后长这样：
+错误链最后长这样 —— 下图把这条链摊开，箭头是 `source()` 的指向，从外层错误一路问到根因：
 
-```text
-main 返回的 Err
-  └─ ConfigError::BadNumber        Display: 端口不是合法数字
-       └─ ParseIntError            source(): invalid digit found in string
-```
+<svg viewBox="0 0 640 210" width="100%" role="img" aria-label="错误链示意：source() 从最外层错误逐层指向根因，Display 只渲染外层一句话，不重复底层细节" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="18" font-size="14" fill="currentColor">错误链：source() 从外层错误一路指向根因</text>
+<rect x="8" y="38" width="220" height="34" rx="5" fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5"/>
+<text x="118" y="60" font-size="12" fill="currentColor" text-anchor="middle">main 返回的 Err（最外层）</text>
+<rect x="8" y="96" width="220" height="34" rx="5" fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5"/>
+<text x="118" y="118" font-size="12" font-family="monospace" fill="currentColor" text-anchor="middle">ConfigError::BadNumber</text>
+<rect x="8" y="154" width="220" height="34" rx="5" fill="none" stroke="var(--warning-border)" stroke-width="1.5"/>
+<text x="118" y="176" font-size="12" font-family="monospace" fill="currentColor" text-anchor="middle">ParseIntError（根因）</text>
+<line x1="30" y1="72" x2="30" y2="88" stroke="var(--links)" stroke-width="2"/>
+<polygon points="24,88 36,88 30,96" fill="var(--links)"/>
+<text x="44" y="88" font-size="12" fill="var(--links)">source()</text>
+<line x1="30" y1="130" x2="30" y2="146" stroke="var(--links)" stroke-width="2"/>
+<polygon points="24,146 36,146 30,154" fill="var(--links)"/>
+<text x="44" y="146" font-size="12" fill="var(--links)">source()</text>
+<text x="252" y="60" font-size="12" fill="currentColor">调用者能匹配到的最外层变体</text>
+<text x="252" y="108" font-size="12" fill="currentColor">Display：端口不是合法数字</text>
+<text x="252" y="124" font-size="12" fill="currentColor" opacity="0.7">底层细节留给 source()，不重复渲染</text>
+<text x="252" y="166" font-size="12" fill="currentColor">Display：invalid digit found in string</text>
+<text x="252" y="182" font-size="12" fill="currentColor" opacity="0.7">根因的 source() 返回 None，链到此结束</text>
+</svg>
 
 完整可运行的程序在下一节。`source()` 链怎么被上层利用（批量格式化、日志、第三方错误库的做法）属于 API 设计，第 18 章展开。
 

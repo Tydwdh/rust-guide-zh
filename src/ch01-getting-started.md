@@ -47,6 +47,34 @@ target/debug/hello.exe  ── cargo 顺手替你执行 ──► 终端里的�
 
 记住这个分工，命令就好记了：**涉及「这个项目」的操作走 cargo，涉及「这一堆源文件」的操作走 rustc**；日常你几乎不会直接调用 rustc。
 
+下图把三层的关系与调用方向摊开：
+
+<svg viewBox="0 0 660 236" width="100%" role="img" aria-label="rustup、cargo、rustc 三层分工与调用方向" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">三层分工：你只敲 cargo，cargo 去调 rustc，rustup 管工具链本身</text>
+<rect x="130" y="32" width="200" height="32" rx="5" fill="none" stroke="currentColor" stroke-opacity="0.55" />
+<text x="230" y="53" font-size="12" text-anchor="middle" fill="currentColor">你：cargo check / build / run</text>
+<g stroke="currentColor" stroke-width="1.5"><line x1="230" y1="64" x2="230" y2="80" /></g>
+<path d="M226 80 L230 87 L234 80 Z" fill="currentColor" />
+<rect x="40" y="87" width="380" height="52" rx="5" fill="none" stroke="currentColor" stroke-opacity="0.55" />
+<text x="56" y="107" font-size="13" fill="currentColor">cargo · 项目层</text>
+<text x="56" y="125" font-size="12" fill="currentColor" opacity="0.75">读 Cargo.toml，算出编哪些 crate、传什么参数、产物放哪</text>
+<g stroke="currentColor" stroke-width="1.5"><line x1="230" y1="139" x2="230" y2="155" /></g>
+<path d="M226 155 L230 162 L234 155 Z" fill="currentColor" />
+<text x="238" y="155" font-size="12" fill="var(--links)">调用</text>
+<rect x="40" y="162" width="380" height="52" rx="5" fill="none" stroke="currentColor" stroke-opacity="0.55" />
+<text x="56" y="182" font-size="13" fill="currentColor">rustc · 编译层</text>
+<text x="56" y="200" font-size="12" fill="currentColor" opacity="0.75">一个 crate：检查 + 生成机器码 → target/debug/hello.exe</text>
+<rect x="450" y="87" width="190" height="127" rx="5" fill="none" stroke="var(--links)" stroke-opacity="0.7" />
+<text x="466" y="107" font-size="13" fill="var(--links)">rustup · 工具链层</text>
+<text x="466" y="128" font-size="12" fill="currentColor" opacity="0.75">装 / 更新 / 切换：</text>
+<text x="466" y="147" font-size="12" fill="currentColor" opacity="0.75">rustc、cargo、rustfmt、</text>
+<text x="466" y="166" font-size="12" fill="currentColor" opacity="0.75">clippy、离线文档</text>
+<g stroke="currentColor" stroke-width="1.5"><line x1="447" y1="112" x2="427" y2="112" /><line x1="447" y1="189" x2="427" y2="189" /></g>
+<path d="M427 108 L420 112 L427 116 Z" fill="currentColor" />
+<path d="M427 185 L420 189 L427 193 Z" fill="currentColor" />
+<text x="0" y="232" font-size="12" fill="currentColor" opacity="0.7">一句话：rustup 管「装什么」，cargo 管「怎么编」，rustc 管「变成机器码」。</text>
+</svg>
+
 ## 机制与规则
 
 ### 安装与验证：rustup
@@ -164,6 +192,39 @@ Hello, world!
 - `cargo build`：完整编译，产出可执行文件，但不运行。
 - `cargo run`：先构建、再运行，等价于 build 加运行；`Running ...` 那行是 cargo 在告诉你它执行了哪个文件。
 
+下图把三条命令各自做到哪一步摊开：
+
+<svg viewBox="0 0 700 252" width="100%" role="img" aria-label="cargo check、build、run 三条命令各自做到哪一步、产出什么" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">check / build / run：同一份代码，各自走到哪一步才停</text>
+<text x="16" y="48" font-size="13" fill="currentColor" opacity="0.75">命令</text>
+<text x="224" y="48" font-size="13" text-anchor="middle" fill="currentColor" opacity="0.75">① 分析检查</text>
+<text x="408" y="48" font-size="13" text-anchor="middle" fill="currentColor" opacity="0.75">② 生成机器码</text>
+<text x="592" y="48" font-size="13" text-anchor="middle" fill="currentColor" opacity="0.75">③ 运行程序</text>
+<text x="16" y="89" font-size="13" font-family="monospace" fill="currentColor">cargo check</text>
+<rect x="136" y="65" width="176" height="34" rx="5" fill="none" stroke="currentColor" stroke-opacity="0.55" />
+<text x="224" y="87" font-size="12" text-anchor="middle" fill="currentColor">类型 / 借用 / 语法检查</text>
+<rect x="320" y="65" width="176" height="34" rx="5" fill="none" stroke="currentColor" stroke-opacity="0.3" stroke-dasharray="4 3" />
+<text x="408" y="87" font-size="12" text-anchor="middle" fill="currentColor" opacity="0.35">—</text>
+<rect x="504" y="65" width="176" height="34" rx="5" fill="none" stroke="currentColor" stroke-opacity="0.3" stroke-dasharray="4 3" />
+<text x="592" y="87" font-size="12" text-anchor="middle" fill="currentColor" opacity="0.35">—</text>
+<text x="16" y="139" font-size="13" font-family="monospace" fill="currentColor">cargo build</text>
+<rect x="136" y="115" width="176" height="34" rx="5" fill="none" stroke="currentColor" stroke-opacity="0.55" />
+<text x="224" y="137" font-size="12" text-anchor="middle" fill="currentColor">类型 / 借用 / 语法检查</text>
+<rect x="320" y="115" width="176" height="34" rx="5" fill="none" stroke="currentColor" stroke-opacity="0.55" />
+<text x="408" y="137" font-size="12" text-anchor="middle" fill="currentColor">生成机器码 → hello.exe</text>
+<rect x="504" y="115" width="176" height="34" rx="5" fill="none" stroke="currentColor" stroke-opacity="0.3" stroke-dasharray="4 3" />
+<text x="592" y="137" font-size="12" text-anchor="middle" fill="currentColor" opacity="0.35">—</text>
+<text x="16" y="189" font-size="13" font-family="monospace" fill="currentColor">cargo run</text>
+<rect x="136" y="165" width="176" height="34" rx="5" fill="none" stroke="currentColor" stroke-opacity="0.55" />
+<text x="224" y="187" font-size="12" text-anchor="middle" fill="currentColor">类型 / 借用 / 语法检查</text>
+<rect x="320" y="165" width="176" height="34" rx="5" fill="none" stroke="currentColor" stroke-opacity="0.55" />
+<text x="408" y="187" font-size="12" text-anchor="middle" fill="currentColor">生成机器码 → hello.exe</text>
+<rect x="504" y="165" width="176" height="34" rx="5" fill="none" stroke="var(--links)" stroke-opacity="0.8" />
+<text x="592" y="187" font-size="12" text-anchor="middle" fill="var(--links)">执行 hello.exe，回显输出</text>
+<text x="0" y="218" font-size="12" fill="currentColor" opacity="0.7">三个命令的产物都落在 target/debug/：</text>
+<text x="0" y="238" font-size="12" fill="currentColor" opacity="0.7">check 只留下指纹与增量缓存；build 与 run 额外产出 hello.exe，run 还替你执行它。</text>
+</svg>
+
 三个命令输出的动词也不同：`Checking` 表示只做分析，`Compiling` 表示真在生成机器码，`Finished` 是收尾。`Finished` 后面的 `dev` 是 **profile（构建配置）** 的名字，`[unoptimized + debuginfo]` 说明它是「不优化、带调试信息」的调试版——日常开发都跑在这一档，编译快，也方便调试。本章只讲 `check`、`build`、`run` 三个主命令，外加 `fmt`、`clippy` 两条辅助命令；cargo 的完整命令面（依赖特性、workspace、发布等）在第 30 章展开。
 
 交付时换成优化版：
@@ -191,6 +252,39 @@ hello/target/debug/
 删掉重建用 `cargo clean`。给程序传参数用 `cargo run -- 参数`：`--` 之后的归你的程序，之前的归 cargo。
 
 第一次构建还会在包根目录生成 `Cargo.lock`：这是锁文件，记录本次成功构建时各依赖的确切版本（眼下没有依赖，所以它很短）。`cargo new` 生成的 `.gitignore` 只忽略 `/target`，也就是锁文件默认纳入版本控制——`target/` 是你的编译缓存，换台机器重新编出来即可，不该提交。
+
+下图把包根目录按「该提交」与「可删缓存」分开：
+
+<svg viewBox="0 0 700 248" width="100%" role="img" aria-label="包根目录里哪些文件该提交、target 目录只是可重建的编译缓存" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">target/ 是编译缓存：不进版本控制，删了能从源码重建</text>
+<rect x="16" y="40" width="270" height="172" rx="6" fill="none" stroke="var(--links)" stroke-opacity="0.7" />
+<text x="32" y="62" font-size="13" fill="var(--links)">提交进版本控制</text>
+<text x="32" y="90" font-size="12" font-family="monospace" fill="currentColor">Cargo.toml</text>
+<text x="160" y="90" font-size="12" fill="currentColor" opacity="0.75">包清单</text>
+<text x="32" y="112" font-size="12" font-family="monospace" fill="currentColor">Cargo.lock</text>
+<text x="160" y="112" font-size="12" fill="currentColor" opacity="0.75">依赖锁文件</text>
+<text x="32" y="134" font-size="12" font-family="monospace" fill="currentColor">src/main.rs</text>
+<text x="160" y="134" font-size="12" fill="currentColor" opacity="0.75">你的代码</text>
+<text x="32" y="156" font-size="12" font-family="monospace" fill="currentColor">.gitignore</text>
+<text x="160" y="156" font-size="12" fill="currentColor" opacity="0.75">内容只有 /target</text>
+<text x="32" y="192" font-size="12" fill="currentColor" opacity="0.75">拷走这几样，别人就能重现构建</text>
+<rect x="414" y="40" width="270" height="172" rx="6" fill="none" stroke="var(--warning-border)" stroke-dasharray="5 4" />
+<text x="430" y="62" font-size="13" fill="var(--warning-border)">不进版本控制（缓存）</text>
+<text x="430" y="90" font-size="12" font-family="monospace" fill="currentColor">target/debug/hello.exe</text>
+<text x="430" y="112" font-size="12" font-family="monospace" fill="currentColor">target/debug/deps/</text>
+<text x="430" y="134" font-size="12" font-family="monospace" fill="currentColor">target/debug/incremental/</text>
+<text x="430" y="156" font-size="12" font-family="monospace" fill="currentColor">target/debug/.fingerprint/</text>
+<text x="430" y="192" font-size="12" fill="currentColor" opacity="0.75">换台机器重编一遍即可</text>
+<g stroke="currentColor" stroke-width="1.5">
+<line x1="292" y1="92" x2="384" y2="92" />
+<line x1="408" y1="162" x2="316" y2="162" />
+</g>
+<path d="M384 88 L391 92 L384 96 Z" fill="currentColor" />
+<path d="M316 158 L309 162 L316 166 Z" fill="currentColor" />
+<text x="350" y="84" font-size="12" text-anchor="middle" fill="var(--links)">cargo build 生成</text>
+<text x="350" y="180" font-size="12" text-anchor="middle" fill="currentColor" opacity="0.75">cargo clean 清空</text>
+<text x="0" y="234" font-size="12" fill="currentColor" opacity="0.7">别人把左边几样拉下来跑一次 cargo build，右边就回来了 —— 这就是 target/ 不必提交的原因。</text>
+</svg>
 
 再点到两个命令：`cargo fmt` 按社区统一风格重排代码（只动格式，不动语义），`cargo clippy` 是一组 lint，专门指认「能编过但很可能是写错了」的写法。它们随 rustup 默认安装（The Book 附录 D 明说 rustfmt 默认包含；用 `cargo fmt --version`、`cargo clippy --version` 可以验证），缺了就用 `rustup component add rustfmt clippy` 补上。习惯：提交前跑 `cargo fmt`；`clippy` 的提示逐条看懂再决定是否改。
 

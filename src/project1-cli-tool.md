@@ -15,6 +15,54 @@
 | `done <编号>` | 把某条任务标记为完成 |
 | `rm <编号>` | 删除某条任务 |
 
+一次运行里，「命令 → 数据文件 → 输出」是这样连起来的：
+
+<svg viewBox="0 0 640 246" width="100%" role="img" aria-label="todo-cli 一次运行的流程：命令行参数经解析后读写数据文件，结果写到标准输出，错误写到标准错误并以退出码 2 结束" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">一次运行：命令 → 数据文件 → 输出</text>
+<g fill="none" stroke="currentColor" stroke-width="1.5">
+<rect x="8" y="36" width="168" height="76" rx="6" />
+<rect x="236" y="36" width="168" height="76" rx="6" />
+<rect x="464" y="36" width="168" height="76" rx="6" />
+<rect x="236" y="164" width="168" height="48" rx="6" stroke-dasharray="5 3" />
+</g>
+<g font-size="13" fill="currentColor" text-anchor="middle">
+<text x="92" y="60">命令行参数</text>
+<text x="320" y="60">解析与执行</text>
+<text x="548" y="60">输出</text>
+</g>
+<g font-size="12" fill="currentColor" text-anchor="middle" font-family="monospace">
+<text x="92" y="82">argv: Vec&lt;String&gt;</text>
+<text x="320" y="82">cli::parse → Command</text>
+<text x="548" y="82">stdout：列表、确认行</text>
+</g>
+<g font-size="12" fill="currentColor" text-anchor="middle">
+<text x="92" y="104">todo-cli add 文本</text>
+<text x="320" y="104">run 派发到 Store</text>
+<text x="548" y="104">错误走 stderr，退出码 2</text>
+</g>
+<g stroke="var(--links)" stroke-width="2" fill="none">
+<line x1="176" y1="74" x2="226" y2="74" />
+<line x1="404" y1="74" x2="454" y2="74" />
+<line x1="280" y1="112" x2="280" y2="155" />
+<line x1="360" y1="164" x2="360" y2="121" />
+</g>
+<g fill="var(--links)">
+<polygon points="236,74 226,69 226,79" />
+<polygon points="464,74 454,69 454,79" />
+<polygon points="280,164 275,154 285,154" />
+<polygon points="360,112 355,122 365,122" />
+</g>
+<g font-size="12" fill="currentColor">
+<text x="272" y="130" text-anchor="end">读：open()</text>
+<text x="368" y="130">写：save()</text>
+</g>
+<g font-size="12" fill="currentColor" text-anchor="middle">
+<text x="320" y="186">数据文件 todo.txt</text>
+<text x="320" y="203" font-family="monospace">一行一条记录</text>
+</g>
+<text x="0" y="236" font-size="12" fill="currentColor" opacity="0.75">错误一律走 stderr 并以退出码 2 结束；文件读不回来或写不出去，都在这里报出来。</text>
+</svg>
+
 ### 验收标准
 
 做完要能满足下面四条，缺一条都算没做完：
@@ -54,6 +102,35 @@ $ cargo run --manifest-path examples/Cargo.toml -p todo-cli -- list
 1	x	读完第 11 章
 ```
 
+这一行的三个字段摊开来看：
+
+<svg viewBox="0 0 640 178" width="100%" role="img" aria-label="数据文件一行记录的字段布局：编号、状态标记、文本三段，用制表符分隔，行末换行接下一行" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">文件里的一行 = 一条记录：三个字段，用制表符（TAB）分隔</text>
+<g font-size="12" fill="var(--links)" text-anchor="middle">
+<text x="92" y="38">TAB</text><text x="188" y="38">TAB</text>
+</g>
+<g stroke="var(--links)" stroke-width="2">
+<line x1="92" y1="46" x2="92" y2="102" />
+<line x1="188" y1="46" x2="188" y2="102" />
+</g>
+<g fill="none" stroke="currentColor" stroke-width="1.5">
+<rect x="8" y="56" width="64" height="36" rx="6" />
+<rect x="112" y="56" width="56" height="36" rx="6" />
+<rect x="208" y="56" width="240" height="36" rx="6" />
+</g>
+<g font-size="13" fill="currentColor" text-anchor="middle" font-family="monospace">
+<text x="40" y="80">1</text><text x="140" y="80">x</text><text x="328" y="80">读完第 11 章</text>
+</g>
+<g font-size="12" fill="currentColor">
+<text x="8" y="116">编号（u32）</text>
+<text x="112" y="116">标记（o / x）</text>
+<text x="208" y="116">文本（可含空格）</text>
+</g>
+<text x="464" y="80" font-size="12" fill="currentColor">换行 = 下一条记录</text>
+<text x="0" y="142" font-size="12" fill="currentColor">parse_record 用 split('\t') 切三段：字段数不对、编号不是数字、标记不认识，都报 BadRecord（带行号）。</text>
+<text x="0" y="162" font-size="12" fill="currentColor">文本里出现 TAB 或换行会撑破结构，所以 add 在入口直接拒绝（AppError::UnstorableText），不做转义。</text>
+</svg>
+
 ## 设计取舍
 
 动手之前先定几件影响全局的事，每条都给「为什么不选另一个」。
@@ -86,6 +163,66 @@ pub type Result<T, E = AppError> = std::result::Result<T, E>;
 ## 逐块实现
 
 下面每块都是从 `examples/todo-cli/src/*.rs` 切出来的原文，块末注明用到哪几章的概念。顺序按依赖来：错误类型 → 数据模型 → 参数解析 → 存储 → 入口。
+
+本项目的模块骨架如下 —— 左边是 `main` 的 `mod` 声明，右边是模块之间仅有的三条 `use`：
+
+<svg viewBox="0 0 640 252" width="100%" role="img" aria-label="模块依赖：main 用 mod 声明四个模块；cli 用 Filter、store 用 AppError 与 Task；error 与 task 不依赖项目内其它模块" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">模块依赖：main 声明四个模块，模块之间只有三条 use</text>
+<line x1="316" y1="30" x2="316" y2="226" stroke="var(--quote-border)" stroke-width="1.5" />
+<text x="148" y="42" font-size="12" fill="currentColor" text-anchor="middle">main 的 mod 声明</text>
+<text x="464" y="42" font-size="12" fill="currentColor" text-anchor="middle">模块之间的 use</text>
+<g fill="none" stroke="currentColor" stroke-width="1.5">
+<rect x="80" y="54" width="128" height="42" rx="6" />
+<rect x="8" y="126" width="64" height="36" rx="6" />
+<rect x="80" y="126" width="64" height="36" rx="6" />
+<rect x="152" y="126" width="64" height="36" rx="6" />
+<rect x="224" y="126" width="64" height="36" rx="6" />
+<rect x="412" y="54" width="88" height="32" rx="6" />
+<rect x="412" y="122" width="88" height="32" rx="6" />
+<rect x="344" y="190" width="88" height="32" rx="6" />
+<rect x="480" y="190" width="88" height="32" rx="6" />
+</g>
+<g font-size="13" fill="currentColor" text-anchor="middle">
+<text x="144" y="74" font-family="monospace">main</text>
+<text x="144" y="90">入口 · 退出码</text>
+</g>
+<g font-size="12" fill="currentColor" text-anchor="middle">
+<text x="40" y="148" font-family="monospace">cli</text>
+<text x="112" y="148" font-family="monospace">error</text>
+<text x="184" y="148" font-family="monospace">task</text>
+<text x="256" y="148" font-family="monospace">store</text>
+<text x="456" y="75" font-family="monospace">cli</text>
+<text x="456" y="143" font-family="monospace">store</text>
+<text x="388" y="211" font-family="monospace">error</text>
+<text x="524" y="211" font-family="monospace">task</text>
+</g>
+<g stroke="var(--links)" stroke-width="2" fill="none">
+<line x1="144" y1="96" x2="144" y2="112" />
+<line x1="40" y1="112" x2="256" y2="112" />
+<line x1="40" y1="112" x2="40" y2="120" />
+<line x1="112" y1="112" x2="112" y2="120" />
+<line x1="184" y1="112" x2="184" y2="120" />
+<line x1="256" y1="112" x2="256" y2="120" />
+<line x1="456" y1="86" x2="456" y2="114" />
+<line x1="426" y1="154" x2="392" y2="190" />
+<line x1="486" y1="154" x2="518" y2="190" />
+</g>
+<g fill="var(--links)">
+<polygon points="40,126 35,116 45,116" />
+<polygon points="112,126 107,116 117,116" />
+<polygon points="184,126 179,116 189,116" />
+<polygon points="256,126 251,116 261,116" />
+<polygon points="456,122 451,112 461,112" />
+<polygon points="392,190 402,185 395,180" />
+<polygon points="518,190 515,179 508,185" />
+</g>
+<g font-size="12" fill="currentColor">
+<text x="466" y="108">Filter</text>
+<text x="330" y="176">AppError</text>
+<text x="520" y="176">Task</text>
+</g>
+<text x="0" y="246" font-size="12" fill="currentColor" opacity="0.75">箭头 = use 的方向；error 与 task 是叶子（不再依赖项目内其它模块），main 另外直接用到这两者。</text>
+</svg>
 
 > [!NOTE]
 > 这些块大多标了 `ignore`：它们是跨模块互相引用的片段，`mdbook test` 会把每个块当独立程序编译，单独的片段自然编译不过（例如 `Task` 用了同文件的 `Status`）。片段本身与文件逐字一致；整份代码由下面 `cargo test` 真跑验证。
@@ -273,6 +410,25 @@ error[E0502]: cannot borrow `store` as immutable because it is also borrowed as 
 ```
 
 定位路径：`add` 返回的引用带着对 `store` 的可变借用（第 4 章：引用还活着，借用就没结束），`store.save()` 又要一次共享借用，于是第 17 行冲突 —— 真正的原因是第 18 行还在用 `task`。
+
+把这三行的借用区间摊开，重叠就一目了然 —— 竖条是借用持续的范围：
+
+<svg viewBox="0 0 640 240" width="100%" role="img" aria-label="报错一的借用区间时间轴：store 的可变借用从第 16 行持续到第 18 行最后一次使用，与第 17 行的共享借用重叠" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">借用区间：可变借用活到 task 的最后一次使用，正好盖住 save</text>
+<text x="288" y="52" font-size="12" fill="var(--links)">可变借用 &amp;mut store（add 返回的引用）</text>
+<text x="0" y="76" font-size="12" fill="currentColor" font-family="monospace">16 | let task = store.add("写测试");</text>
+<rect x="288" y="60" width="324" height="18" rx="4" fill="none" stroke="var(--links)" stroke-width="2" />
+<text x="0" y="120" font-size="12" fill="currentColor" font-family="monospace">17 | store.save();</text>
+<rect x="415" y="104" width="30" height="18" rx="4" fill="none" stroke="currentColor" stroke-width="2" />
+<text x="456" y="117" font-size="12" fill="currentColor">共享借用 &amp;store（save）</text>
+<line x1="430" y1="78" x2="430" y2="104" stroke="var(--warning-border)" stroke-width="2" stroke-dasharray="4 3" />
+<text x="430" y="97" font-size="13" fill="var(--warning-border)" text-anchor="middle">✗</text>
+<text x="0" y="164" font-size="12" fill="currentColor" font-family="monospace">18 | println!("{task}");</text>
+<line x1="612" y1="78" x2="612" y2="170" stroke="var(--links)" stroke-width="2" stroke-dasharray="4 3" />
+<text x="604" y="186" font-size="12" fill="var(--links)" text-anchor="end">借用到此结束</text>
+<text x="0" y="212" font-size="12" fill="currentColor">第 17 行的 save 落在可变借用区间内 —— 两段区间重叠，编译器报 E0502。</text>
+<text x="0" y="232" font-size="12" fill="currentColor">报错末尾的「mutable borrow later used here」指的就是第 18 行；修法：add 只返回编号 u32。</text>
+</svg>
 
 修法有两条：让 `add` 只返回编号（本项目采用）—— `pub fn add(&mut self, text: &str) -> Result<u32>`，`main` 拿编号打印，引用根本不产生；或者保留返回引用，但把借用缩到打印之前（先 `save`、再取 `add` 的结果，或换个语句块）。选第一条是因为 `u32` 不携带借用，调用顺序就自由了。
 

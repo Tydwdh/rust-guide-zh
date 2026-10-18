@@ -110,6 +110,44 @@ shop/
     └── items.rs        // 文件内容 = 模块 items
 ```
 
+下图把模块树和文件树摊开对照 —— 左边的 `mod` 声明决定右边的文件放在哪：
+
+<svg viewBox="0 0 640 228" width="100%" role="img" aria-label="模块树与文件树的对照：crate 根、catalog、items 三个模块分别落在 src/main.rs、src/catalog.rs、src/catalog/items.rs" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">模块树 ↔ 文件树：mod 声明决定文件放哪</text>
+<text x="30" y="44" font-size="12" fill="currentColor" opacity="0.7">模块树（由 mod 声明长出）</text>
+<text x="400" y="44" font-size="12" fill="currentColor" opacity="0.7">文件树（src/ 下）</text>
+<g fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5">
+<rect x="30" y="54" width="150" height="30" rx="5" />
+<rect x="30" y="104" width="150" height="30" rx="5" />
+<rect x="30" y="154" width="150" height="30" rx="5" />
+<rect x="400" y="54" width="210" height="30" rx="5" />
+<rect x="400" y="104" width="210" height="30" rx="5" />
+<rect x="400" y="154" width="210" height="30" rx="5" />
+</g>
+<g stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5">
+<line x1="105" y1="84" x2="105" y2="104" />
+<line x1="105" y1="134" x2="105" y2="154" />
+</g>
+<g font-family="monospace" font-size="13" text-anchor="middle" fill="currentColor">
+<text x="105" y="74">crate 根</text>
+<text x="105" y="124">catalog</text>
+<text x="105" y="174">items</text>
+<text x="505" y="74">src/main.rs</text>
+<text x="505" y="124">src/catalog.rs</text>
+<text x="505" y="174">src/catalog/items.rs</text>
+</g>
+<g font-family="monospace" font-size="12" fill="currentColor" opacity="0.9">
+<text x="120" y="100">mod catalog;</text>
+<text x="120" y="150">pub mod items;</text>
+</g>
+<g stroke="var(--links)" stroke-width="1.5" stroke-dasharray="4 3">
+<line x1="180" y1="69" x2="400" y2="69" />
+<line x1="180" y1="119" x2="400" y2="119" />
+<line x1="180" y1="169" x2="400" y2="169" />
+</g>
+<text x="30" y="212" font-size="12" fill="currentColor" opacity="0.7">catalog 目录的存在理由：mod items; 写在 catalog.rs 里 —— 声明在哪，文件就跟到哪。</text>
+</svg>
+
 关键点在于：**`items.rs` 放在 `catalog/` 目录下，是因为 `mod items;` 写在 `catalog.rs` 里，而不是因为名字。** 把 `mod items;` 挪到 `main.rs`，文件就必须挪到 `src/items.rs`。这是「文件位置」类报错（E0583）的头号原因。
 
 另一种同样合法的布局是 `mod.rs` 风格：
@@ -132,6 +170,27 @@ shop/
 私有 = 「本模块及其后代可见」。只有两个例外：`pub trait` 的关联项默认公开，`pub enum` 的变体默认公开。
 
 `pub` 的语义比直觉窄：**一个 `pub` 项能从外部访问，前提是路径上所有祖先模块都可见**。本章第一个报错例子就是这条规则。
+
+下图画出这三档可见性各自能走到哪，以及那道 crate 墙：
+
+<svg viewBox="0 0 640 226" width="100%" role="img" aria-label="可见性三档的作用范围示意：私有止于本模块及其后代，pub(crate) 止于 crate 边界，只有 pub 项能跨到其他 crate" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">三档可见性各走到哪：模块内部 → crate → 其他 crate</text>
+<rect x="24" y="52" width="400" height="140" rx="6" fill="none" stroke="currentColor" stroke-opacity="0.6" stroke-width="1.5" />
+<text x="36" y="72" font-size="13" fill="currentColor">crate A</text>
+<rect x="52" y="88" width="170" height="72" rx="6" fill="none" stroke="currentColor" stroke-opacity="0.6" stroke-width="1.5" />
+<text x="64" y="108" font-size="13" fill="currentColor">模块 m</text>
+<text x="64" y="132" font-size="12" font-family="monospace" fill="currentColor">fn helper()</text>
+<text x="52" y="180" font-size="12" fill="currentColor" opacity="0.85">私有 / pub(self)：本模块及其后代</text>
+<rect x="270" y="120" width="140" height="30" rx="5" fill="none" stroke="var(--links)" stroke-width="1.5" />
+<text x="340" y="139" font-size="12" font-family="monospace" text-anchor="middle" fill="var(--links)">pub fn api()</text>
+<line x1="410" y1="135" x2="496" y2="135" stroke="var(--links)" stroke-width="1.5" />
+<polygon points="502,135 494,131 494,139" fill="var(--links)" />
+<line x1="436" y1="46" x2="436" y2="214" stroke="var(--warning-border)" stroke-width="2" stroke-dasharray="5 4" />
+<text x="436" y="40" font-size="12" text-anchor="middle" fill="var(--warning-border)">crate 边界</text>
+<text x="452" y="76" font-size="12" fill="currentColor" opacity="0.75">其他 crate（下游）</text>
+<text x="452" y="100" font-size="12" fill="currentColor">只有 pub 项过得去</text>
+<text x="24" y="214" font-size="12" fill="currentColor" opacity="0.85">pub(crate)：整个 crate</text>
+</svg>
 
 给成员加限定词可以精确控制范围：
 
@@ -522,6 +581,46 @@ note: the module `inner` is defined here
  2 |     mod inner {
    |     ^^^^^^^^^
 ```
+
+下图把这条路径摊开逐段检查 —— 断点就是编译器指的那一环：
+
+<svg viewBox="0 0 640 200" width="100%" role="img" aria-label="E0603 的逐段检查：路径 outer、inner、greet() 中，私有模块 inner 是断点，greet 即使标了 pub 也不可见" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">沿路径逐段检查可见性（E0603 的图景）</text>
+<text x="20" y="40" font-size="12" fill="currentColor" opacity="0.8">调用点在 main：</text>
+<text x="108" y="40" font-size="12" font-family="monospace" fill="currentColor">outer::inner::greet();</text>
+<g fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5">
+<rect x="20" y="54" width="96" height="34" rx="5" />
+<rect x="146" y="54" width="110" height="34" rx="5" />
+<rect x="426" y="54" width="110" height="34" rx="5" />
+</g>
+<rect x="286" y="54" width="110" height="34" rx="5" fill="none" stroke="var(--warning-border)" stroke-width="2" />
+<g stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5">
+<line x1="116" y1="71" x2="140" y2="71" />
+<line x1="256" y1="71" x2="280" y2="71" />
+<line x1="396" y1="71" x2="420" y2="71" />
+</g>
+<g fill="currentColor" fill-opacity="0.55">
+<polygon points="146,71 138,67 138,75" />
+<polygon points="286,71 278,67 278,75" />
+<polygon points="426,71 418,67 418,75" />
+</g>
+<g font-family="monospace" font-size="13" text-anchor="middle" fill="currentColor">
+<text x="68" y="76">main</text>
+<text x="201" y="76">outer</text>
+<text x="341" y="76">inner</text>
+<text x="481" y="76">greet()</text>
+</g>
+<g font-size="12" text-anchor="middle" fill="currentColor" opacity="0.85">
+<text x="68" y="108">crate 根</text>
+<text x="201" y="108">mod outer（私有）</text>
+<text x="481" y="108" font-family="monospace">pub fn greet()</text>
+</g>
+<text x="341" y="108" font-size="12" text-anchor="middle" fill="var(--warning-border)">mod inner（私有）</text>
+<text x="341" y="46" font-size="12" text-anchor="middle" fill="var(--warning-border)">✗ 断点</text>
+<text x="20" y="140" font-size="12" fill="currentColor">greet 标了 pub，但祖先 inner 私有 —— 路径断在这里，整个项对外不可见。</text>
+<text x="20" y="164" font-size="12" fill="currentColor" opacity="0.75">修法：给 mod inner 加 pub（再逐层往上看），或把调用挪进 outer 内部。</text>
+<text x="20" y="188" font-size="12" fill="currentColor" opacity="0.75">（greet 自身是 pub，也救不了断在上游的路径。）</text>
+</svg>
 
 定位路径：错误指向的 `inner` 就是断掉的那一环 —— `greet` 标了 `pub`，但上一层的 `inner` 没标，所以整个项对外不可见。编译器甚至把「函数不是公开重导出的」也点了出来。
 

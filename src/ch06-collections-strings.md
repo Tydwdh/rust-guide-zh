@@ -107,7 +107,40 @@ len = 5, capacity = 8
 len = 9, capacity = 16
 ```
 
-即首次 `push` 后容量是 4，之后每次翻倍。所以如果你知道最终大概有多少元素（读文件、按行收集），一句 `Vec::with_capacity(n)` 预分配能省掉反复搬移：
+即首次 `push` 后容量是 4，之后每次翻倍。
+
+下图把「len 追上 capacity」的那一步摊开 —— 申请更大的新块、搬移元素、释放旧块：
+
+<svg viewBox="0 0 640 170" width="100%" role="img" aria-label="Vec 容量不足时的重新分配：申请更大的新块、把元素搬过去、释放旧块" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">Vec&lt;i32&gt; 容量不够时：申请更大的新块 → 搬移元素 → 释放旧块</text>
+<g font-size="12" fill="currentColor">
+<text x="40" y="48">旧块：capacity = 4，len = 4（已满）</text>
+<text x="272" y="48">新块：capacity = 8（搬来 4 个，第 5 个刚 push）</text>
+</g>
+<g font-size="13" text-anchor="middle" fill="currentColor" font-family="monospace">
+<rect x="40" y="56" width="38" height="30" fill="none" stroke="currentColor" stroke-opacity="0.55" /><text x="59" y="76">10</text>
+<rect x="80" y="56" width="38" height="30" fill="none" stroke="currentColor" stroke-opacity="0.55" /><text x="99" y="76">20</text>
+<rect x="120" y="56" width="38" height="30" fill="none" stroke="currentColor" stroke-opacity="0.55" /><text x="139" y="76">30</text>
+<rect x="160" y="56" width="38" height="30" fill="none" stroke="currentColor" stroke-opacity="0.55" /><text x="179" y="76">40</text>
+<rect x="272" y="56" width="38" height="30" fill="none" stroke="currentColor" stroke-opacity="0.55" /><text x="291" y="76">10</text>
+<rect x="312" y="56" width="38" height="30" fill="none" stroke="currentColor" stroke-opacity="0.55" /><text x="331" y="76">20</text>
+<rect x="352" y="56" width="38" height="30" fill="none" stroke="currentColor" stroke-opacity="0.55" /><text x="371" y="76">30</text>
+<rect x="392" y="56" width="38" height="30" fill="none" stroke="currentColor" stroke-opacity="0.55" /><text x="411" y="76">40</text>
+<rect x="432" y="56" width="38" height="30" fill="none" stroke="var(--links)" /><text x="451" y="76" fill="var(--links)">50</text>
+<rect x="472" y="56" width="38" height="30" fill="none" stroke="currentColor" stroke-opacity="0.35" stroke-dasharray="3 3" />
+<rect x="512" y="56" width="38" height="30" fill="none" stroke="currentColor" stroke-opacity="0.35" stroke-dasharray="3 3" />
+<rect x="552" y="56" width="38" height="30" fill="none" stroke="currentColor" stroke-opacity="0.35" stroke-dasharray="3 3" />
+</g>
+<g stroke="currentColor" stroke-width="1.5" fill="none">
+<line x1="206" y1="71" x2="256" y2="71" />
+<polygon points="266,71 254,66 254,76" fill="currentColor" stroke="none" />
+</g>
+<text x="232" y="100" font-size="12" text-anchor="middle" fill="currentColor">push 时容量不够</text>
+<text x="0" y="132" font-size="12" fill="currentColor">容量轨迹：4 → 8 → 16 —— len 每次追上 capacity 就重新分配一次（把 n 个元素搬到新块）</text>
+<text x="0" y="152" font-size="12" fill="currentColor" opacity="0.7">规模已知时先 Vec::with_capacity(n) 预分配，就能免掉这些搬移（下面就是它的实测）</text>
+</svg>
+
+所以如果你知道最终大概有多少元素（读文件、按行收集），一句 `Vec::with_capacity(n)` 预分配能省掉反复搬移：
 
 ```rust
 fn main() {
@@ -162,6 +195,40 @@ fn main() {
 | `str` | 字符串内容本身（长度不定的 DST） | `[T]` |
 | `&str` | 对一段 UTF-8 字节的借用视图 | `&[T]` |
 | `String` | 拥有、可增长的字符串 | `Vec<T>` |
+
+下图把这三对摊开对照 —— 左列是字符串，右列是泛型序列，同一行对应同一种角色：
+
+<svg viewBox="0 0 640 250" width="100%" role="img" aria-label="String、&amp;str、str 与 Vec、&amp;[T]、[T] 的一一对应：拥有、借用、内容" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">字符串三件套 ↔ 泛型序列三件套：谁拥有、谁借用、谁是内容</text>
+<g fill="none" stroke="currentColor" stroke-opacity="0.55">
+<rect x="24" y="34" width="276" height="52" rx="4" />
+<rect x="340" y="34" width="276" height="52" rx="4" />
+<rect x="24" y="104" width="276" height="52" rx="4" />
+<rect x="340" y="104" width="276" height="52" rx="4" />
+<rect x="24" y="174" width="276" height="52" rx="4" />
+<rect x="340" y="174" width="276" height="52" rx="4" />
+</g>
+<g font-size="13" fill="currentColor" font-family="monospace">
+<text x="36" y="56">String</text>
+<text x="352" y="56">Vec&lt;T&gt;</text>
+<text x="36" y="126">&amp;str</text>
+<text x="352" y="126">&amp;[T]</text>
+<text x="36" y="196">str</text>
+<text x="352" y="196">[T]</text>
+</g>
+<g font-size="12" fill="currentColor">
+<text x="36" y="76">ptr · len · cap：拥有堆上的 UTF-8 字节</text>
+<text x="352" y="76">ptr · len · cap：拥有堆上的连续元素</text>
+<text x="36" y="146">ptr + 长度：借看别人的字节（胖指针）</text>
+<text x="352" y="146">ptr + 个数：借看别人的元素（胖指针）</text>
+<text x="36" y="216">内容本身：长度不定的 DST（借来才能用）</text>
+<text x="352" y="216">内容本身：长度不定的 DST（借来才能用）</text>
+</g>
+<g font-size="14" text-anchor="middle" fill="currentColor" opacity="0.7">
+<text x="320" y="66">≡</text><text x="320" y="136">≡</text><text x="320" y="206">≡</text>
+</g>
+<text x="0" y="246" font-size="12" fill="currentColor" opacity="0.7">（64 位实测：String 与 Vec 各 24 字节 = ptr + len + cap，&amp;str 与 &amp;[T] 各 16 字节 = ptr + 长度 —— 第 4 章量过）</text>
+</svg>
 
 创建与增长：
 

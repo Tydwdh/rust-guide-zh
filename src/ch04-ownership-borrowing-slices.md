@@ -97,6 +97,39 @@ c = hello
 
 移动的语义是「**交出释放责任**」。机器层面通常只是复制几个机器字（`String` 的指针、长度、容量），堆上的字节一个也没动；但语义上 `a` 立刻失效，因为释放责任已经不在它身上了。所以「移动」既不是「深拷贝后销毁原值」，也不是「两个变量指向同一份数据」——它是所有权的交接，编译器把它当成零开销的位复制处理。
 
+下图把这次交接摊开：
+
+<svg viewBox="0 0 660 240" width="100%" role="img" aria-label="move 语义：let b = a 之后栈上多出一份 ptr/len/cap，a 作废不再指向堆，堆缓冲区一个字节也没变，释放责任转到 b" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">move = 交出释放责任：只复制 ptr/len/cap，堆上的字节一个也没动</text>
+<text x="0" y="44" font-size="12" fill="var(--links)">执行 let b = a; 之后的状态</text>
+<rect x="20" y="56" width="140" height="64" rx="5" fill="none" stroke="var(--warning-border)" stroke-width="1.5" stroke-dasharray="4 3" />
+<g font-size="12" font-family="monospace" fill="currentColor" opacity="0.4">
+<text x="28" y="76">ptr = 0x…</text>
+<text x="28" y="94">len = 5</text>
+<text x="28" y="112">cap = 5</text>
+</g>
+<text x="166" y="94" font-size="12" font-family="monospace" fill="var(--warning-border)">a</text>
+<text x="20" y="138" font-size="12" fill="var(--warning-border)">a：作废（再用报 E0382）</text>
+<line x1="182" y1="88" x2="424" y2="88" stroke="var(--warning-border)" stroke-width="1.5" stroke-dasharray="5 4" />
+<text x="292" y="82" font-size="13" fill="var(--warning-border)">✗</text>
+<text x="246" y="106" font-size="12" fill="var(--warning-border)">责任已不在 a 手里</text>
+<rect x="20" y="150" width="140" height="64" rx="5" fill="none" stroke="currentColor" stroke-width="1.5" />
+<g font-size="12" font-family="monospace" fill="currentColor">
+<text x="28" y="170">ptr = 0x…</text>
+<text x="28" y="188">len = 5</text>
+<text x="28" y="206">cap = 5</text>
+</g>
+<text x="166" y="186" font-size="12" font-family="monospace" fill="currentColor">b</text>
+<line x1="182" y1="182" x2="424" y2="182" stroke="var(--links)" stroke-width="2" />
+<polyline points="424,177 432,182 424,187" fill="none" stroke="var(--links)" stroke-width="2" />
+<rect x="430" y="70" width="200" height="130" rx="5" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="530" y="94" font-size="12" fill="currentColor" opacity="0.7" text-anchor="middle">堆缓冲区（同一块）</text>
+<text x="530" y="128" font-size="14" font-family="monospace" fill="currentColor" text-anchor="middle">h e l l o</text>
+<text x="530" y="150" font-size="12" fill="currentColor" opacity="0.7" text-anchor="middle">5 字节</text>
+<text x="530" y="180" font-size="12" fill="var(--links)" text-anchor="middle">释放责任跟到 b</text>
+<text x="0" y="230" font-size="12" fill="currentColor" opacity="0.7">b 的位是复制来的，a 的位也还留在栈上——变的只是「谁的格子负责 drop」</text>
+</svg>
+
 用错时编译器会说得很清楚：
 
 ```rust,compile_fail
@@ -365,20 +398,7 @@ error[E0502]: cannot borrow `v` as mutable because it is also borrowed as immuta
   |                        ----- immutable borrow later used here
 ```
 
-两段代码的差别只有一行，读报错的关键也在这里：编译器用 `-` 标出共享借用开始处，用 `^` 标出可变借用处，最后用一行「immutable borrow later used here」说明第一段借用为什么还活着。把它画成时间轴就是：
-
-```text
-① first 在后面还要用（E0502）
-   let first = &v[0];      ├────────── 共享借用 ──────────┤
-   v.push(4);                           ├── 可变借用 ──┤
-                                        ↑ 区间重叠：拒绝
-
-② first 用完就不用了（通过）
-   let first = &v[0];      ├── 共享借用 ──┤
-   println!("{first}");                  ↑ 借用到此结束
-   v.push(4);                                  ├── 可变借用 ──┤
-                                               ↑ 不重叠：通过
-```
+两段代码的差别只有一行，读报错的关键也在这里：编译器用 `-` 标出共享借用开始处，用 `^` 标出可变借用处，最后用一行「immutable borrow later used here」说明第一段借用为什么还活着。
 
 同样的规则也解释了「连续两次可变借用」：
 
@@ -423,6 +443,43 @@ fn main() {
 ```text
 hello!?
 ```
+
+把上面几种情形并排画进同一条时间轴，就是下图：
+
+<svg viewBox="0 0 660 258" width="100%" role="img" aria-label="借用区间时间轴：两条共享借用可以重叠（允许），可变借用另起一段不重叠的区间也能通过；只要可变借用与共享借用区间重叠就报 E0502" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">借用区间的时间轴：共享借用可重叠，可变借用必须独占</text>
+<rect x="432" y="30" width="26" height="9" rx="4" fill="none" stroke="var(--links)" stroke-width="1.5" />
+<text x="464" y="39" font-size="12" fill="var(--links)">共享借用</text>
+<rect x="540" y="30" width="26" height="9" rx="4" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="572" y="39" font-size="12" fill="currentColor">可变借用</text>
+<text x="0" y="58" font-size="12" fill="var(--links)">① 两条共享借用的区间互相重叠；可变借用另起一段（编译通过）</text>
+<g font-size="12" font-family="monospace" fill="currentColor">
+<text x="0" y="80">let a = &amp;v[0];</text>
+<text x="0" y="102">let b = &amp;v[1];</text>
+<text x="0" y="124">println!(“{a} {b}”);</text>
+<text x="0" y="146">let m = &amp;mut v;</text>
+</g>
+<rect x="250" y="72" width="230" height="16" rx="4" fill="none" stroke="var(--links)" stroke-width="1.5" />
+<text x="365" y="84" font-size="12" fill="var(--links)" text-anchor="middle">共享</text>
+<rect x="300" y="94" width="180" height="16" rx="4" fill="none" stroke="var(--links)" stroke-width="1.5" />
+<text x="390" y="106" font-size="12" fill="var(--links)" text-anchor="middle">共享</text>
+<rect x="540" y="138" width="110" height="16" rx="4" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="595" y="150" font-size="12" fill="currentColor" text-anchor="middle">可变</text>
+<line x1="480" y1="68" x2="480" y2="156" stroke="var(--quote-border)" stroke-width="1.5" stroke-dasharray="4 3" />
+<text x="486" y="112" font-size="12" fill="currentColor" opacity="0.7">最后一次使用：共享到此结束</text>
+<text x="0" y="180" font-size="12" fill="var(--warning-border)">② 有一次使用落在可变借用之后：区间重叠（E0502）</text>
+<g font-size="12" font-family="monospace" fill="currentColor">
+<text x="0" y="202">let first = &amp;v[0];</text>
+<text x="0" y="224">v.push(4);</text>
+</g>
+<rect x="250" y="194" width="230" height="16" rx="4" fill="none" stroke="var(--links)" stroke-width="1.5" />
+<text x="365" y="206" font-size="12" fill="var(--links)" text-anchor="middle">共享</text>
+<rect x="400" y="216" width="180" height="16" rx="4" fill="none" stroke="var(--warning-border)" stroke-width="1.5" stroke-dasharray="5 3" />
+<text x="490" y="228" font-size="12" fill="var(--warning-border)" text-anchor="middle">可变（拒绝）</text>
+<line x1="480" y1="190" x2="480" y2="236" stroke="var(--quote-border)" stroke-width="1.5" stroke-dasharray="4 3" />
+<text x="486" y="210" font-size="12" fill="currentColor" opacity="0.7">借用到 println! 才结束</text>
+<text x="0" y="248" font-size="12" fill="var(--warning-border)">✗ 两段区间在 400–480 重叠 → 编译错误</text>
+</svg>
 
 > [!NOTE]
 > 编译器对你写的**每一个**借用都算一遍区间，但只会抱怨确实重叠的那些。所以修 `E0499` / `E0502` 最常用的两招是：把借用关进更小的作用域（像上面那样加 `{}`），或者把「先取出来用」的数据取成拥有所有权的值（`let first = v[0];` 而不是 `&v[0]`）。
@@ -514,24 +571,6 @@ line = hello world
 
 `&str` 和 `&[T]` 不是「指向某个元素的指针」，而是「**指针 + 长度**」的组合，叫做**切片（slice）**。对应的无长度版本 `str` 和 `[T]` 是**动态大小类型（DST，dynamically sized type）**：它们的大小取决于运行时的数据量，编译器不知道一个 `str` 占多少字节，所以 `str` 只能通过引用或 `Box` 使用，不能按值传递。
 
-```text
-                     栈                            堆（或只读数据段）
-        ┌────────────────────┐
-        │ ptr ───────────────┼──────► h e l l o      ← 5 字节 UTF-8
-String  │ len = 5            │
-        │ cap = 5            │
-        └────────────────────┘
-         所有者：3 个机器字
-
-        ┌────────────────────┐
-        │ ptr ───────────────┼──────► 指向某个已有序列中的一段
-&str    │ len = 5            │
-        └────────────────────┘
-         借用（胖指针，fat pointer）：2 个机器字
-
-        str / [T]：DST，没有编译期已知大小，只能通过引用或 Box 使用
-```
-
 本机实测的各种尺寸（64 位；`String::from("hello")` 的 `cap` 正好是 5）：
 
 | 类型 | 大小（字节） | 组成 |
@@ -550,6 +589,46 @@ String  │ len = 5            │
 - `String` 是**所有者**：堆缓冲区归它，长度和容量都记在栈上；
 - `&String` 只是「指向那 24 字节」的瘦指针，要多解一层才能拿到字节；
 - `&str` 直接就是「字节地址 + 字节长度」，一次解引用就能直接访问字节（它是共享借用，只能读；写入要可变切片，如 `&mut [u8]`），也不关心数据是堆上的、静态区的还是别处的；`str` 字面量（如 `"hi"`）类型就是 `&'static str`，指向只读数据段。
+
+下图把这三类并排对照：
+
+<svg viewBox="0 0 660 252" width="100%" role="img" aria-label="三类内存布局对照：String/Vec 是指针加长度加容量的所有者，&amp;str/&amp;[T] 是指针加长度的胖指针借用，str/[T] 是没有编译期已知大小的 DST" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">同一块字节，三种持有方式：所有者 / 借用 / 无大小</text>
+<text x="0" y="40" font-size="13" font-family="monospace" fill="currentColor">String / Vec&lt;T&gt;</text>
+<text x="130" y="40" font-size="12" fill="var(--links)">所有者：24 字节，出作用域负责释放</text>
+<rect x="0" y="46" width="150" height="44" rx="5" fill="none" stroke="currentColor" stroke-width="1.5" />
+<line x1="50" y1="46" x2="50" y2="90" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.35" />
+<line x1="100" y1="46" x2="100" y2="90" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.35" />
+<g font-size="12" font-family="monospace" fill="currentColor" text-anchor="middle">
+<text x="25" y="74">ptr</text>
+<text x="75" y="74">len</text>
+<text x="125" y="74">cap</text>
+</g>
+<line x1="150" y1="68" x2="432" y2="68" stroke="var(--links)" stroke-width="2" />
+<polyline points="432,63 440,68 432,73" fill="none" stroke="var(--links)" stroke-width="2" />
+<text x="0" y="112" font-size="13" font-family="monospace" fill="currentColor">&amp;str / &amp;[T]</text>
+<text x="130" y="112" font-size="12" fill="var(--links)">借用：16 字节，胖指针（不负责释放）</text>
+<rect x="0" y="118" width="100" height="44" rx="5" fill="none" stroke="currentColor" stroke-width="1.5" />
+<line x1="50" y1="118" x2="50" y2="162" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.35" />
+<g font-size="12" font-family="monospace" fill="currentColor" text-anchor="middle">
+<text x="25" y="146">ptr</text>
+<text x="75" y="146">len</text>
+</g>
+<line x1="100" y1="140" x2="432" y2="140" stroke="var(--links)" stroke-width="2" stroke-dasharray="6 4" />
+<polyline points="432,135 440,140 432,145" fill="none" stroke="var(--links)" stroke-width="2" />
+<text x="200" y="132" font-size="12" fill="var(--links)">可以只指向其中一段</text>
+<text x="0" y="184" font-size="13" font-family="monospace" fill="currentColor">str / [T]</text>
+<text x="130" y="184" font-size="12" fill="var(--warning-border)">DST：编译期大小未知（只能经引用或 Box 使用）</text>
+<rect x="0" y="190" width="150" height="42" rx="5" fill="none" stroke="var(--warning-border)" stroke-width="1.5" stroke-dasharray="4 3" />
+<text x="75" y="216" font-size="12" fill="var(--warning-border)" text-anchor="middle">大小取决于运行时数据量</text>
+<rect x="440" y="46" width="190" height="140" rx="5" fill="none" stroke="currentColor" stroke-width="1.5" />
+<text x="535" y="66" font-size="12" fill="currentColor" opacity="0.7" text-anchor="middle">堆缓冲区（或只读数据段）</text>
+<text x="535" y="102" font-size="14" font-family="monospace" fill="currentColor" text-anchor="middle">h e l l o</text>
+<rect x="492" y="86" width="56" height="24" rx="4" fill="none" stroke="var(--links)" stroke-width="1.5" stroke-dasharray="4 3" />
+<text x="535" y="132" font-size="12" fill="var(--links)" text-anchor="middle">&amp;str 圈住的一段</text>
+<text x="535" y="166" font-size="12" fill="currentColor" opacity="0.7" text-anchor="middle">字节本身不动</text>
+<text x="0" y="248" font-size="12" fill="currentColor" opacity="0.7">（&amp;String 是指向那 24 字节的瘦指针，8 字节；&amp;[u8; 4] 因大小已知也是 8 字节）</text>
+</svg>
 
 实际写代码时几乎总是用 `&str` 做参数：`&String` 会因为解引用强转（deref coercion）自动变成 `&str`，于是 `String`、字面量、切片都能传进来。
 

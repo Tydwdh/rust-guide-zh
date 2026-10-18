@@ -122,6 +122,33 @@ pub trait Fn<Args>: FnMut<Args> { fn call(&self, args: Args) -> Self::Output; }
 - 写 `F: Fn()` 最窄：只有只读闭包（和函数指针）能传；
 - 边界同时是你对调用者的承诺：`F: Fn` 意味着「我不会改它，也不会消耗它」。
 
+下图把这三个 trait 的包含关系和「边界写在哪一层」并在一起：
+
+<svg viewBox="0 0 640 210" width="100%" role="img" aria-label="Fn、FnMut、FnOnce 三个 trait 的包含关系：内层闭包集合更小，边界写在外层时接收面最宽" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">三个 trait 的包含关系：内层集合小、外层集合大</text>
+<ellipse cx="158" cy="113" rx="150" ry="86" fill="none" stroke="var(--quote-border)" stroke-width="1.5" />
+<ellipse cx="158" cy="113" rx="106" ry="60" fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5" />
+<ellipse cx="158" cy="113" rx="62" ry="32" fill="none" stroke="var(--links)" stroke-width="2" />
+<g text-anchor="middle" fill="currentColor">
+<text x="158" y="42" font-size="13">FnOnce</text>
+<text x="158" y="66" font-size="13">FnMut</text>
+<text x="158" y="103" font-size="13">Fn</text>
+<text x="158" y="125" font-size="12" opacity="0.75">只读使用捕获值</text>
+</g>
+<g fill="currentColor">
+<text x="336" y="40" font-size="13">边界写在哪一层</text>
+<text x="336" y="64" font-size="12" font-family="monospace">F: FnOnce()</text>
+<text x="432" y="64" font-size="12">最宽 —— 什么闭包都能传</text>
+<text x="336" y="86" font-size="12" font-family="monospace">F: FnMut()</text>
+<text x="432" y="86" font-size="12">居中 —— 能改环境的能传</text>
+<text x="336" y="108" font-size="12" font-family="monospace">F: Fn()</text>
+<text x="432" y="108" font-size="12">最窄 —— 只有只读闭包能传</text>
+<text x="336" y="144" font-size="12" opacity="0.85">内层的闭包一定也在外层里，</text>
+<text x="336" y="164" font-size="12" opacity="0.85">所以边界越靠内、接收面越窄。</text>
+<text x="336" y="188" font-size="12" opacity="0.6">F: Fn 的承诺 —— 不改它，也不消耗它</text>
+</g>
+</svg>
+
 这就是「为什么是三个」的答案：**最小权限**。需求方只要求自己真正需要的能力，供给方保留的能力越多（能改、能消耗），能通过边界的闭包就越多。一个 `FnMut` 边界加上一次调用，就等于 `FnOnce`；一个 `Fn` 边界加上两次调用，就是在说「这段代码不修改也不消耗环境」。
 
 三个 trait 的调用方法 `call` / `call_mut` / `call_once` 在 stable 上不能直接调用（`` error[E0658]: use of unstable library feature `fn_traits` ``）；日常一律写调用语法 `f(x)`，编译器替你选对是哪一个。
@@ -334,6 +361,33 @@ fn main() {
 
 关键在惰性：**适配器什么都不做**，直到有人调用消费者或 `next()`。所以「一条链」是一份待执行的计划，不是数据。
 
+这份「计划」在类型上是一层套一层 —— 以 `v.iter().map(|x| x * 2).filter(|x| x % 2 == 0)` 为例：
+
+<svg viewBox="0 0 640 240" width="100%" role="img" aria-label="迭代器链的套娃类型：Filter 包着 Map，Map 包着源迭代器，next 由外向内逐层穿透" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">一条链的类型：Filter&lt;Map&lt;Iter&lt;'_, i32&gt;, F&gt;, P&gt;</text>
+<rect x="14" y="28" width="310" height="204" rx="6" fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5" />
+<text x="26" y="50" font-size="13" font-family="monospace" fill="currentColor">Filter&lt;I, P&gt;</text>
+<text x="26" y="70" font-size="12" font-family="monospace" fill="currentColor" opacity="0.75">iter: I</text>
+<text x="26" y="90" font-size="12" font-family="monospace" fill="currentColor" opacity="0.75">predicate: P</text>
+<rect x="42" y="98" width="254" height="126" rx="6" fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5" />
+<text x="54" y="120" font-size="13" font-family="monospace" fill="currentColor">Map&lt;I, F&gt;</text>
+<text x="54" y="140" font-size="12" font-family="monospace" fill="currentColor" opacity="0.75">iter: I</text>
+<text x="54" y="160" font-size="12" font-family="monospace" fill="currentColor" opacity="0.75">f: F</text>
+<rect x="70" y="168" width="198" height="48" rx="6" fill="none" stroke="var(--links)" stroke-width="2" />
+<text x="82" y="188" font-size="13" font-family="monospace" fill="currentColor">Iter&lt;'a, T&gt;</text>
+<text x="82" y="208" font-size="12" fill="currentColor" opacity="0.75">真正持有数据来源</text>
+<g fill="currentColor">
+<text x="340" y="50" font-size="13">next() 由外向内穿透</text>
+<text x="352" y="74" font-size="12" font-family="monospace">Filter::next()</text>
+<text x="352" y="94" font-size="12" font-family="monospace">→ Map::next()</text>
+<text x="352" y="114" font-size="12" font-family="monospace">→ Iter::next()</text>
+<text x="368" y="134" font-size="12">只有它真的取元素</text>
+<text x="340" y="164" font-size="12" opacity="0.85">每层只存上游 + 自己的闭包，</text>
+<text x="340" y="184" font-size="12" opacity="0.85">谁都不建中间集合。</text>
+<text x="340" y="214" font-size="12" opacity="0.6">泛型 I / F / P 由单态化落地成具体类型</text>
+</g>
+</svg>
+
 ```rust
 fn main() {
     let v = vec![1, 2, 3, 4, 5, 6];
@@ -512,6 +566,52 @@ fn main() {
   filter(8)
 结果 [4, 8]
 ```
+
+下图把「逐个穿过」和「每步建中间 `Vec`」两种执行方式并排：
+
+<svg viewBox="0 0 640 210" width="100%" role="img" aria-label="对比：迭代器链让每个元素逐个穿过全部步骤、只建一个结果容器，而每步先建中间 Vec 的写法要分配两条临时 Vec" xmlns="http://www.w3.org/2000/svg">
+<line x1="318" y1="4" x2="318" y2="200" stroke="var(--quote-border)" stroke-width="1.5" stroke-dasharray="4 3" />
+<text x="0" y="16" font-size="14" fill="currentColor">迭代器链：逐个穿过</text>
+<text x="336" y="16" font-size="14" fill="currentColor">每步建中间 Vec：整批进出</text>
+<g font-size="13" font-family="monospace" fill="currentColor" text-anchor="middle">
+<rect x="4" y="40" width="80" height="38" rx="4" fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5" /><text x="44" y="64">map</text>
+<rect x="106" y="40" width="80" height="38" rx="4" fill="none" stroke="currentColor" stroke-opacity="0.55" stroke-width="1.5" /><text x="146" y="64">filter</text>
+<rect x="208" y="40" width="80" height="38" rx="4" fill="none" stroke="var(--links)" stroke-width="2" /><text x="248" y="64">collect</text>
+</g>
+<g font-size="14" fill="currentColor" text-anchor="middle" opacity="0.7">
+<text x="95" y="67">→</text>
+<text x="197" y="67">→</text>
+</g>
+<g font-size="12" fill="currentColor">
+<text x="0" y="102">元素 1 走完全程，元素 2 才进来</text>
+<text x="0" y="124">next() 一次只推进一格</text>
+<text x="0" y="146">结果容器只有 collect 建的那一个</text>
+<text x="0" y="174" opacity="0.7">适配器自身 0 次分配</text>
+</g>
+<g fill="currentColor" stroke="currentColor">
+<rect x="336" y="36" width="280" height="32" rx="4" fill="none" stroke-opacity="0.55" stroke-width="1.5" />
+<rect x="336" y="92" width="280" height="32" rx="4" fill="none" stroke-opacity="0.55" stroke-width="1.5" />
+<rect x="336" y="148" width="280" height="32" rx="4" fill="none" stroke="var(--links)" stroke-width="2" />
+</g>
+<g font-size="12" font-family="monospace" fill="currentColor">
+<text x="348" y="57">v</text><text x="420" y="57">[1, 2, 3, 4]</text>
+<text x="348" y="113">tmp1</text><text x="420" y="113">[2, 4, 6, 8]</text>
+<text x="348" y="169">结果</text><text x="420" y="169">[4, 8]</text>
+</g>
+<g font-size="14" fill="currentColor">
+<text x="348" y="85">↓</text>
+<text x="348" y="141">↓</text>
+</g>
+<g font-size="12" font-family="monospace" fill="currentColor">
+<text x="366" y="85">map</text>
+<text x="366" y="141">filter</text>
+</g>
+<g font-size="12" fill="currentColor" opacity="0.75">
+<text x="430" y="85">新分配一个 Vec</text>
+<text x="430" y="141">又一条临时 Vec</text>
+</g>
+<text x="336" y="198" font-size="12" fill="currentColor" opacity="0.7">两条临时 Vec 建好就丢，白跑两遍内存</text>
+</svg>
 
 看顺序：不是「先跑完全部 `map` 再跑 `filter`」，而是每个元素依次穿完整条链。所以链**不需要中间集合** —— 没有临时 `Vec` 被建出来又丢掉，`collect` 只建一个结果容器。这也是它和手写循环能编译成同一件事的原因。
 

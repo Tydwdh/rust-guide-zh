@@ -53,6 +53,42 @@ define internal void @_RINvCsrVwfFJZ6TP_4show4showmEB2_(i32 %0) …
 
 同一份源码，三个 `show`（以 Rust 1.98 实测）。`Re`、`d`、`m` 是编译器对类型实参的编码，分别对应三个调用点的 `&str`、`f64`、`u32`；`@` 后面那一长串是编译器给这次实例化起的名字（含环境哈希），不必读懂，看参数类型就行：`&str` 是「指针 + 长度」两件套，`f64` 是 `double`，`u32` 显示成 `i32`（LLVM 的整数类型不区分有无符号）。
 
+下图把这次单态化摊开（实例名已缩写）：
+
+<svg viewBox="0 0 640 218" width="100%" role="img" aria-label="单态化：一份泛型函数 show 按类型实参分别生成 &amp;str、f64、u32 三份实例代码" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">单态化：一份泛型源码 → 按类型实参各生成一份机器码</text>
+<rect x="8" y="40" width="184" height="152" rx="5" fill="none" stroke="currentColor" stroke-opacity="0.55" />
+<text x="100" y="64" font-size="13" text-anchor="middle" fill="currentColor">一份源码（泛型函数）</text>
+<g font-size="12" font-family="monospace" text-anchor="middle" fill="currentColor" xml:space="preserve" style="white-space:pre">
+<text x="100" y="90">fn show&lt;T: Display&gt;</text>
+<text x="100" y="108">  (v: T) {</text>
+<text x="100" y="126">  println!("{v}");</text>
+<text x="100" y="144">}</text>
+</g>
+<text x="100" y="174" font-size="12" text-anchor="middle" fill="currentColor" opacity="0.7">类型参数在编译期被填实</text>
+<g stroke="currentColor" stroke-width="1.5" fill="none">
+<line x1="194" y1="62" x2="238" y2="62" />
+<line x1="194" y1="116" x2="238" y2="116" />
+<line x1="194" y1="170" x2="238" y2="170" />
+</g>
+<polygon points="246,62 236,57 236,67" fill="currentColor" />
+<polygon points="246,116 236,111 236,121" fill="currentColor" />
+<polygon points="246,170 236,165 236,175" fill="currentColor" />
+<rect x="248" y="40" width="384" height="44" rx="5" fill="none" stroke="currentColor" stroke-opacity="0.55" />
+<rect x="248" y="94" width="384" height="44" rx="5" fill="none" stroke="currentColor" stroke-opacity="0.55" />
+<rect x="248" y="148" width="384" height="44" rx="5" fill="none" stroke="currentColor" stroke-opacity="0.55" />
+<text x="260" y="59" font-size="12" font-family="monospace" fill="currentColor">show("hi")</text>
+<text x="368" y="59" font-size="12" font-family="monospace" fill="currentColor">→ @…4show4showReEB2_</text>
+<text x="260" y="77" font-size="12" fill="currentColor" opacity="0.75">签名 (ptr, i64)：&amp;str 是「指针 + 长度」两件套</text>
+<text x="260" y="113" font-size="12" font-family="monospace" fill="currentColor">show(2.5f64)</text>
+<text x="368" y="113" font-size="12" font-family="monospace" fill="currentColor">→ @…4show4showdEB2_</text>
+<text x="260" y="131" font-size="12" fill="currentColor" opacity="0.75">签名 (double)：f64</text>
+<text x="260" y="167" font-size="12" font-family="monospace" fill="currentColor">show(1u32)</text>
+<text x="368" y="167" font-size="12" font-family="monospace" fill="currentColor">→ @…4show4showmEB2_</text>
+<text x="260" y="185" font-size="12" fill="currentColor" opacity="0.75">签名 (i32)：u32（LLVM 的整数不区分有无符号）</text>
+<text x="0" y="210" font-size="12" fill="currentColor" opacity="0.7">实例名含环境哈希，此处缩写；三份实例各自独立，调用点直接落到对应那一份</text>
+</svg>
+
 > [!TIP]
 > 这里加 `-C opt-level=0`，是因为开了优化之后这三个函数很可能被内联进 `main`、从产物里整个消失——那本身也是「零成本」的一部分。想看实例数量，就用不优化的构建。
 
@@ -72,6 +108,42 @@ trait 就是这种要求的具名表达：名字下面列出方法签名，实�
 - **定义方**：写下契约（方法名、签名、可选默认实现）。
 - **实现方**：`impl Trait for Type`，兑现契约。
 - **使用方**：写边界 `T: Trait`，然后在函数体里放心调用 trait 的方法。
+
+下图把这三类角色的分工摊开：
+
+<svg viewBox="0 0 640 204" width="100%" role="img" aria-label="trait 的三类角色：定义方写契约、实现方兑现契约、使用方只依赖契约" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="16" font-size="14" fill="currentColor">trait 的三类角色：定义方写契约，实现方兑现，使用方只依赖契约</text>
+<rect x="5" y="40" width="190" height="116" rx="5" fill="none" stroke="currentColor" stroke-opacity="0.55" />
+<rect x="225" y="40" width="190" height="116" rx="5" fill="none" stroke="currentColor" stroke-opacity="0.55" />
+<rect x="445" y="40" width="190" height="116" rx="5" fill="none" stroke="currentColor" stroke-opacity="0.55" />
+<text x="100" y="62" font-size="13" text-anchor="middle" fill="currentColor">定义方</text>
+<text x="320" y="62" font-size="13" text-anchor="middle" fill="currentColor">实现方</text>
+<text x="540" y="62" font-size="13" text-anchor="middle" fill="currentColor">使用方</text>
+<g font-size="12" font-family="monospace" text-anchor="middle" fill="currentColor" xml:space="preserve" style="white-space:pre">
+<text x="100" y="86">trait Summary {</text>
+<text x="100" y="104">  fn author(&amp;self)</text>
+<text x="100" y="122">      -&gt; String;</text>
+<text x="100" y="140">}</text>
+<text x="320" y="86">impl Summary</text>
+<text x="320" y="104">    for Comment {</text>
+<text x="320" y="122">  fn author(&amp;self)</text>
+<text x="320" y="140">      -&gt; String }</text>
+<text x="540" y="86">fn notify&lt;T: Summary&gt;</text>
+<text x="540" y="104">    (x: &amp;T) {</text>
+<text x="540" y="122">  x.summarize();</text>
+<text x="540" y="140">}</text>
+</g>
+<g stroke="currentColor" stroke-width="1.5" fill="none">
+<line x1="197" y1="98" x2="214" y2="98" />
+<line x1="417" y1="98" x2="434" y2="98" />
+</g>
+<polygon points="223,98 215,93.5 215,102.5" fill="currentColor" />
+<polygon points="443,98 435,93.5 435,102.5" fill="currentColor" />
+<text x="100" y="176" font-size="12" text-anchor="middle" fill="currentColor" opacity="0.75">契约：方法名 + 签名 + 默认实现</text>
+<text x="320" y="176" font-size="12" text-anchor="middle" fill="currentColor" opacity="0.75">兑现：impl Trait for Type</text>
+<text x="540" y="176" font-size="12" text-anchor="middle" fill="currentColor" opacity="0.75">调用：只依赖边界 T: Trait</text>
+<text x="0" y="196" font-size="12" fill="currentColor" opacity="0.7">使用方看不到具体类型：它能调用的只有契约里列出的方法</text>
+</svg>
 
 与其他语言的接口相比，多出来的一条是：trait 可以为**你拥有的类型**、或**你定义的 trait** 而实现，包括为别人（比如标准库）的类型实现你自己的 trait，也包括为自己的类型实现标准库的 trait。这条自由度有边界，就是后面的孤儿规则。
 
