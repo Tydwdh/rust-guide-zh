@@ -30,10 +30,10 @@
 
 # 第三篇 并发与异步
 
-- [第 19 章 并发基础：thread、Send/Sync 与共享状态]()
-- [第 20 章 原子与内存序]()
-- [第 21 章 async 基础：Future、执行器与运行时]()
-- [第 22 章 Pin 与自引用]()
+- [第 19 章 并发基础：thread、Send/Sync 与共享状态](ch19-concurrency-basics.md)
+- [第 20 章 原子与内存序](ch20-atomics-memory-ordering.md)
+- [第 21 章 async 基础：Future、执行器与运行时](ch21-async-basics.md)
+- [第 22 章 Pin 与自引用](ch22-pin-self-reference.md)
 - [项目 3：并发/异步小程序]()
 
 # 第四篇 系统层
