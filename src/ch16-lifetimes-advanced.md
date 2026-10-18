@@ -12,10 +12,10 @@
 
 | 现象 | 机制 | 小节 |
 |---|---|---|
-| 有的位置能「把长生命周期当短的用」，有的位置不能 | 子类型（subtyping）与变型（variance） | 16.1、16.2 |
+| 有的位置能「把长生命周期当短的用」，有的位置不能 | 子类型（subtyping）与型变（variance） | 16.1、16.2 |
 | 一个签名要「对任意 `'a` 都成立」 | 高阶 trait 约束（HRTB，`for<'a>`） | 16.3 |
 | 析构代码可能访问借用数据 | 析构检查（drop check，dropck） | 16.4 |
-| 未使用的参数、变型、dropck 都需要「声明」 | `PhantomData` | 16.5 |
+| 未使用的参数、型变、dropck 都需要「声明」 | `PhantomData` | 16.5 |
 | 什么时候可以不写生命周期 | 省略（elision）的精确规则 | 16.6 |
 
 读完这一章，你应该能做到：
@@ -34,14 +34,14 @@
 
 灵活性要求「活得更久的值可以在要求更短的地方使用」。`&'static str` 传给一个只打算用一小会儿的函数，凭什么不行？如果每个位置都要求类型严格一致，几乎所有函数调用都得把生命周期写死，标注就会从帮助变成负担。Rust 的解法是引入**子类型（subtyping）**：`'static` 是任何更短生命周期的子类型，于是 `&'static str` 也能出现在需要 `&'a str` 的位置。
 
-安全性要求「这种替换只在不会让短命的值冒充长寿值的地方发生」。判断标准就是**变型（variance）**：一个泛型类型把「参数的子类型关系」按什么方向传递下去。
+安全性要求「这种替换只在不会让短命的值冒充长寿值的地方发生」。判断标准就是**型变**：一个泛型类型把「参数的子类型关系」按什么方向传递下去。
 
 然后还有一处编译器**看不见**的代码：析构函数。`Drop::drop` 是普通函数，里面可以读自己的字段，而字段可能持有借用；更麻烦的是跨 crate 时，编译器根本看不到 `Drop` 实现里写了什么。分析调用方时，它只能保守假设「析构时可能还会访问那些借用数据」。这就是**析构检查（dropck）**。
 
 ```text
 生命周期检查的三层（从外到内）
   1. 借用检查：借用区间 + 别名规则              → 第 4 章
-  2. 子类型 / 变型：长的能不能当短的用             → 16.1 / 16.2
+  2. 子类型 / 型变：长的能不能当短的用             → 16.1 / 16.2
   3. 析构检查：析构点必须严格晚于被借用的数据      → 16.4
 
 HRTB（16.3）与前两层正交：它说的是「一个签名同时对全部 'a 成立」，
@@ -84,9 +84,9 @@ Nomicon 同时提醒：这套直觉好用到可以覆盖 99% 的日常判断—�
 
 剩下那 1% 就是本节余下部分与 16.2 的主题。
 
-### 16.2 变型：三个方向
+### 16.2 型变：三个方向
 
-**变型（variance）** 描述「`F` 的子类型关系如何由参数的子类型关系决定」。设 `Sub` 是 `Super` 的子类型，Nomicon 的三条定义是：
+**型变** 描述「`F` 的子类型关系如何由参数的子类型关系决定」。设 `Sub` 是 `Super` 的子类型，Nomicon 的三条定义是：
 
 > - `F` is **covariant** if `F<Sub>` is a subtype of `F<Super>` (the subtype property is passed through)
 > - `F` is **contravariant** if `F<Super>` is a subtype of `F<Sub>` (the subtype property is “inverted”)
@@ -175,9 +175,9 @@ fn main() {
 }
 ```
 
-#### 自己定义的类型：变型由字段决定
+#### 自己定义的类型：型变由字段决定
 
-结构体的变型不是声明出来的，而是**从字段推导**：某个参数在字段里全部协变，结构体就协变；全部逆变就逆变；出现一处不变（或方向冲突）就整体不变——Nomicon 在示例代码里的措辞是 “invariance wins all conflicts”（不变赢得所有冲突）。
+结构体的型变不是声明出来的，而是**从字段推导**：某个参数在字段里全部协变，结构体就协变；全部逆变就逆变；出现一处不变（或方向冲突）就整体不变——Nomicon 在示例代码里的措辞是 “invariance wins all conflicts”（不变赢得所有冲突）。
 
 ```rust
 use std::cell::Cell;
@@ -190,7 +190,7 @@ struct Mixed<'a, T, U> {
 // 结论：Mixed 对 'a 协变，对 T 协变，对 U 不变
 ```
 
-动手验证一遍三个方向（用 `PhantomData` 精确指定我们想要的变型，理由见 16.5）：
+动手验证一遍三个方向（用 `PhantomData` 精确指定我们想要的型变，理由见 16.5）：
 
 ```rust
 use std::marker::PhantomData;
@@ -421,7 +421,7 @@ alpha gamma
 
 同一个根因还有一副更容易认错的面孔：如果这个闭包塞进结构体字段、再调用带 `for<'a>` 约束的 `impl` 方法，报错会变成 ``E0599: no method named `run` found for struct ...``——具体闭包类型不满足 `impl` 上的高阶约束，于是方法「看起来不存在」（本机实测；note 里会写 “the method was found for `FirstWord<F>`”）。遇到「泛型结构体上方法找不到」时，先把 `where` 子句里的 `for<'a>` 与实参的闭包签名对一遍。
 
-最后划清一条边界：HRTB 与变型是**互相独立**的两套机制。Nomicon 在讲逆变时特意说明，函数指针上的 `for<'a>` 属于 「higher rank lifetimes, which work independently of subtyping」。`for<'a>` 管的是「一个签名对整个生命周期范围成立」，变型管的是「方向」，不要用一个去解释另一个。
+最后划清一条边界：HRTB 与型变是**互相独立**的两套机制。Nomicon 在讲逆变时特意说明，函数指针上的 `for<'a>` 属于 「higher rank lifetimes, which work independently of subtyping」。`for<'a>` 管的是「一个签名对整个生命周期范围成立」，型变管的是「方向」，不要用一个去解释另一个。
 
 ### 16.4 析构检查：析构里还会用借用
 
@@ -527,9 +527,9 @@ fn main() {
 }
 ```
 
-**身份二：决定变型。** `PhantomData<T>` 的变型就跟着 `T` 走，于是选哪种写法就等于声明哪种变型：
+**身份二：决定型变。** `PhantomData<T>` 的型变就跟着 `T` 走，于是选哪种写法就等于声明哪种型变：
 
-| 写法 | 模拟的字段 | 变型 |
+| 写法 | 模拟的字段 | 型变 |
 |---|---|---|
 | `PhantomData<T>` | 一个 `T` | 协变 |
 | `PhantomData<&'a T>` | `&'a T` | `'a`、`T` 都协变 |
@@ -538,7 +538,7 @@ fn main() {
 | `PhantomData<fn() -> T>` | `fn() -> T` | 协变 |
 | `PhantomData<*mut T>` | `*mut T` | **不变** |
 
-16.2 里的三个验证块就是这张表的前三行与后两行的实例：`PhantomData<&'a ()>` 协变、`PhantomData<fn(&'a ())>` 逆变、`PhantomData<*mut &'a ()>` 不变。Nomicon 认为这种「用字段模拟」的做法比直接声明变型更不容易出错：
+16.2 里的三个验证块就是这张表的前三行与后两行的实例：`PhantomData<&'a ()>` 协变、`PhantomData<fn(&'a ())>` 逆变、`PhantomData<*mut &'a ()>` 不变。Nomicon 认为这种「用字段模拟」的做法比「直接声明想要的型变」更不容易出错：
 
 > This was deemed to be less error-prone than explicitly telling the type-system the kind of variance that you want, while also providing other useful things such as auto traits and the information needed by drop check.
 
@@ -564,7 +564,7 @@ dropck 这一侧有个现代结论值得记住：**如果一个类型已经写�
 
 > adding an extra `_owns_T: PhantomData<T>` field is thus *superfluous* and accomplishes nothing
 
-理由来自 RFC 1238：`impl<T> Drop for Vec<T>` 的存在本身就让编译器认为「它拥有 `T`」——因为在析构实现里可能用到 `T`。所以自己写容器时，不再需要模仿老式 `Vec` 的写法；`PhantomData` 在该处的价值回到变型与 auto trait。
+理由来自 RFC 1238：`impl<T> Drop for Vec<T>` 的存在本身就让编译器认为「它拥有 `T`」——因为在析构实现里可能用到 `T`。所以自己写容器时，不再需要模仿老式 `Vec` 的写法；`PhantomData` 在该处的价值回到型变与 auto trait。
 
 一手证据就在标准库源码里：`Unique<T>` 带着一个这样的字段，注释写着 “this marker has no consequences for variance, but is necessary for dropck to understand that we logically own a `T`”（本机 1.98 的 `library/core/src/ptr/unique.rs:35`）；`RawVec<T, A>` 里也是同一手笔（`library/alloc/src/raw_vec/mod.rs:75`）。
 
@@ -706,7 +706,7 @@ delta
 
 ### 实验 C：亲手造一个协变 / 不变 / 逆变的包装
 
-把 16.2 的三个结构体放进同一个文件，逐个看编译结果：`Co`（`PhantomData<&'a ()>`）与 `Contra`（`PhantomData<fn(&'a ())>`）的两个方向都能过，`Inv`（`PhantomData<*mut &'a ()>`）的两个方向都过不了。这不是「编译器脾气古怪」，而是变型表在起作用；把三个结构体的 `_marker` 类型互换，能通过的方向也会跟着换。
+把 16.2 的三个结构体放进同一个文件，逐个看编译结果：`Co`（`PhantomData<&'a ()>`）与 `Contra`（`PhantomData<fn(&'a ())>`）的两个方向都能过，`Inv`（`PhantomData<*mut &'a ()>`）的两个方向都过不了。这不是「编译器脾气古怪」，而是型变表在起作用；把三个结构体的 `_marker` 类型互换，能通过的方向也会跟着换。
 
 ## 报错现场
 
@@ -903,10 +903,10 @@ error[E0392]: lifetime parameter `'a` is never used
 ## 小结
 
 - **子类型**负责灵活性：`'long <: 'short` 当且仅当 `'long` 完全包含 `'short`；`&'a T` 对 `'a` 协变，所以「长的当短的用」在只读位置成立。
-- **变型**负责安全：`&mut T` 对 `T` 不变（能写就不能降级），`Cell`/`UnsafeCell` 同理；`fn(T)` 是语言里**唯一**的逆变来源；结构体的变型由字段推导，不变赢得冲突。1.98 给 `&mut` 的 unsize 强转开了缩短的小口子。
+- **型变**负责安全：`&mut T` 对 `T` 不变（能写就不能降级），`Cell`/`UnsafeCell` 同理；`fn(T)` 是语言里**唯一**的逆变来源；结构体的型变由字段推导，不变赢得冲突。1.98 给 `&mut` 的 unsize 强转开了缩短的小口子。
 - **HRTB** 负责范围：`for<'a> Fn(&'a str) -> &'a str` 表示「对所有 `'a` 成立」。闭包 trait 签名里的省略会自动变成这种形式；非闭包 trait 的参数、输入多于一个而要指定输出跟随哪一个、以及需要给闭包补签名的场合，才要手写 `for<'a>`。闭包没有期望签名时会退化成某个具体生命周期。
 - **dropck** 负责时机：泛型类型的析构实现可能访问借用数据，所以它的泛型参数必须**严格**比它活得久。检查是保守的（看不到 `Drop` 函数体），必要时标准库用 nightly 的 `#[may_dangle]` + `unsafe impl` 自行承诺。
-- **`PhantomData`** 是「声明一个不存在的字段」：占位（避开 `E0392`）、定变型（`&'a T` / `fn(T)` / `*mut T` 三种写法对应三个方向）、参与 dropck 与 auto trait。已有 `Drop` 实现时，它对 dropck 是多余的（RFC 1238）。
+- **`PhantomData`** 是「声明一个不存在的字段」：占位（避开 `E0392`）、指定型变（`&'a T` / `fn(T)` / `*mut T` 三种写法对应三个方向）、参与 dropck 与 auto trait。已有 `Drop` 实现时，它对 dropck 是多余的（RFC 1238）。
 - **省略规则**是「恰好一个输入生命周期」这一条硬条件加两个特例（唯一输入、`&self` 接收者）；`&Words` 这类含两个生命周期的写法推不出来。trait object 有自己的默认规则，`Box<dyn Trait>` 就是 `+ 'static`。
 
 ## 练习
@@ -954,7 +954,7 @@ struct Bag<'a> {
 - `Inv<'static>` → 更短的 `'a`：**不通过**（不变，报 `E0597`，报错里会有「type annotation requires that `s` is borrowed for `'static`」这类提示）；
 - `Contra<'static>` → 更短的 `'a`：**不通过**；反过来「更短的 `Contra` → `'static` 位置」**通过**（逆变，16.2 第三个验证块）。
 
-理由是 `PhantomData` 模拟字段的变型：`&'a ()` 对 `'a` 协变，`*mut &'a ()` 里 `'a` 落在不变位置，`fn(&'a ())` 则把方向翻了过来。
+理由是 `PhantomData` 模拟字段的型变：`&'a ()` 对 `'a` 协变，`*mut &'a ()` 里 `'a` 落在不变位置，`fn(&'a ())` 则把方向翻了过来。
 
 **题 2.** 把 `F: Fn(&'a str) -> usize` 换成 `F: for<'a> Fn(&'a str) -> usize`（或者直接省略成 `F: Fn(&str) -> usize`，它会自动变成高阶形式）。
 
@@ -975,8 +975,8 @@ bag.holder = Some(Holder(&bag.data));
 
 ## 延伸阅读
 
-- Nomicon：子类型与变型（<https://doc.rust-lang.org/nomicon/subtyping.html>）、HRTB（<https://doc.rust-lang.org/nomicon/hrtb.html>）、drop check（<https://doc.rust-lang.org/nomicon/dropck.html>）、`PhantomData`（<https://doc.rust-lang.org/nomicon/phantom-data.html>）
-- Reference：生命周期省略（<https://doc.rust-lang.org/reference/lifetime-elision.html>）、子类型与变型（<https://doc.rust-lang.org/reference/subtyping.html>）、析构（<https://doc.rust-lang.org/reference/destructors.html>）
+- Nomicon：子类型与型变（<https://doc.rust-lang.org/nomicon/subtyping.html>）、HRTB（<https://doc.rust-lang.org/nomicon/hrtb.html>）、drop check（<https://doc.rust-lang.org/nomicon/dropck.html>）、`PhantomData`（<https://doc.rust-lang.org/nomicon/phantom-data.html>）
+- Reference：生命周期省略（<https://doc.rust-lang.org/reference/lifetime-elision.html>）、子类型与型变（<https://doc.rust-lang.org/reference/subtyping.html>）、析构（<https://doc.rust-lang.org/reference/destructors.html>）
 - 标准库：`PhantomData`（<https://doc.rust-lang.org/std/marker/struct.PhantomData.html>）、`Drop`（<https://doc.rust-lang.org/std/ops/trait.Drop.html>）、`RefCell`（<https://doc.rust-lang.org/std/cell/struct.RefCell.html>）
 - 版本与发布说明：<https://doc.rust-lang.org/stable/releases.html>（本章引用的 1.91 模式绑定析构顺序、1.98 `&mut` 缩短两条都在这里）
 - RFC：dropck 的 `#[may_dangle]`（<https://github.com/rust-lang/rfcs/blob/master/text/1327-dropck-param-eyepatch.md>）、非参数化 dropck（<https://github.com/rust-lang/rfcs/blob/master/text/1238-nonparametric-dropck.md>）、析构顺序（<https://github.com/rust-lang/rfcs/blob/master/text/1857-stabilize-drop-order.md>）

@@ -122,10 +122,10 @@
 
 ## 新一轮：两线并行（2026-10-18 开工）
 
-- **线 A 进度**：ch12（4717 汉字）✓、ch13（5106）✓、ch14（impl Trait 与 opaque type，4398）✓、ch15（4513）✓；其余 3 章在写（ch16/17/18）。
-  - 新术语与图示需求（收尾统一并表/补图）：ch12 —— 关联类型/扩展 trait/密封 trait/一致性/固有方法/基础类型构造器/dyn 兼容性/blanket impl；coherence 2×2、sealed 三层、关联类型 vs 泛型对照。ch13 —— trait 对象/向上转型/向下转型/vtable/auto trait/dyn；胖指针+vtable 布局（最高优先）、单态化 vs dyn 路径、向上转型。ch14 —— 隐藏类型/捕获/精确捕获/APIT/RPITIT/AFIT；APIT/RPIT 角色方向、捕获集合 2021 vs 2024、RPIT/Box<dyn>/enum 取舍。ch15 —— const 泛型/GAT/借用式迭代器/inline const；GAT 借用时间轴。
-  - **术语待裁**：coherence 的「覆盖（covered）/未覆盖」与 GLOSSARY「遮蔽」条的 `_Avoid_: 覆盖` 冲突 → 并表时在「遮蔽」下加区分注（coherence 语境的「覆盖」指本地类型构造器覆盖，不是遮蔽）。
-  - 章内遗留：ch13 —— vtable 头部字段顺序留 ch25；`async_fn_in_dyn_trait` 取自 research 未自行探针；`Pin<P>` 未实测。ch14 —— `cargo fix --edition` 插 `use<>` 依 Edition Guide 未本机跑；trait 内 `use<..>` 的 1.87 起点依 research 基线。
+- **线 A 进度**：ch12（4717 汉字）✓、ch13（5106）✓、ch14（4398）✓、ch15（4513）✓、ch16（6332，裁定不删减）✓；其余 2 章在写（ch17/18）。
+  - 新术语与图示需求（收尾统一并表/补图）：ch12 —— 关联类型/扩展 trait/密封 trait/一致性/固有方法/基础类型构造器/dyn 兼容性/blanket impl；coherence 2×2、sealed 三层、关联类型 vs 泛型对照。ch13 —— trait 对象/向上转型/向下转型/vtable/auto trait/dyn；胖指针+vtable 布局（最高优先）、单态化 vs dyn 路径、向上转型。ch14 —— 隐藏类型/捕获/精确捕获/APIT/RPITIT/AFIT；APIT/RPIT 角色方向、捕获集合 2021 vs 2024、RPIT/Box<dyn>/enum 取舍。ch15 —— const 泛型/GAT/借用式迭代器/inline const；GAT 借用时间轴。ch16 —— 型变（裁定：用「型变」而非「变型」）/**协变/逆变/不变**/HRTB/drop check/sound generic drop/drop scope/晚绑定生命周期；三种变型赋值方向、借用区间 vs 析构点、省略规则决策树。
+  - **术语待裁**：coherence 的「覆盖（covered）/未覆盖」与 GLOSSARY「遮蔽」条的 `_Avoid_: 覆盖` 冲突 → 并表时在「遮蔽」下加区分注（coherence 语境的「覆盖」指本地类型构造器覆盖，不是遮蔽）。ch16 的「型变」裁定已下放作者改字。
+  - 章内遗留：ch13 —— vtable 头部字段顺序留 ch25；`async_fn_in_dyn_trait` 取自 research 未自行探针；`Pin<P>` 未实测。ch14 —— `cargo fix --edition` 插 `use<>` 依 Edition Guide 未本机跑；trait 内 `use<..>` 的 1.87 起点依 research 基线。ch16 —— `&mut` unsize 缩短仅证 1.98 可编译（≤1.97 未对照）；Vec 的 `#[may_dangle]` 依赖 Nomicon 结论未本机复现。
 - **线 B — 基础篇补图（票 22）**：✓ **完成**（36 张图；票 22 resolved；验证见下方「线 B 完成」与协调者汇总；提交 `592df35`）。
 - 收尾待办：图落地后跑 build + 逐章 HTML 校验（`aria-label` 计数）；然后 22 票写 Answer（用户抽查后）；进阶篇落地后按上轮模式派 7 份审校。
 - **协作事故（已处置，2026-10-18）**：共享探针目录 `.scratch/tmp-f22/` 被多个补图代理共用 → 互相覆盖（FigCh03 的图被别人的覆盖、FigCh07 撞到、目录后被清掉）。已广播：改私有 `.scratch/tmp-f22-<章号>/`，并要求用共享目录目视过的代理重跑。**正文未受影响**（一章一代理）；收尾校验将含「结构合规脚本 + 抽样栅格化目视 + build/HTML 计数」。
