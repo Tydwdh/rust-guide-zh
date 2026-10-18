@@ -112,4 +112,5 @@
 - **08 票 resolved**：图示体系 = **内嵌 SVG**（用户裁决）；样例图已落 `src/ch06-collections-strings.md` 的 UTF-8 一节，并验证：`aria-label` 匹配、元素齐全、build 无 WARN/ERROR、全站 0 处 `{{#` 残留。
 - **新开票 22**（基础篇图示补全，需求 ~35 处，等用户验样例后排期）；地图（进度 / 图示 / 决策 / 迷雾）、README、`examples/README.md` 已同步。
 - **术语并表完成**：`GLOSSARY.md` 19 → 99 条。
-- 待办：Project1Cli 修回 → 全量链（`mdbook test` 全量 + `cargo test --manifest-path examples/Cargo.toml` + `mdbook build` 扫 ERROR/WARN）→ 收尾提交 → 用户验收（`mdbook serve` 通读 + 样例图判定）。
+- **全量链已全绿**（2026-10-18）：`mdbook build` 0 WARN/ERROR（含 linkcheck2）｜`mdbook test` exit 0（13 章全测）｜`cargo test --manifest-path examples/Cargo.toml` 19 + 2 passed｜项目 1：`cargo build` 0 warning、`cargo fmt --check` 干净。收尾提交 `3ede8a1`，工作区干净。
+- **待办**：用户验收（`mdbook serve` 通读 + 样例图判定）→ 13 张票写 `## Answer` + `resolved`；22 票（基础篇补图）排期。

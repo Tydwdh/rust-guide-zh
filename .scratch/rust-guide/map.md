@@ -18,7 +18,7 @@
 - **教学法**：概念为骨 + 每部分配一个实战项目（心智模型先行）。
 - **写作票**：每章一张；《基础篇》批次为 `09`–`21`（其余各篇按篇开）；每章末 2–3 道理解题（带答案）；每篇一个独立小项目。
 - **写作规范**：开工前读 `WRITING.md`（示例组织 / 版本基线 / 校验链 / 八节模板 / 加严 DoD / 已知坑）与 `GLOSSARY.md`（术语）；写作票按它们自证。
-- **进度**（2026-10-18）：基础篇（前言 + 第 1–11 章 + 项目 1）13 票全部落稿 → 12 份交叉审校 → 逐票修回完成；全量链待跑。过程记录见 `batch-notes.md`。
+- **进度**（2026-10-18）：基础篇（前言 + 第 1–11 章 + 项目 1）13 票全部落稿 → 13 份审校（每票一份） → 逐票修回完成 → **全量链全绿**（build 0 WARN/ERROR｜`mdbook test` exit 0｜examples 19+2 passed）。过程记录见 `batch-notes.md`。
 - **图示**：体系 = **内嵌 SVG**（手写、无脚本、`currentColor` 随主题变色；单块内不得有空行）。样例图在 `src/ch06-collections-strings.md` 的 UTF-8 一节；补全票 `22`（需求清单在 `batch-notes.md`），等用户验样例后排期。
 - **协作**：会话起草全部初稿、用户验收 → 每张写作票必须自证：示例编译/测试通过 + 关键事实引用官方来源（std/Reference/Nomicon）+ 不确定处显式标注。
 - **工具链**：git 2.55 / rustc+cargo 1.98 stable / mdbook 0.5.4（Windows）。edition = **2024**（已写进 `book.toml`），验证基线 = 最新 stable；注意 mdbook 默认按 2015 编译代码块（见 03）。
@@ -37,7 +37,7 @@
 - [04 定位与差异化边界](issues/04-positioning-and-differentiation.md): 定位翻转为「从零教程（假定会编程）」；承诺=理解（诊断作方法）；起点线/引用策略/误解暗线/边界（系统层深入、深水与领域进补充章节、不点名任何现有资源）/暂名《Rust 指南（暂定）》全部定稿。
 - [05 内容版图与章节结构](issues/05-content-map-and-structure.md): 版图 v0 定稿 —— 六篇 41 章 + 5 项目（`SUMMARY.md` 草稿条目 + `outline-v0.md`）；顺序吃 02 批次序；每章一张写作票、每章 2–3 道理解题（带答案）；基础篇 13 张写作票（09–21）已开、全部 blocked by 06。
 - [06 写作与验收规范](issues/06-writing-and-acceptance-spec.md): 规范定稿 —— `WRITING.md`（混合示例制 / edition 2024 + 最新 stable / 标准校验链 / 八节章节模板 / 加严 DoD 含交叉审校 / 已知坑）+ `GLOSSARY.md` 草案（trait 保留英文）；`book.toml` 已设 edition 与 create-missing。
-- [08 样板章](issues/08-sample-chapter-prototype.md): 原型由批量写作取代（基础篇 13 票落稿 + 12 份交叉审校 + 逐票修回）；反馈沉淀为 WRITING 增补（示例组织四硬规则 / 跨语言断言 / 逐字核对 / 命令行与路径口径 / 六条实测坑）；**图示体系定案 = 内嵌 SVG**（用户裁决），样例图落在 ch06。
+- [08 样板章](issues/08-sample-chapter-prototype.md): 原型由批量写作取代（基础篇 13 票落稿 + 13 份审校（每票一份） + 逐票修回）；反馈沉淀为 WRITING 增补（示例组织四硬规则 / 跨语言断言 / 逐字核对 / 命令行与路径口径 / 六条实测坑）；**图示体系定案 = 内嵌 SVG**（用户裁决），样例图落在 ch06。
 
 ## Not yet specified
 
