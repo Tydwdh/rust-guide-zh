@@ -36,3 +36,4 @@ Status: claimed
   1. **胖指针 + vtable 布局图**（正文「vtable 与三种持有形式」，优先级最高）：`&dyn Shape` 两个机器字 → 数据指针指向具体值、vtable 指针指向「头部元数据 + 每方法一格」，两个具体类型各一张 vtable。
   2. **泛型 vs dyn 代码路径对照图**（正文「两条多态路线的账」）：单态化 = 3 份代码 + 直接调用（可内联）；dyn = 1 份代码 + vtable 取址 + 间接调用（不可内联）。
   3. **向上转型图**（正文「向上转型（1.86 起）」）：`dyn Pet → dyn Animal` 数据指针不变、只换 vtable 视图；旁标「横向（`dyn Shape` → `dyn Named`）不合法」。
+- 2026-10-18 linkcheck2 处置（协调者全量构建报警）：`src/ch13-dyn-trait-objects.md` 第 68 行引 C++ 草案条款编号时写成 `*[class.virtual]*`，被 mdbook-linkcheck2 判为 `Potential incomplete link`。已改为行内代码形式 `` `[class.virtual]` ``（协调者建议的第二种改法）。全章核查后确认：其余方括号都在栅栏或行内代码里——IR 摘录的 `[24 x i8]`、程序输出的 `[100, 101, 102]` / `[2, 4, 6, 8, 10]`、报错行的 `error[E0038]` / `error[E0191]`，以及 admonition 标记 `[!NOTE]` / `[!WARNING]`，都不构成潜在链接。复跑 `mdbook test -c ch13-dyn-trait-objects.md` → 仍 **exit 0**。

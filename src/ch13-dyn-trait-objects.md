@@ -65,7 +65,7 @@ show::<f64>  ─┘    直接调用                  vtable 指针 → 方法槽
 
 Rust 的差别在于：Rust 有单态化，泛型与 `dyn` 是两条真实的、代价不同的路线；Java 泛型会被擦除，接口调用一律走动态分派，所以「选泛型还是选 dyn」这个问题在 Java 里基本不存在。
 
-**C++：`virtual` 声明 + 继承层次。** C++ 的虚函数必须在类里用 `virtual` 首次声明（或覆盖基类的虚函数），标准草案 *[class.virtual]* 的定义是：
+**C++：`virtual` 声明 + 继承层次。** C++ 的虚函数必须在类里用 `virtual` 首次声明（或覆盖基类的虚函数），标准草案 `[class.virtual]` 一节的定义是：
 
 > A non-static member function is a virtual function if it is first declared with the keyword virtual or if it overrides a virtual member function declared in a base class (see below).
 
