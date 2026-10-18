@@ -26,7 +26,7 @@
 - [第 16 章 生命周期进阶：variance、HRTB 与 drop check](ch16-lifetimes-advanced.md)
 - [第 17 章 智能指针与内部可变性](ch17-smart-pointers.md)
 - [第 18 章 错误处理与 API 设计](ch18-error-api-design.md)
-- [项目 2：小型库 crate]()
+- [项目 2：表达式求值器（小型库 crate）](project2-expr-eval.md)
 
 # 第三篇 并发与异步
 
@@ -34,14 +34,14 @@
 - [第 20 章 原子与内存序](ch20-atomics-memory-ordering.md)
 - [第 21 章 async 基础：Future、执行器与运行时](ch21-async-basics.md)
 - [第 22 章 Pin 与自引用](ch22-pin-self-reference.md)
-- [项目 3：并发/异步小程序]()
+- [项目 3：迷你任务队列（并发与异步篇）](project3-task-queue.md)
 
 # 第四篇 系统层
 
-- [第 23 章 unsafe 与 UB]()
-- [第 24 章 指针、provenance 与未初始化内存]()
-- [第 25 章 数据布局与 repr]()
-- [第 26 章 FFI 与 ABI]()
+- [第 23 章 unsafe 与 UB](ch23-unsafe-and-ub.md)
+- [第 24 章 指针、provenance 与未初始化内存](ch24-pointers-provenance.md)
+- [第 25 章 数据布局与 repr](ch25-data-layout-repr.md)
+- [第 26 章 FFI 与 ABI](ch26-ffi-abi.md)
 - [项目 4：FFI 与 unsafe 小项目]()
 
 # 第五篇 工程实践
